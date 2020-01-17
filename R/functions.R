@@ -22,7 +22,7 @@ sim_pois_ar = function(n, phi, lam){
   return(x)
 }
 
-HermCoef_k <- function(lam, k, polys){
+HermCoef_k <- function(lam, k, polys = polys){
   #######################################################################
   # PURPOSE    Compute kth Hermite Coefficient. See relation (21) in
   #            https://arxiv.org/pdf/1811.00203.pdf
