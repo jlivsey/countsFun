@@ -11,9 +11,6 @@
 # R version 3.5.3
 
 # ---- Load libraries ----
-library(MASS) # for generating bivariate normal data
-library(orthopolynom) # for hermite polynomials
-library(mvtnorm) # for multivariate Gaussian density
 library(parallel)
 library(doParallel)
 library(countsFun)
@@ -21,14 +18,14 @@ library(ggplot2)
 
 # ---- setup parameters for Poisson(lam)-AR(1) series ----
 CountDist = "Poisson"                 # Distribution
-MargParm = 20                          # marginal parameter
+MargParm = 10                          # marginal parameter
 #ARParm = c(.5,-.4,0,.3)               # AR parameters
 ARParm = -0.75                         # AR parameters
-n = 1000                               # sample size
+n = 400                               # sample size
 nsim = 200                             # number of realizations
 initial.param = c(MargParm, ARParm)    # Initial PArameters
 no_cores <- detectCores() -1           # Select the number of cores
-polys <<- hermite.he.polynomials(100)  # the double << makes it global
+#polys <<- hermite.he.polynomials(100)  # the double << makes it global
 
 # Generate all the data and save in a list
 l <- list()

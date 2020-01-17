@@ -159,7 +159,7 @@ CovarPoissonAR = function(n,lam,phi){
   HC = HermCoef(lam)
 
   # ARMA autocorrelation function
-  ar.acf <- ARMAacf(ar = phi, lag.max = n)
+  ar.acf <- ARMAacf(ar = phi, lag.max = n)/(1/(1-phi^2))
 
   # Autocovariance of count series--relation (9) in https://arxiv.org/pdf/1811.00203.pdf
   gamma_x = CountACVF(h = 0:(n-1), lam = lam, myacf = ar.acf, g = HC, 20)
