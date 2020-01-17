@@ -22,6 +22,58 @@ sim_pois_ar = function(n, phi, lam){
   return(x)
 }
 
+
+evalPolynomial <- function(coefs, x){
+  #######################################################################
+  # PURPOSE    compute arbitrary polynomial given coefficients and input
+  #
+  # INPUT
+  #   coefs    vector of coefficients
+  #   x        input
+  #
+  # Output
+  #   value   returns f(x) = coefs[1] * x^0 +
+  #                          coefs[2] * x^1 +
+  #                                     ... +
+  #                          coefs[n] * x^(n-1)
+  #
+  # Authors    Stefanos Kechagias, James Livsey
+  # Date       January 2020
+  # Version    3.6.1
+  #######################################################################
+  if(length(coefs) == 1){
+    return(coefs) # handle scalar case
+  } else{
+    n <- length(coefs)-1
+    out <- sum(coefs * x^(0:n))
+    return(out)
+  }
+}
+
+#######################################################################
+# PURPOSE    Evaluate k^th Hermite Polynomial at scaler input.
+#           See relation (7) https://arxiv.org/pdf/1811.00203.pdf
+#
+# INPUT
+#   k        index of Hermite coefficient
+#   x        input to Hermite Polynomial
+#
+#
+# Output
+#   value   returns H_k(x). See relation (7)
+#           in https://arxiv.org/pdf/1811.00203.pdf
+#
+# Authors    Stefanos Kechagias, James Livsey
+# Date       January 2020
+# Version    3.6.1
+#######################################################################
+evalHermPolynomial <- function(k, x){
+  coefs <- HermPolyCoefs[[k+1]]
+  out <- evalPolynomial(coefs, x)
+  return(out)
+}
+
+
 HermCoef_k <- function(lam, k, polys = polys){
   #######################################################################
   # PURPOSE    Compute kth Hermite Coefficient. See relation (21) in
