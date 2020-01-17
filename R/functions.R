@@ -74,7 +74,7 @@ evalHermPolynomial <- function(k, x){
 }
 
 
-HermCoef_k <- function(lam, k, polys = polys){
+HermCoef_k <- function(lam, k){
   #######################################################################
   # PURPOSE    Compute kth Hermite Coefficient. See relation (21) in
   #            https://arxiv.org/pdf/1811.00203.pdf
@@ -93,7 +93,9 @@ HermCoef_k <- function(lam, k, polys = polys){
   #######################################################################
 
   # compute kth Hermite Polynomial
-  her <- as.function(polys[[k+1]]) # polys[[k]] = H_{k-1}
+  her <- function(x){
+    evalHermPolynomial(k, x)
+  }
 
   # truncation numbe: check me
   N <- which(round(ppois(1:1000, lam), 7) == 1)[1]
