@@ -228,7 +228,7 @@ FitGaussianLik = function(initialParam,x){
   # Version    3.6.1
   #######################################################################
   optim.output <- optim(par = initialParam,
-                        fn = Gaussianlik,
+                        fn = GaussLogLik,
                         data = x,
                         method = "BFGS")
   return(optim.output$par)
