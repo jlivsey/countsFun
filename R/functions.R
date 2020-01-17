@@ -162,7 +162,7 @@ CovarPoissonAR = function(n,lam,phi){
   ar.acf <- ARMAacf(ar = phi, lag.max = n)
 
   # Autocovariance of count series--relation (9) in https://arxiv.org/pdf/1811.00203.pdf
-  gamma_x = CountACVF(h = 0:(n-1), lam = lam, myacf = ar.acf, g = HC)
+  gamma_x = CountACVF(h = 0:(n-1), myacf = ar.acf, g = HC)
 
   # Final toeplitz covariance matrix--relation (56) in https://arxiv.org/pdf/1811.00203.pdf
   GAMMA = toeplitz(gamma_x)
@@ -189,8 +189,8 @@ CountACVF_h = function(h, myacf, g){
   # Version    3.6.1
   #######################################################################
 
-  k = length(g)-1 #check me
-  gamma_x = sum(g^2 *  factorial(0:k) * (myacf[h+1])^(0:k))
+  k = length(g) #check me
+  gamma_x = sum(g^2 *  factorial(1:k) * (myacf[h+1])^(1:k))
   return(gamma_x)
 
   }
@@ -248,7 +248,7 @@ GaussLogLik = function(theta, data){
   }
 
   # Compute the covariance matrix--relation (56) in https://arxiv.org/pdf/1811.00203.pdf
-  GAMMA = CovarPoissonAR(n,lam,phi)
+  GAMMA = CovarPoissonAR(n, lam, phi)
 
   # Compute the logdet and the quadratic part
   logLikComponents = EvalInvQuadForm(GAMMA, as.numeric(data), lam)
@@ -263,7 +263,7 @@ GaussLogLik = function(theta, data){
 
 
 
-FitGaussianLik = function(initialParam,x){
+FitGaussianLik = function(initialParam, x){
   #######################################################################
   # PURPOSE    Fit the Gaussian log-likelihood for Poisson AR series
   #
