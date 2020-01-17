@@ -23,7 +23,7 @@ sim_pois_ar = function(n, phi, lam){
 }
 
 
-evalPolynomial <- function(coefs, x){
+evalPolynomial_scalarX <- function(coefs, x){
   #######################################################################
   # PURPOSE    compute arbitrary polynomial given coefficients and input
   #
@@ -42,13 +42,13 @@ evalPolynomial <- function(coefs, x){
   # Version    3.6.1
   #######################################################################
   if(length(coefs) == 1){
-    return(coefs) # handle scalar case
-  } else{
-    n <- length(coefs)-1
-    out <- sum(coefs * x^(0:n))
-    return(out)
+      return(coefs) # handle scalar case
   }
+  n <- length(coefs) - 1
+  out <- sum(coefs * x^(0:n))
+  return(out)
 }
+evalPolynomial <- Vectorize(evalPolynomial_scalarX, vectorize.args = "x")
 
 #######################################################################
 # PURPOSE    Evaluate k^th Hermite Polynomial at scaler input.
@@ -82,7 +82,6 @@ HermCoef_k <- function(lam, k){
   # INPUT
   #   lam      Marginal parameter
   #   k        index of Hermite coefficient
-  #   polys    Hermite Polynomial
   #
   # Output
   #   HC_k     kth hermite coeficient
@@ -92,7 +91,7 @@ HermCoef_k <- function(lam, k){
   # Version    3.6.1
   #######################################################################
 
-  # compute kth Hermite Polynomial
+  # function for kth Hermite Polynomial
   her <- function(x){
     evalHermPolynomial(k, x)
   }
@@ -111,14 +110,13 @@ HermCoef_k <- function(lam, k){
 
 
 
-HermCoef <- function(lam, polys, maxCoef = 20){
+HermCoef <- function(lam){
   #######################################################################
   # PURPOSE    Compute all Hermite Coefficients. See relation (21) in
   #            https://arxiv.org/pdf/1811.00203.pdf
   #
   # INPUT
   #   lam      Marginal parameter
-  #   polys    Hermite Polynomial
   #   maxCoef  number of coefficients to return. Default = 20
   #
   # Output
@@ -129,10 +127,10 @@ HermCoef <- function(lam, polys, maxCoef = 20){
   # Version    3.6.1
   #######################################################################
 
-  h = 0:maxCoef #check me
+  h = 0:20 #check me
   HC = rep(NA, length(h)) # storage
   for(i in h) {
-    HC[i+1] <- HermCoef_k(lam = lam, k = i, polys = polys)
+    HC[i+1] <- HermCoef_k(lam = lam, k = i)
   }
 
   return(HC)
@@ -158,7 +156,7 @@ CovarPoissonAR = function(n,lam,phi){
   #######################################################################
 
   # Hermite coeficients--relation (21) in https://arxiv.org/pdf/1811.00203.pdf
-  HC = HermCoef(lam,polys) # polys is Global
+  HC = HermCoef(lam)
 
   # ARMA autocorrelation function
   ar.acf <- ARMAacf(ar = phi, lag.max = n)
