@@ -159,10 +159,10 @@ CovarPoissonAR = function(n,lam,phi){
   HC = HermCoef(lam)
 
   # ARMA autocorrelation function
-  ar.acf <- ARMAacf(ar = phi, lag.max = n)/(1/(1-phi^2))
+  ar.acf <- ARMAacf(ar = phi, lag.max = n)
 
   # Autocovariance of count series--relation (9) in https://arxiv.org/pdf/1811.00203.pdf
-  gamma_x = CountACVF(h = 0:(n-1), lam = lam, myacf = ar.acf, g = HC, 20)
+  gamma_x = CountACVF(h = 0:(n-1), lam = lam, myacf = ar.acf, g = HC)
 
   # Final toeplitz covariance matrix--relation (56) in https://arxiv.org/pdf/1811.00203.pdf
   GAMMA = toeplitz(gamma_x)
@@ -171,13 +171,12 @@ CovarPoissonAR = function(n,lam,phi){
 
 
 
-CountACVF_h = function(h, lam, myacf, g, max.terms = 20){
+CountACVF_h = function(h, myacf, g){
   #######################################################################
   # PURPOSE    Compute the autocovariance matrix of the count series.
   #            See relation (9) in https://arxiv.org/pdf/1811.00203.pdf
   # INPUT
   #   h        acvf lag
-  #   lam      Marginal Parameter
   #   myacf    autocorrelation of Gaussian series: rho_z
   #   g        Hermitte Coefficients
   # Output
@@ -190,8 +189,8 @@ CountACVF_h = function(h, lam, myacf, g, max.terms = 20){
   # Version    3.6.1
   #######################################################################
 
-  k = 1:max.terms #check me
-  gamma_x = sum(g[k]^2 *  factorial(k) * (myacf[h+1])^(k))
+  k = length(g)-1 #check me
+  gamma_x = sum(g^2 *  factorial(0:k) * (myacf[h+1])^(0:k))
   return(gamma_x)
 
   }
