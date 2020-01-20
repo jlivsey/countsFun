@@ -22,7 +22,7 @@ MargParm = 10                          # marginal parameter
 #ARParm = c(.5,-.4,0,.3)               # AR parameters
 ARParm = -0.75                         # AR parameters
 n = 400                               # sample size
-nsim = 200                             # number of realizations
+nsim = 200                            # number of realizations
 initial.param = c(MargParm, ARParm)    # Initial PArameters
 no_cores <- detectCores() -1           # Select the number of cores
 #polys <<- hermite.he.polynomials(100)  # the double << makes it global
@@ -71,7 +71,7 @@ r2 = M2-m2
 blank_data <- data.frame(variable = c("lam.est", "lam.est", "phi.est", "phi.est"), x = 0,
                          value = c(c(M1-1.2*r1, m1+1.2*r1), c(M2-1.2*r2, m2+1.2*r2)))
 ## Plot it in ggplot
-ggplot() +
+g1 <- ggplot() +
   geom_boxplot(data = df, aes(x = factor(0), y = value,fill=variable)) +
   geom_blank(data = blank_data, aes(x = factor(0), y = value)) +
   geom_hline(data = df, aes(yintercept = true), col="blue", lty="dashed") +
@@ -83,10 +83,17 @@ ggplot() +
         axis.text.x=element_blank(),
         axis.ticks.x=element_blank(),
         legend.position="none")
+print(g1)
 
 # Bias
 MeanBias = c(n,colMeans(all)-initial.param)
-MeanBias
+print(round(MeanBias, 6))
+
+#                lam.true=10  phi.true=0.75
+# 100.00000000   0.05060780  -0.03908736
+# 400.00000000   0.01529747  -0.01658201
 
 
-
+#                lam.true=10  phi.true=-0.75
+# 100.000000     0.001920    0.014662
+# 400.000000    -0.000822    0.007393

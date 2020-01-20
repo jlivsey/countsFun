@@ -68,6 +68,9 @@ evalPolynomial <- Vectorize(evalPolynomial_scalarX, vectorize.args = "x")
 # Version    3.6.1
 #######################################################################
 evalHermPolynomial <- function(k, x){
+  if(k < 0){
+    return(0)
+  }
   coefs <- HermPolyCoefs[[k+1]]
   out <- evalPolynomial(coefs, x)
   return(out)
@@ -93,18 +96,18 @@ HermCoef_k <- function(lam, k){
 
   # function for kth Hermite Polynomial
   her <- function(x){
-    evalHermPolynomial(k, x)
+    evalHermPolynomial(k-1, x)
   }
 
   # truncation numbe: check me
   N <- which(round(ppois(1:1000, lam), 7) == 1)[1]
 
   # compute terms in the sum of relation (21) in
-  terms <- exp(-qnorm(ppois(0:N, lam, lower.tail= TRUE))^2/2) *
+  terms <- exp((-qnorm(ppois(0:N, lam, lower.tail= TRUE))^2)/2) *
     her(qnorm(ppois(0:N, lam, lower.tail = TRUE)))
 
   # take the sum of all terms
-  HC_k <- sum(terms)/sqrt(2*pi)/factorial(k)
+  HC_k <- sum(terms) / (sqrt(2*pi) *  factorial(k))
   return(HC_k)
 }
 
@@ -127,10 +130,10 @@ HermCoef <- function(lam){
   # Version    3.6.1
   #######################################################################
 
-  h = 0:20 #check me
+  h = 1:20 #check me
   HC = rep(NA, length(h)) # storage
   for(i in h) {
-    HC[i+1] <- HermCoef_k(lam = lam, k = i)
+    HC[i] <- HermCoef_k(lam = lam, k = i)
   }
 
   return(HC)
