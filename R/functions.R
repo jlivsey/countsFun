@@ -284,7 +284,8 @@ FitGaussianLik = function(initialParam, x){
   optim.output <- optim(par = initialParam,
                         fn = GaussLogLik,
                         data = x,
-                        method = "BFGS")
+                        method = "BFGS",
+                        hessian=TRUE)
 
   # save estimates, loglik and standard errors
   ParmEst  = optim.output$par
@@ -456,7 +457,8 @@ FitGaussianLikNB = function(initialParam, x){
   optim.output <- optim(par = initialParam,
                         fn = GaussLogLikNB,
                         data = x,
-                        method = "BFGS")
+                        method = "BFGS",
+                        hessian=TRUE)
 
   # save estimates, loglik and standard errors
   ParmEst  = optim.output$par
