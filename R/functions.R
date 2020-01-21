@@ -287,10 +287,16 @@ FitGaussianLik = function(initialParam, x){
                         method = "BFGS",
                         hessian=TRUE)
 
+  nparms = length(initialParam)
+  ParmEst = matrix(0,nrow=1,ncol=nparms)
+  se =  matrix(NA,nrow=1,ncol=nparms)
+  loglik = rep(0,1)
+
   # save estimates, loglik and standard errors
-  ParmEst  = optim.output$par
-  loglik   = optim.output$value
-  se       = sqrt(abs(diag(solve(optim.output$hessian))))
+  ParmEst[,1:nparms]   = optim.output$par
+  loglik               = optim.output$value
+  se[,1:nparms]        = sqrt(abs(diag(solve(optim.output$hessian))))
+
   All      = cbind(ParmEst, se, loglik)
   return(All)
 
@@ -460,10 +466,16 @@ FitGaussianLikNB = function(initialParam, x){
                         method = "BFGS",
                         hessian=TRUE)
 
+  nparms = length(initialParam)
+  ParmEst = matrix(0,nrow=1,ncol=nparms)
+  se =  matrix(NA,nrow=1,ncol=nparms)
+  loglik = rep(0,1)
+
   # save estimates, loglik and standard errors
-  ParmEst  = optim.output$par
-  loglik   = optim.output$value
-  se       = sqrt(abs(diag(solve(optim.output$hessian))))
+  ParmEst[,1:nparms]   = optim.output$par
+  loglik               = optim.output$value
+  se[,1:nparms]        = sqrt(abs(diag(solve(optim.output$hessian))))
+
   All      = cbind(ParmEst, se, loglik)
   return(All)
 
