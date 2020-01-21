@@ -94,7 +94,7 @@ HermCoef_k <- function(lam, k){
   # Version    3.6.1
   #######################################################################
 
-  # function for kth Hermite Polynomial
+  # function for (k-1)st Hermite Polynomial
   her <- function(x){
     evalHermPolynomial(k-1, x)
   }
