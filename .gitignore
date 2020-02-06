@@ -40,5 +40,4 @@ vignettes/*.pdf
 .Rbuildignore
 .DS_Store
 
-# Personal files
-noGit/*
+
