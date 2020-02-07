@@ -15,6 +15,39 @@
 
 library(countsFun)
 
+#' ---- setup parameters for Poisson(lam)-AR(p) series ----
+lam  <- 2
+phi  <- .75
+n    <- 100     # sample size
+nsim <- 50  # number of realizations
+
+#' ---- Variables needed that are functions of manual inputs ----
+p <- length(phi)  # AR order
+nparms <- p+1     # total number of parameters
+
+#' # 1. Gaussian Lik'd as in the paper
+
+#' ---- allocate memory to save output: ----
+ParmEst1 = matrix(0, nrow=nsim, ncol=nparms)
+
+#' for-loop for each realization
+for (r in 1:nsim){
+
+  # generate Poisson-AR(p) data
+  x <- sim_pois_ar(n, phi, lam )
+
+  # select initial parameters as true ones
+  initial.param <- c(lam, phi)
+
+  # run optimization for our model
+  optim.output <- FitGaussianLik(initialParam = initial.param, x = x)
+
+  # Store parameter estimates
+  ParmEst1[r, ] <- optim.output[1:2]
+
+  # reset the seed
+  set.seed(r)
+}
 
 
 
