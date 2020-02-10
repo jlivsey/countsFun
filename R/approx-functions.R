@@ -62,7 +62,7 @@ FitGaussianLikApprox = function(initialParam, x){
                         fn = GaussLikApprox,
                         data = x,
                         method = "BFGS",
-                        hessian=TRUE)
+                        hessian=FALSE)
 
   nparms = length(initialParam)
   ParmEst = matrix(0,nrow=1,ncol=nparms)
@@ -72,7 +72,7 @@ FitGaussianLikApprox = function(initialParam, x){
   # save estimates, loglik and standard errors
   ParmEst[,1:nparms]   = optim.output$par
   loglik               = optim.output$value
-  se[,1:nparms]        = sqrt(abs(diag(solve(optim.output$hessian))))
+  # se[,1:nparms]        = sqrt(abs(diag(solve(optim.output$hessian))))
 
   All      = cbind(ParmEst, se, loglik)
   return(All)
