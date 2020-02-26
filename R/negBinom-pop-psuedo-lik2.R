@@ -1,4 +1,4 @@
-myV_negBinom <- function(size.tru,
+myV_negBinom_2 <- function(size.tru,
                          prob.tru,
                          phi.tru,
                          size.free,
@@ -42,6 +42,6 @@ myV_negBinom <- function(size.tru,
     term3 <- nb.var.tru * t(gam1) %*% solve(G1) %*% G0 %*% solve(G1) %*% gam1
 
     # output
-    V <- term1 + term2 + term3
+    V <- (term1 + term2 + term3) / det(G1)^(1/n) + log(det(G1))/n
     return(V)
 }
