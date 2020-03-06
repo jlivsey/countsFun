@@ -160,12 +160,18 @@ CovarNegBinAR_2 = function(n,r, m, phi){
   ar.acf <- ARMAacf(ar = phi, lag.max = n)
 
 
-  GAMMA = matrix(NA,n,n)
-  # Final toeplitz covariance matrix when covariates are present
-  for (t2 in 0:(n-1)){
-     GAMMA[t2+1,] = CountACVF_2(t1=0:(n-1), t2, myacf = ar.acf, g = HC)
-  }
+  # create a grid for nonstationary covariance arguments
+  arg_df <- expand.grid(0:(n-1), 0:(n-1))
 
+  # compute the covariance for all values of t1,t2 = 0,...,n-1
+  gamma = CountACVF_2(arg_df[,1], arg_df[,2], myacf = ar.acf, g = HC)
+  GAMMA = matrix(gamma,n,n)
+
+  # GAMMA = matrix(NA,n,n)
+  # # Final toeplitz covariance matrix when covariates are present
+  # for (t2 in 0:(n-1)){
+  #    GAMMA[t2+1,] = CountACVF_2(t1=0:(n-1), t2, myacf = ar.acf, g = HC)
+  # }
   return(GAMMA)
 }
 
@@ -193,7 +199,8 @@ CountACVF_t1t2 = function(t1,t2, myacf, g){
 
 }
 
-CountACVF_2 <- Vectorize(CountACVF_t1t2, vectorize.args = c("t1"))
+CountACVF_2 <- Vectorize(CountACVF_t1t2, vectorize.args = c("t1", "t2"))
+
 
 HermCoefNegBin <- function(r,p){
   #######################################################################
