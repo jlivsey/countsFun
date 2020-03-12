@@ -253,7 +253,8 @@ HermCoefNegBin_k <- function(r,p, k){
   }
 
   # truncation numbe: check me
-  N = max(sapply(unique(p),function(x)which(round(pnbinom(1:1000, r,x), 7) == 1)[1]))
+  N <- which(round(pnbinom(1:1000, r,p), 7) == 1)[1]
+  # N = max(sapply(unique(p),function(x)which(round(pnbinom(1:1000, r,x), 7) == 1)[1]))
 
   # compute terms in the sum of relation (21) in
   terms <- exp((-qnorm(pnbinom(0:N, r,p, lower.tail= TRUE))^2)/2) *
