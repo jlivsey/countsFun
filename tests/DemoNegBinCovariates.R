@@ -8,7 +8,7 @@ library(tictoc)
 #source('C:/Users/stefa/Desktop/countsFun/R/negBinom-functions.R')
 
 # sample size
-n = 10
+n = 100
 
 # generate a regressor dummy variable
 X  = cbind(rep(1,n),rbinom(n, 1 ,0.4))
