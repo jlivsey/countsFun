@@ -254,6 +254,9 @@ HermCoefNegBin_k <- function(r,p, k){
 
   # truncation numbe: check me
   N <- which(round(pnbinom(1:1000, r,p), 7) == 1)[1]
+  if(is.na(N)){
+    N=1000
+  }
   # N = max(sapply(unique(p),function(x)which(round(pnbinom(1:1000, r,x), 7) == 1)[1]))
 
   # compute terms in the sum of relation (21) in
@@ -303,7 +306,7 @@ FitGaussianLikNB = function(initialParam, x){
 }
 
 
-FitGaussianLikNB_2 = function(initialParam, x){
+FitGaussianLikNB_2 = function(initialParam, data, Regressor, p){
   #######################################################################
   # PURPOSE:             Fit the Gaussian log-likelihood for NegBin AR
   #                      series using the GLM paramtrization of the Negative
@@ -323,7 +326,9 @@ FitGaussianLikNB_2 = function(initialParam, x){
   #######################################################################
   optim.output <- optim(par = initialParam,
                         fn = GaussLogLikNB_2,
-                        data = x,
+                        Y = data,
+                        X = Regressor,
+                        ARorder = p,
                         method = "BFGS",
                         hessian=TRUE)
 
