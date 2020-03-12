@@ -5,7 +5,7 @@
 library(countsFun)
 library(tictoc)
 
-source('C:/Users/stefa/Desktop/countsFun/R/negBinom-functions.R')
+#source('C:/Users/stefa/Desktop/countsFun/R/negBinom-functions.R')
 
 # sample size
 n = 10
@@ -16,7 +16,7 @@ X  = cbind(rep(1,n),rbinom(n, 1 ,0.4))
 # specify parameters
 r = 4
 b0 = 1
-b1 = 0
+b1 = 2
 b = rbind(b0,b1)
 m = exp(X%*%b)
 phi = 0.4

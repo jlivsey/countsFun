@@ -47,7 +47,7 @@ GaussLogLikNB = function(theta, data){
 
 
 # ---- likelihood function ----
-GaussLogLikNB_2 = function(theta, Y, X){
+GaussLogLikNB_2 = function(theta, Y, X, ARorder){
   #######################################################################
   # PURPOSE    Compute Gaussian log-likelihood for NegBin AR series
   #            Here I use the parametrization through the mean used in GLM
@@ -69,9 +69,9 @@ GaussLogLikNB_2 = function(theta, Y, X){
   n = length(Y)
 
   # retrieve parameters
-  beta    = theta[1:(nparms-2)]
-  r       = theta[nparms-1]
-  phi     = theta[nparms]
+  beta    = theta[1:(nparms-ARorder-1)]
+  r       = theta[nparms-ARorder]
+  phi     = theta[(nparms-ARorder+1):nparms]
 
   # The mean depends on the regressor
   m = exp(X%*%beta)

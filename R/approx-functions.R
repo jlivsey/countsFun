@@ -47,6 +47,7 @@ FitGaussianLikApprox = function(initialParam, x){
   #######################################################################
   # PURPOSE    Fit the Gaussian log-likelihood for Poisson AR series
   #
+  # test
   # INPUT
   #   initialParam       parameter vector containing the marginal and AR parameters
   #   x                  count series
