@@ -34,7 +34,10 @@ y  =sim_negbin_ar_2(n, phi, r, m)
 
 # test likelihood
 tic()
-GaussLogLikNB_2(theta, y, X)
+GaussLogLikNB_2(theta = theta,
+                Y = y,
+                X = X,
+                ARorder = 1)
 toc()
 
 
