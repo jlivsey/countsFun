@@ -19,18 +19,16 @@
 #=====================================================================================================#
 
 # load libraries
-library(gcmr)
-library(ggplot2)
-
-
-
-# set the directory
-#setwd("C:/Users/stefa/Dropbox/MVcopula/data/KaggleSalesTransactions")
-setwd("C:/Users/statha/Desktop/Dominick")
+#library(gcmr)
+#library(ggplot2)
+#library(lavaSearch2)
+symmetrize <- lavaSearch2:::symmetrize
 
 
 # load the data
-mysales = read.csv("C:/Users/statha/Desktop/Dominick/MySelectedSeries.csv")
+#mysales = read.csv("C:/Users/statha/Desktop/Dominick/MySelectedSeries.csv")
+mysales = read.csv("C:/Users/stefa/Dropbox/MVcopula/data/NegAcfDominick/MySelectedSeries.csv")
+
 
 # attach the datafrmae
 attach(mysales)
@@ -53,14 +51,28 @@ phi = c(-0.1696836, 0.2796241, 0.2267073)
 
 theta = c(b,r,phi)
 X = cbind(rep(1,length(Buy)),Buy)
-FitGaussianLikNB_2(theta, MOVE, X, 3)
+tic()
+GaussLogLikNB_Reg(theta, MOVE, X,3 )
+toc()
+
+tic()
+mod2 = FitGaussianLikNB_Reg(theta, MOVE, X, 3)
+toc()
+
+
+# pest = mest/(mest+rest)
+# phiest = est[4:6]
+#
+# # generate negative binomial AR series
+# y  =sim_negbin_ar_2(400, phiest, rest, mest)
+
 
 # X = cbind(rep(1,length(Buy)),Buy)
 #
 # theta0 = c(-0.417066419898571, -0.87759943351099, 9.0907108753284,
 #            -0.20906710018397, 0.507553591887987, 0.188611090043294)
-# GaussLogLikNB_2(theta0, MOVE, X,3 )
 
+#FitGaussianLikNB_2(theta, MOVE, X, 3)
 
 
 
