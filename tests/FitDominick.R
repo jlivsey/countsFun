@@ -48,13 +48,13 @@ toc()
 b0 = 2.390835
 b1 = 0.683351
 b = c(b0,b1)
-r  = 0.593666
+p  = 0.5
 phi = c(-0.1696836, 0.2796241, 0.2267073)
 
-theta = c(b,r,phi)
+theta = c(b,p,phi)
 X = cbind(rep(1,length(Buy)),Buy)
 tic()
-GaussLogLikNB_Reg(theta, MOVE, X,3 )
+GaussLogLikNB_Reg_2(theta, MOVE, X,3 )
 toc()
 
 tic()
