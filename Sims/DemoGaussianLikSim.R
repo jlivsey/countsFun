@@ -18,10 +18,10 @@ library(ggplot2)
 
 # ---- setup parameters for Poisson(lam)-AR(1) series ----
 CountDist = "Poisson"                 # Distribution
-MargParm = 10                          # marginal parameter
+MargParm = 2                          # marginal parameter
 #ARParm = c(.5,-.4,0,.3)               # AR parameters
 ARParm = -0.75                         # AR parameters
-n = 400                               # sample size
+n = 100                               # sample size
 nsim = 200                            # number of realizations
 initial.param = c(MargParm, ARParm)    # Initial PArameters
 no_cores <- detectCores() -1           # Select the number of cores
@@ -41,13 +41,13 @@ registerDoParallel(cl)
 # fit the gaussian log lik using foreach
 all = foreach(index = 1:nsim,
               .combine = rbind,
-              .packages = c("MASS", "orthopolynom", "mvtnorm", "countsFun")) %dopar%
+              .packages = c("MASS", "countsFun")) %dopar%
   FitGaussianLik(initial.param, l[[index]])
 
 stopCluster(cl)
 
 #--------------------------- PLOT estimates ---------------------------#
-allf = data.frame(all)
+allf = data.frame(all[,1:2])
 names(allf) = c("lam.est","phi.est")
 
 
@@ -86,13 +86,15 @@ g1 <- ggplot() +
 print(g1)
 
 # Bias
-MeanBias = c(n,colMeans(all)-initial.param)
-print(round(MeanBias, 6))
+MeanBias = c(n,colMeans(allf)-initial.param)
+print(round(MeanBias, 4))
 
 #                lam.true=10  phi.true=0.75
 # 100.00000000   0.05060780  -0.03908736
 # 400.00000000   0.01529747  -0.01658201
 
+#                lam.true=10  phi.true=0.75
+#100.0000        0.0877       -0.0333
 
 #                lam.true=10  phi.true=-0.75
 # 100.000000     0.001920    0.014662

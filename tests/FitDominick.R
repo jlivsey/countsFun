@@ -19,15 +19,15 @@
 #=====================================================================================================#
 
 # load libraries
-#library(gcmr)
+library(gcmr)
 #library(ggplot2)
-#library(lavaSearch2)
+library(tictoc)
+library(lavaSearch2)
 symmetrize <- lavaSearch2:::symmetrize
 
 
 # load the data
-#mysales = read.csv("C:/Users/statha/Desktop/Dominick/MySelectedSeries.csv")
-mysales = read.csv("C:/Users/stefa/Dropbox/MVcopula/data/NegAcfDominick/MySelectedSeries.csv")
+mysales = read.csv("C:/Users/Stef/Desktop/countsFun/data/MySelectedSeries.csv")
 
 
 # attach the datafrmae
@@ -37,7 +37,9 @@ attach(mysales)
 #plot.ts(MOVE, ylab = "sales", xlab = "time")
 
 # use GCMR to fit the data
-#mod <- gcmr(MOVE~Buy, marginal = negbin.marg, cormat = arma.cormat(3, 0), no.se = FALSE)
+tic()
+mod <- gcmr(MOVE~Buy, marginal = negbin.marg, cormat = arma.cormat(3, 0), no.se = FALSE)
+toc()
 
 # plot residuals
 #plot(mod)

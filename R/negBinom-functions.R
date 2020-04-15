@@ -1,5 +1,5 @@
 
-# ---- likelihood function ----
+#---------Likelihood function---------#
 GaussLogLikNB = function(theta, data){
   #====================================================================================#
   # PURPOSE    Compute Gaussian log-likelihood for NegBin AR series
@@ -45,8 +45,7 @@ GaussLogLikNB = function(theta, data){
 }
 
 
-
-# ---- likelihood function ----
+#---------Likelihood function with regressor---------#
 GaussLogLikNB_Reg = function(theta, Y, X, ARorder){
   #====================================================================================#
   # PURPOSE    Compute Gaussian log-likelihood for NegBin AR series
@@ -97,6 +96,61 @@ GaussLogLikNB_Reg = function(theta, Y, X, ARorder){
 }
 
 
+#---------Likelihood function with regressor---------#
+GaussLogLikNB_Reg_2 = function(theta, Y, X, ARorder){
+  #====================================================================================#
+  # PURPOSE    Compute Gaussian log-likelihood for NegBin AR series
+  #            Here I use the parametrization through the mean where i replace r.
+  # INPUT
+  #   theta    parameter vector containing the marginal and AR parameters
+  #   Y        count series
+  #   X        regressors (first column is always 1--intercept)
+  #   ARorder  AR order
+  #
+  # Output
+  #   loglik   Gaussian log-likelihood
+  #
+  # Authors    Stefanos Kechagias, James Livsey
+  # Date       March 2020
+  # Version    3.6.1
+  #====================================================================================#
+
+  # Number of parameters and sample size
+  nparms = length(theta)
+  n = length(Y)
+
+  # retrieve parameters
+  beta    = theta[1:(nparms-ARorder-1)]
+  p       = theta[nparms-ARorder]
+  phi     = theta[(nparms-ARorder+1):nparms]
+
+  # The mean depends on the regressor
+  m = exp(X%*%beta)
+
+  # compute the corresponding r
+  r = m*(1-p)/p
+
+  # assign large likelihood value if not causal
+  if(any(abs( polyroot(c(1, -phi))  ) < 1)){
+    return(NA) #check me
+  }
+
+  # Compute the covariance matrix--relation (67) in https://arxiv.org/pdf/1811.00203.pdf
+  GAMMA = CovarNegBinAR_Reg_2(n, r, p, phi)
+
+  # Compute the logdet and the quadratic part
+  logLikComponents = EvalInvQuadForm(GAMMA, as.numeric(Y), m)
+
+  # final loglikelihood value
+  out = 0.5*logLikComponents[1] + 0.5*logLikComponents[2]
+
+  # the following will match the above if you subtract N/2*log(2*pi) and don't multiply with 2
+  # out = -2*dmvnorm(as.numeric(Y), rep(lam, n), GAMMA, log = TRUE)
+  return(out)
+}
+
+
+#---------Covariance matrix---------#
 CovarNegBinAR = function(n,r, p, phi){
   #====================================================================================#
   # PURPOSE    Compute the covariance matrix of a NegBin AR series.
@@ -129,6 +183,7 @@ CovarNegBinAR = function(n,r, p, phi){
 }
 
 
+#---------Covariance matrix with regressor---------#
 CovarNegBinAR_Reg = function(n, r, m, phi){
   #====================================================================================#
   # PURPOSE    Compute the covariance matrix of a NegBin AR series that
@@ -208,6 +263,82 @@ CovarNegBinAR_Reg = function(n, r, m, phi){
 }
 
 
+#---------Covariance matrix with regressor---------#
+CovarNegBinAR_Reg_2 = function(n, r, p, phi){
+  #====================================================================================#
+  # PURPOSE    Compute the covariance matrix of a NegBin AR series that
+  #            includes one dummy variable as a regressor
+  #
+  # INPUT
+  #   r,p      NB MArginal parameters
+  #   phi      AR parameter
+  #   n        size of the matrix
+  #
+  # Notes:     1. Relation (67) in https://arxiv.org/pdf/1811.00203.pdf will be imple
+  #               mented in three steps:
+  #               Step 1: Compute truncation number
+  #               Step 2: Compute the Hermite Coefficients (HC)
+  #               Step 3: Compute the AR acf function and raise it to k
+  #               Step 4: Compute the products of the HC inside the sum of (67)
+  #               Step 5: Compute realtion (67)
+  #            2. Since X is a dummy there are only two values of m=exp(X%*%beta),
+  #               and hence only two values of the NeG Bin probability of p, and hence
+  #               only two differenet Hermite Coeffcients I need to compute (for each k).
+  #
+  # Output
+  #   GAMMA    covariance matrix ofcount series with a dummy regressor
+  #
+  # Authors    Stefanos Kechagias, James Livsey
+  # Date       March 2020
+  # Version    3.6.3
+  #====================================================================================#
+
+
+  # STEP 1:
+  N = sapply(unique(r),function(x)which(round(pnbinom(1:1000, x,p), 7) == 1)[1] )
+  #N = sapply(unique(p),function(x)which(pnbinom(1:1000, r,x)>1-1e-17)[1])
+  N[is.na(N)] = 1000
+
+  # STEP 2: Hermite coeficients
+  HCsmall = matrix(NA,20,length(unique(r)))
+
+  # keep track of which indices each unique HC is located at
+  index = matrix(0,n,2)
+
+  # only need to copmpute 2 different Hermnite Coefficients (for each k)
+  for(i in  1:length(unique(r))){
+    index[,i] = unique(r)[i]==r
+    HCsmall[,i] = HermCoefNegBin_2(r, unique(r)[i], N[i])
+  }
+
+  # STEP 3: ARMA autocorrelation function
+  All.ar = apply(as.matrix(ARMAacf(ar = phi, lag.max = n)), 1,function(x)x^(1:20))
+
+
+  # Step 4: Compute the products g1^2, g1*g2 and g2^2 of the HCs
+  HCprod = matrix(NA,20,3)
+  for(i in 0:(length(unique(r))-1) ){
+    for(j in i: (length(unique(r))-1) ){
+      HCprod[,i+j+1] = HCsmall[,i+1]*HCsmall[,j+1]
+    }
+  }
+
+  # STEP 5: Implement relation 67
+  k = 1:20
+  kfac = factorial(k)
+  G = matrix(NA,n,n)
+  for(t1 in 0:(n-1)){
+    for(t2 in 0:t1 ){
+      h = abs(t1-t2)+1
+      G[t1+1,t2+1]= sum(kfac*HCprod[,index[t1+1,2]+index[t2+1,2]+1]*All.ar[,h])
+    }
+  }
+  G = symmetrize(G, update.upper=TRUE)
+  return(G)
+}
+
+
+#---------Hermitte Coefficients for all k---------#
 HermCoefNegBin <- function(r,p){
   #====================================================================================#
   # PURPOSE    Compute all Hermite Coefficients. See relation (21) in
@@ -241,6 +372,8 @@ HermCoefNegBin <- function(r,p){
 
 }
 
+
+#---------Hermitte Coefficients for all k---------#
 HermCoefNegBin_2 <- function(r,p,N){
   #====================================================================================#
   # PURPOSE    Compute all Hermite Coefficients. See relation (21) in
@@ -269,6 +402,7 @@ HermCoefNegBin_2 <- function(r,p,N){
 }
 
 
+#---------Hermitte Coefficients for on k---------#
 HermCoefNegBin_k <- function(r,p, k, N){
   #====================================================================================#
   # PURPOSE    Compute kth Hermite Coefficient. See relation (21) in
@@ -308,6 +442,7 @@ HermCoefNegBin_k <- function(r,p, k, N){
 }
 
 
+#---------Fit Gaussian Likelihood function---------#
 FitGaussianLikNB = function(initialParam, x){
   #====================================================================================#
   # PURPOSE    Fit the Gaussian log-likelihood for NegBin AR series
@@ -345,6 +480,7 @@ FitGaussianLikNB = function(initialParam, x){
 }
 
 
+#---------Fit Gaussian Likelihood function with Regressor---------#
 FitGaussianLikNB_Reg = function(initialParam, data, Regressor, p){
   #====================================================================================#
   # PURPOSE:             Fit the Gaussian log-likelihood for NegBin AR
@@ -386,6 +522,8 @@ FitGaussianLikNB_Reg = function(initialParam, data, Regressor, p){
 
 }
 
+
+#---------simulate negbin series (r,p) parametrization---------#
 sim_negbin_ar = function(n, phi, r,p){
   #====================================================================================#
   # PURPOSE   Simulate Poisson series with AR structure. See relation (1)
@@ -408,6 +546,8 @@ sim_negbin_ar = function(n, phi, r,p){
   return(x)
 }
 
+
+#---------simulate negbin series (r,m) parametrization---------#
 sim_negbin_ar_2 = function(n, phi, r, m){
   #====================================================================================#
   # PURPOSE   Simulate Neg Bin series with AR structure. See relation (1)
@@ -432,7 +572,7 @@ sim_negbin_ar_2 = function(n, phi, r, m){
 }
 
 
-
+#---------Covariance matrix version 2---------#
 CovarNegBinAR_2 = function(n,r, m, phi){
   #====================================================================================#
   # PURPOSE    Compute the covariance matrix of a NegBin AR series.
@@ -478,6 +618,7 @@ CovarNegBinAR_2 = function(n,r, m, phi){
 }
 
 
+#---------Covariance matrix version 3---------#
 CovarNegBinAR_3 = function(n, r, m, phi){
   # retrieve the NegBin probability parameter
   p = m/(m+r)
@@ -504,35 +645,7 @@ CovarNegBinAR_3 = function(n, r, m, phi){
 }
 
 
-
-
-CountACVF_t1t2 = function(t1,t2, myacf, g){
-  #====================================================================================#
-  # PURPOSE    Compute the autocovariance matrix of the count series.
-  #            See relation (9) in https://arxiv.org/pdf/1811.00203.pdf
-  # INPUT
-  #   h        acvf lag
-  #   myacf    autocorrelation of Gaussian series: rho_z
-  #   g        Hermitte Coefficients
-  # Output
-  #   gamma_x  count acvf
-  #
-  # Notes:     See also CountACVF function--vectorized version of CountACVF_h
-  #
-  # Authors    Stefanos Kechagias, James Livsey
-  # Date       January 2020
-  # Version    3.6.1
-  #====================================================================================#
-
-  k = nrow(g) #check me
-  gamma_x = sum(g[,t1+1]*g[,t2+1] *  factorial(1:k) * (myacf[abs(t1-t2)+1])^(1:k))
-  return(gamma_x)
-
-}
-
-CountACVF_2 <- Vectorize(CountACVF_t1t2, vectorize.args = c("t1", "t2"))
-
-
+#---------Covariance matrix version 4---------#
 CovarNegBinAR_4 = function(n, r, m, phi){
   # retrieve the NegBin probability parameter
   p = m/(m+r)
@@ -576,5 +689,35 @@ CovarNegBinAR_4 = function(n, r, m, phi){
   G = symmetrize(G, update.upper=TRUE)
   return(G)
 }
+
+
+#---------autoCovariance function---------#
+CountACVF_t1t2 = function(t1,t2, myacf, g){
+  #====================================================================================#
+  # PURPOSE    Compute the autocovariance matrix of the count series.
+  #            See relation (9) in https://arxiv.org/pdf/1811.00203.pdf
+  # INPUT
+  #   h        acvf lag
+  #   myacf    autocorrelation of Gaussian series: rho_z
+  #   g        Hermitte Coefficients
+  # Output
+  #   gamma_x  count acvf
+  #
+  # Notes:     See also CountACVF function--vectorized version of CountACVF_h
+  #
+  # Authors    Stefanos Kechagias, James Livsey
+  # Date       January 2020
+  # Version    3.6.1
+  #====================================================================================#
+
+  k = nrow(g) #check me
+  gamma_x = sum(g[,t1+1]*g[,t2+1] *  factorial(1:k) * (myacf[abs(t1-t2)+1])^(1:k))
+  return(gamma_x)
+
+}
+
+
+#---------vectorized autoCovariance function---------#
+CountACVF_2 <- Vectorize(CountACVF_t1t2, vectorize.args = c("t1", "t2"))
 
 
