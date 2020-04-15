@@ -523,6 +523,50 @@ FitGaussianLikNB_Reg = function(initialParam, data, Regressor, p){
 }
 
 
+#---------Fit Gaussian Likelihood function with Regressor---------#
+FitGaussianLikNB_Reg = function(initialParam, data, Regressor, p){
+  #====================================================================================#
+  # PURPOSE:             Fit the Gaussian log-likelihood for NegBin AR
+  #                      series using the GLM paramtrization of the Negative
+  #                      Binomial. Here I parametrize the negative binomial r and not p
+  #
+  # INPUT
+  #   initialParam       parameter vector containing the marginal and AR
+  #                      parameters
+  #   x                  count series
+  #
+  # Output
+  #   optim.output$par   parameter estimates
+  #
+  # Authors              Stefanos Kechagias, James Livsey
+  # Date                 March 2020
+  # Version              3.6.2
+  #====================================================================================#
+  optim.output <- optim(par = initialParam,
+                        fn = GaussLogLikNB_Reg_2,
+                        Y = data,
+                        X = Regressor,
+                        ARorder = p,
+                        method = "BFGS",
+                        hessian=TRUE)
+
+  nparms = length(initialParam)
+  ParmEst = matrix(0,nrow=1,ncol=nparms)
+  se =  matrix(NA,nrow=1,ncol=nparms)
+  loglik = rep(0,1)
+
+  # save estimates, loglik and standard errors
+  ParmEst[,1:nparms]   = optim.output$par
+  loglik               = optim.output$value
+  se[,1:nparms]        = sqrt(abs(diag(solve(optim.output$hessian))))
+
+  All      = cbind(ParmEst, se, loglik)
+  return(All)
+
+}
+
+
+
 #---------simulate negbin series (r,p) parametrization---------#
 sim_negbin_ar = function(n, phi, r,p){
   #====================================================================================#
