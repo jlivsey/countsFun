@@ -308,7 +308,7 @@ CovarNegBinAR_Reg_2 = function(n, r, p, phi){
   # only need to copmpute 2 different Hermnite Coefficients (for each k)
   for(i in  1:length(unique(r))){
     index[,i] = unique(r)[i]==r
-    HCsmall[,i] = HermCoefNegBin_2(r, unique(r)[i], N[i])
+    HCsmall[,i] = HermCoefNegBin_2(unique(r)[i], p, N[i])
   }
 
   # STEP 3: ARMA autocorrelation function
