@@ -524,7 +524,7 @@ FitGaussianLikNB_Reg = function(initialParam, data, Regressor, p){
 
 
 #---------Fit Gaussian Likelihood function with Regressor---------#
-FitGaussianLikNB_Reg = function(initialParam, data, Regressor, p){
+FitGaussianLikNB_Reg_2 = function(initialParam, data, Regressor, p){
   #====================================================================================#
   # PURPOSE:             Fit the Gaussian log-likelihood for NegBin AR
   #                      series using the GLM paramtrization of the Negative

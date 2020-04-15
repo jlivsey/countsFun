@@ -37,9 +37,9 @@ attach(mysales)
 #plot.ts(MOVE, ylab = "sales", xlab = "time")
 
 # use GCMR to fit the data
-tic()
-mod <- gcmr(MOVE~Buy, marginal = negbin.marg, cormat = arma.cormat(3, 0), no.se = FALSE)
-toc()
+# tic()
+# mod <- gcmr(MOVE~Buy, marginal = negbin.marg, cormat = arma.cormat(3, 0), no.se = FALSE)
+# toc()
 
 # plot residuals
 #plot(mod)
@@ -58,7 +58,7 @@ GaussLogLikNB_Reg_2(theta, MOVE, X,3 )
 toc()
 
 tic()
-mod2 = FitGaussianLikNB_Reg(theta, MOVE, X, 3)
+mod2 = FitGaussianLikNB_Reg_2(theta, MOVE, X, 3)
 toc()
 
 
