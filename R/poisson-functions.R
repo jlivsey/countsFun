@@ -1,3 +1,11 @@
+# PURPOSE: Function for Poisson AR(1) analysis
+#
+# AUTHORS: Stefanos Kechagias, James Livsey
+#
+# DATE:    April 2020
+#
+# VERSION: 3.6.3
+
 # Generate AR series
 sim_pois_ar = function(n, phi, lam){
   #######################################################################
@@ -22,7 +30,7 @@ sim_pois_ar = function(n, phi, lam){
   return(x)
 }
 
-
+# compute arbitrary polynomial
 evalPolynomial_scalarX <- function(coefs, x){
   #######################################################################
   # PURPOSE    compute arbitrary polynomial given coefficients and input
@@ -42,32 +50,32 @@ evalPolynomial_scalarX <- function(coefs, x){
   # Version    3.6.1
   #######################################################################
   if(length(coefs) == 1){
-      return(coefs) # handle scalar case
+    return(coefs) # handle scalar case
   }
   n <- length(coefs) - 1
   out <- sum(coefs * x^(0:n))
   return(out)
 }
-evalPolynomial <- Vectorize(evalPolynomial_scalarX, vectorize.args = "x")
 
-#######################################################################
-# PURPOSE    Evaluate k^th Hermite Polynomial at scaler input.
-#           See relation (7) https://arxiv.org/pdf/1811.00203.pdf
-#
-# INPUT
-#   k        index of Hermite coefficient
-#   x        input to Hermite Polynomial
-#
-#
-# Output
-#   value   returns H_k(x). See relation (7)
-#           in https://arxiv.org/pdf/1811.00203.pdf
-#
-# Authors    Stefanos Kechagias, James Livsey
-# Date       January 2020
-# Version    3.6.1
-#######################################################################
+# Evaluate k^th Hermite Polynomial at scalar x
 evalHermPolynomial <- function(k, x){
+  #######################################################################
+  # PURPOSE    Evaluate k^th Hermite Polynomial at scaler input.
+  #           See relation (7) https://arxiv.org/pdf/1811.00203.pdf
+  #
+  # INPUT
+  #   k        index of Hermite coefficient
+  #   x        input to Hermite Polynomial
+  #
+  #
+  # Output
+  #   value   returns H_k(x). See relation (7)
+  #           in https://arxiv.org/pdf/1811.00203.pdf
+  #
+  # Authors    Stefanos Kechagias, James Livsey
+  # Date       January 2020
+  # Version    3.6.1
+  #######################################################################
   if(k < 0){
     return(0)
   }
@@ -76,7 +84,10 @@ evalHermPolynomial <- function(k, x){
   return(out)
 }
 
+# Evaluate Hermite Polynomial at a vector x
+evalPolynomial <- Vectorize(evalPolynomial_scalarX, vectorize.args = "x")
 
+# kth hermitte coefficient
 HermCoef_k <- function(lam, k){
   #######################################################################
   # PURPOSE    Compute kth Hermite Coefficient. See relation (21) in
@@ -111,8 +122,7 @@ HermCoef_k <- function(lam, k){
   return(HC_k)
 }
 
-
-
+# all hermitte coefficients
 HermCoef <- function(lam){
   #######################################################################
   # PURPOSE    Compute all Hermite Coefficients. See relation (21) in
@@ -140,7 +150,7 @@ HermCoef <- function(lam){
 
 }
 
-
+# Poisson AR(1) covariance matrix
 CovarPoissonAR = function(n,lam,phi){
   #######################################################################
   # PURPOSE    Compute the covariance matrix of a Poisson AR series.
@@ -172,8 +182,7 @@ CovarPoissonAR = function(n,lam,phi){
   return(GAMMA)
 }
 
-
-
+# count acvf for each h
 CountACVF_h = function(h, myacf, g){
   #######################################################################
   # PURPOSE    Compute the autocovariance matrix of the count series.
@@ -198,9 +207,10 @@ CountACVF_h = function(h, myacf, g){
 
   }
 
+# vectorized count acvf
 CountACVF <- Vectorize(CountACVF_h, vectorize.args = "h")
 
-
+# fnc to evaluate Gaussial lik components
 EvalInvQuadForm = function(A, v, DataMean ){
   #######################################################################
   # Evaluate quadrative form v`*inv(A)*v where
@@ -222,8 +232,7 @@ EvalInvQuadForm = function(A, v, DataMean ){
   return(logLikComponents)
 }
 
-
-# ---- likelihood function ----
+# Poisson AR(1) Gaussian Lik
 GaussLogLik = function(theta, data){
   #######################################################################
   # PURPOSE    Compute Gaussian log-likelihood for Poisson AR series
@@ -264,8 +273,7 @@ GaussLogLik = function(theta, data){
   return(out)
 }
 
-
-
+# wrapper to fit Poisson AR(1) using Gaussian Lik
 FitGaussianLik = function(initialParam, x){
   #######################################################################
   # PURPOSE    Fit the Gaussian log-likelihood for Poisson AR series
