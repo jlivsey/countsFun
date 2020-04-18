@@ -184,7 +184,7 @@ CovarNegBinAR_Reg = function(n, r, p, phi){
 
 
   # STEP 2: Hermite coeficients
-  HCsmall = matrix(NA,20,length(unique(p)))
+  HCsmall = matrix(NA,max(N),length(unique(p)))
 
   # keep track of which indices each unique HC is located at
   index = matrix(0,n,2)
@@ -192,7 +192,7 @@ CovarNegBinAR_Reg = function(n, r, p, phi){
   # only need to copmpute 2 different Hermnite Coefficients (for each k)
   for(i in  1:length(unique(p))){
     index[,i] = unique(p)[i]==p
-    HCsmall[,i] = HermCoefNegBin_2(r, unique(p)[i], N[i])
+    HCsmall[,i] = HermCoefNegBin_2(r, unique(p)[i], N)
   }
 
   # STEP 3: ARMA autocorrelation function
@@ -275,7 +275,7 @@ HermCoefNegBin_2 <- function(r,p,N){
   # Version    3.6.1
   #====================================================================================#
 
-  h = 1:20 #check me
+  h = 1:max(N) #check me
   HC = rep(NA, length(h)) # storage
   for(i in h) {
     HC[i] <- HermCoefNegBin_k(r, p , k = i, N)
