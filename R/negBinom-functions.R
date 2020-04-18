@@ -46,7 +46,7 @@ GaussLogLikNB = function(theta, data){
 
 
 #---------Likelihood function with regressor---------#
-GaussLogLikNB_Reg = function(theta, Y, X, ARorder){
+GaussLogLikNB_Reg = function(theta, Y, X, ARorder, M){
   #====================================================================================#
   # PURPOSE    Compute Gaussian log-likelihood for NegBin AR series
   #
@@ -66,6 +66,7 @@ GaussLogLikNB_Reg = function(theta, Y, X, ARorder){
   #   Y        count series
   #   X        regressors (first column is always 1--intercept)
   #   ARorder  AR order
+  #   M        truncation ofrelation (67) in https://arxiv.org/pdf/1811.00203.pdf
   #
   # Output
   #   loglik   Gaussian log-likelihood
@@ -98,7 +99,7 @@ GaussLogLikNB_Reg = function(theta, Y, X, ARorder){
   }
 
   # Compute the covariance matrix--relation (67) in https://arxiv.org/pdf/1811.00203.pdf
-  GAMMA = CovarNegBinAR_Reg(n, r, p, phi)
+  GAMMA = CovarNegBinAR_Reg(n, r, p, phi, M)
 
   # Compute the logdet and the quadratic part
   logLikComponents = EvalInvQuadForm(GAMMA, as.numeric(Y), m)
@@ -146,7 +147,7 @@ CovarNegBinAR = function(n,r, p, phi){
 
 
 #----------Link coefficients with Regressor---------#
-LinkCoef_Reg = function(r,p, M){
+LinkCoef_Reg = function(r, p, M){
   #====================================================================================#
   # PURPOSE    Compute the product  factorial(k)*g_{t1,k}*g_{t2,k} in relation (67) in
   #            https://arxiv.org/pdf/1811.00203.pdf when the regressor variable is only
@@ -156,9 +157,10 @@ LinkCoef_Reg = function(r,p, M){
   #   r, p     NB Marginal parameters
   #
   # Output
-  #   l        A 20X3 matrix of link coefficients. 20 is the default truncatuon of relation
-  #            67 and 3 is the different combinations of products g_{t1,k}*g_{t2,k} (since)
-  #            for each t I will either have 1 or 0 for the regressor variable.
+  #   l        An MX3 matrix of link coefficients. M is the default truncatuon of relation
+  #            (67) and 3 is the number of different combinations of products
+  #            g_{t1,k}*g_{t2,k} (since for each t I will either have 1 or 0 for the
+  #            regressor variable).
   #
   # Authors    Stefanos Kechagias, James Livsey
   # Date       April 2020
@@ -184,16 +186,17 @@ LinkCoef_Reg = function(r,p, M){
 
 
 #---------Covariance matrix with regressor---------#
-CovarNegBinAR_Reg = function(n, r, p, phi){
+CovarNegBinAR_Reg = function(n, r, p, phi, M){
   #====================================================================================#
   # PURPOSE    Compute the covariance matrix of a NegBin AR series that
   #            includes one dummy variable as a regressor. Here p depends on each
-  #            observation.
+  #            observation. See relation (67) in https://arxiv.org/pdf/1811.00203.pdf
   #
   # INPUT
   #   r, p     NB MArginal parameters
   #   phi      AR parameter
   #   n        size of the matrix
+  #   M        truncation of relation (67)
   #
   # Notes      Since X is a dummy there are only two values of m=exp(X%*%beta),
   #            and hence only two values of the NeG Bin probability of p, and hence
@@ -208,10 +211,7 @@ CovarNegBinAR_Reg = function(n, r, p, phi){
   #====================================================================================#
 
   # Compute ARMA autocorrelation function
-  All.ar = apply(as.matrix(ARMAacf(ar = phi, lag.max = n)), 1,function(x)x^(1:20))
-
-  # Truncation of relation (67)--check me
-  M = 20
+  All.ar = apply(as.matrix(ARMAacf(ar = phi, lag.max = n)), 1,function(x)x^(1:M))
 
   # Compute the link coefficients l_k = factorial(k)*g_{t1,k}*g_{t2,k}
   l = LinkCoef_Reg(r, p, M)
@@ -424,7 +424,7 @@ FitGaussianLikNB_Reg = function(initialParam, data, Regressor, p){
 
 
 #---------Fit Gaussian Likelihood function with Regressor---------#
-FitGaussianLikNB_Reg_2 = function(initialParam, data, Regressor, p){
+FitGaussianLikNB_Reg_2 = function(initialParam, data, Regressor, p, M){
   #====================================================================================#
   # PURPOSE:             Fit the Gaussian log-likelihood for NegBin AR
   #                      series using the GLM paramtrization of the Negative
@@ -433,7 +433,10 @@ FitGaussianLikNB_Reg_2 = function(initialParam, data, Regressor, p){
   # INPUT
   #   initialParam       parameter vector containing the marginal and AR
   #                      parameters
-  #   x                  count series
+  #   data               count series (dependent variable)
+  #   Regressor          a regressor series (independent variable)
+  #   p                  AR order
+  #   M                  truncation of relation (67) in https://arxiv.org/pdf/1811.00203.pdf
   #
   # Output
   #   optim.output$par   parameter estimates
@@ -447,6 +450,7 @@ FitGaussianLikNB_Reg_2 = function(initialParam, data, Regressor, p){
                         Y = data,
                         X = Regressor,
                         ARorder = p,
+                        M = M,
                         method = "BFGS",
                         hessian=TRUE)
 
