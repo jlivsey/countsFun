@@ -82,8 +82,7 @@ GaussLogLikNB_Reg = function(theta, Y, X, ARorder, M){
 
   # retrieve parameters
   beta    = theta[1:(nparms-ARorder-1)]
-  logk       = theta[nparms-ARorder]
-  k = exp(logk)
+  k       = theta[nparms-ARorder]
   phi     = theta[(nparms-ARorder+1):nparms]
 
 
