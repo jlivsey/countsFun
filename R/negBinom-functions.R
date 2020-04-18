@@ -214,7 +214,7 @@ CovarNegBinAR_Reg = function(n, r, p, phi, M){
   All.ar = apply(as.matrix(ARMAacf(ar = phi, lag.max = n)), 1,function(x)x^(1:M))
 
   # Compute the link coefficients l_k = factorial(k)*g_{t1,k}*g_{t2,k}
-  l = LinkCoef_Reg(r, p, M)
+  linkCoef = LinkCoef_Reg(r, p, M)
 
   # keep track of which indices each unique HC is located at
   index = c(unique(p)[1]==p, unique(p)[2]==p)
@@ -226,7 +226,7 @@ CovarNegBinAR_Reg = function(n, r, p, phi, M){
   for(t1 in 0:(n-1)){
     for(t2 in 0:t1 ){
       h = abs(t1-t2)+1
-      G[t1+1,t2+1]= sum(kfac*HCprod[,index[t1+1,2]+index[t2+1,2]+1]*All.ar[,h])
+      G[t1+1,t2+1]= sum(kfac*linkCoef[,index[t1+1,2]+index[t2+1,2]+1]*All.ar[,h])
     }
   }
   G = symmetrize(G, update.upper=TRUE)
