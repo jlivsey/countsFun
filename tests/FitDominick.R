@@ -48,18 +48,18 @@ attach(mysales)
 b0 = 2.390835
 b1 = 0.683351
 b = c(b0,b1)
-p  = 0.5
+k  = 1/4
 phi = c(-0.1696836, 0.2796241, 0.2267073)
 
-theta = c(b,p,phi)
+theta = c(b,k,phi)
 X = cbind(rep(1,length(Buy)),Buy)
 tic()
-GaussLogLikNB_Reg_2(theta, MOVE, X,3 )
+GaussLogLikNB_Reg(theta, MOVE, X,3 )
 toc()
 
-tic()
-mod2 = FitGaussianLikNB_Reg_2(theta, MOVE, X, 3)
-toc()
+#tic()
+#mod2 = FitGaussianLikNB_Reg(theta, MOVE, X, 3)
+#toc()
 
 
 # pest = mest/(mest+rest)

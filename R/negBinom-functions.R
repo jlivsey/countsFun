@@ -90,7 +90,7 @@ GaussLogLikNB_Reg = function(theta, Y, X, ARorder){
 
   # retrieve neg binomial parameters
   r = 1/k
-  p = k*mu/(1+k*mu)
+  p = k*m/(1+k*m)
 
   # assign large likelihood value if not causal
   if(any(abs( polyroot(c(1, -phi))  ) < 1)){
