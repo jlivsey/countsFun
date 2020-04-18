@@ -217,10 +217,10 @@ CovarNegBinAR_Reg = function(n, r, p, phi, M){
   linkCoef = LinkCoef_Reg(r, p, M)
 
   # keep track of which indices each unique HC is located at
-  index = c(unique(p)[1]==p, unique(p)[2]==p)
+  index = cbind(unique(p)[1]==p, unique(p)[2]==p)
 
   # STEP 3: Implement relation 67
-  k = 1:20
+  k = 1:M
   kfac = factorial(k)
   G = matrix(NA,n,n)
   for(t1 in 0:(n-1)){
