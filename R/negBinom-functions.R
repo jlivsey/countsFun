@@ -381,7 +381,7 @@ FitGaussianLikNB = function(initialParam, x){
 
 
 #---------Fit Gaussian Likelihood function with Regressor---------#
-FitGaussianLikNB_Reg = function(initialParam, data, Regressor, p){
+FitGaussianLikNB_Reg = function(initialParam, data, Regressor, p, M){
   #====================================================================================#
   # PURPOSE:             Fit the Gaussian log-likelihood for NegBin AR
   #                      series using the GLM paramtrization of the Negative
@@ -401,52 +401,6 @@ FitGaussianLikNB_Reg = function(initialParam, data, Regressor, p){
   #====================================================================================#
   optim.output <- optim(par = initialParam,
                         fn = GaussLogLikNB_Reg,
-                        Y = data,
-                        X = Regressor,
-                        ARorder = p,
-                        method = "BFGS",
-                        hessian=TRUE)
-
-  nparms = length(initialParam)
-  ParmEst = matrix(0,nrow=1,ncol=nparms)
-  se =  matrix(NA,nrow=1,ncol=nparms)
-  loglik = rep(0,1)
-
-  # save estimates, loglik and standard errors
-  ParmEst[,1:nparms]   = optim.output$par
-  loglik               = optim.output$value
-  se[,1:nparms]        = sqrt(abs(diag(solve(optim.output$hessian))))
-
-  All      = cbind(ParmEst, se, loglik)
-  return(All)
-
-}
-
-
-#---------Fit Gaussian Likelihood function with Regressor---------#
-FitGaussianLikNB_Reg_2 = function(initialParam, data, Regressor, p, M){
-  #====================================================================================#
-  # PURPOSE:             Fit the Gaussian log-likelihood for NegBin AR
-  #                      series using the GLM paramtrization of the Negative
-  #                      Binomial. Here I parametrize the negative binomial r and not p
-  #
-  # INPUT
-  #   initialParam       parameter vector containing the marginal and AR
-  #                      parameters
-  #   data               count series (dependent variable)
-  #   Regressor          a regressor series (independent variable)
-  #   p                  AR order
-  #   M                  truncation of relation (67) in https://arxiv.org/pdf/1811.00203.pdf
-  #
-  # Output
-  #   optim.output$par   parameter estimates
-  #
-  # Authors              Stefanos Kechagias, James Livsey
-  # Date                 March 2020
-  # Version              3.6.2
-  #====================================================================================#
-  optim.output <- optim(par = initialParam,
-                        fn = GaussLogLikNB_Reg_2,
                         Y = data,
                         X = Regressor,
                         ARorder = p,
