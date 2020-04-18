@@ -82,7 +82,8 @@ print(theta)
 
   # retrieve parameters
   beta    = theta[1:(nparms-ARorder-1)]
-  k       = theta[nparms-ARorder]
+  logk       = theta[nparms-ARorder]
+  k = exp(logk)
   phi     = theta[(nparms-ARorder+1):nparms]
 
 
