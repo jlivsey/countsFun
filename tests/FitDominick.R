@@ -57,9 +57,9 @@ tic()
 GaussLogLikNB_Reg(theta, MOVE, X,3 )
 toc()
 
-#tic()
-#mod2 = FitGaussianLikNB_Reg(theta, MOVE, X, 3)
-#toc()
+tic()
+mod2 = FitGaussianLikNB_Reg(theta, MOVE, X, 3)
+toc()
 
 
 # pest = mest/(mest+rest)

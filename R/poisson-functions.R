@@ -212,14 +212,14 @@ CountACVF <- Vectorize(CountACVF_h, vectorize.args = "h")
 
 # fnc to evaluate Gaussial lik components
 EvalInvQuadForm = function(A, v, DataMean ){
-  #######################################################################
+  #=======================================================================#
   # Evaluate quadrative form v`*inv(A)*v where
   # A is symmetric positive definite
   # Want   QuadForm = v` * inv(A) * v = v` * w  where A*w = v
   # ==> (U`U)*w = v             Cholesky decomp of A
   # ==>  First solve U` z = v   for z,
   # then solve   U w = z   for w */
-  #######################################################################
+  #=======================================================================#
 
   U = chol(A)
   z  =  forwardsolve(t(U), v - DataMean)
