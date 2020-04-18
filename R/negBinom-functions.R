@@ -179,7 +179,7 @@ CovarNegBinAR_Reg = function(n, r, p, phi){
 
   # STEP 1:
   #N = sapply(unique(p),function(x)which(round(pnbinom(1:1000, r,x), 7) == 1)[1] )
-  N = sapply(unique(p),function(x)which(pnbinom(1:1000, r,x)>=1-1e-17)[1])
+  N = sapply(unique(p),function(x)which(pnbinom(1:1000, r,x)>=1-1e-17)[1])-1
   N[is.na(N)] = 1000
 
 
