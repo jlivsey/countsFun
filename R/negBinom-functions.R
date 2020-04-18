@@ -145,6 +145,44 @@ CovarNegBinAR = function(n,r, p, phi){
 }
 
 
+#----------Link coefficients with Regressor---------#
+LinkCoef_Reg = function(r,p, M){
+  #====================================================================================#
+  # PURPOSE    Compute the product  factorial(k)*g_{t1,k}*g_{t2,k} in relation (67) in
+  #            https://arxiv.org/pdf/1811.00203.pdf when the regressor variable is only
+  #            one dummy variable.
+  #
+  # INPUT
+  #   r, p     NB Marginal parameters
+  #
+  # Output
+  #   l        A 20X3 matrix of link coefficients. 20 is the default truncatuon of relation
+  #            67 and 3 is the different combinations of products g_{t1,k}*g_{t2,k} (since)
+  #            for each t I will either have 1 or 0 for the regressor variable.
+  #
+  # Authors    Stefanos Kechagias, James Livsey
+  # Date       April 2020
+  # Version    3.6.3
+  #====================================================================================#
+
+
+  # compute Hermite coefficients from relation (21)
+  g1 = HermCoefNegBin_2(r, unique(p)[1], M)
+  g2 = HermCoefNegBin_2(r, unique(p)[2], M)
+  HC = cbind(g1, g2)
+
+  # Compute the products g1^2, g1*g2 and g2^2 of the HCs
+  HCprod = matrix(NA, M, 3)
+  for(i in 0:(length(unique(p))-1) ){
+    for(j in i: (length(unique(p))-1) ){
+      HCprod[,i+j+1] = HC[,i+1]*HC[,j+1]
+    }
+  }
+
+  return(HCprod)
+}
+
+
 #---------Covariance matrix with regressor---------#
 CovarNegBinAR_Reg = function(n, r, p, phi){
   #====================================================================================#
@@ -157,16 +195,9 @@ CovarNegBinAR_Reg = function(n, r, p, phi){
   #   phi      AR parameter
   #   n        size of the matrix
   #
-  # Notes:     1. Relation (67) in https://arxiv.org/pdf/1811.00203.pdf will be imple
-  #               mented in three steps:
-  #               Step 1: Compute truncation number
-  #               Step 2: Compute the Hermite Coefficients (HC)
-  #               Step 3: Compute the AR acf function and raise it to k
-  #               Step 4: Compute the products of the HC inside the sum of (67)
-  #               Step 5: Compute realtion (67)
-  #            2. Since X is a dummy there are only two values of m=exp(X%*%beta),
-  #               and hence only two values of the NeG Bin probability of p, and hence
-  #               only two differenet Hermite Coeffcients I need to compute (for each k).
+  # Notes      Since X is a dummy there are only two values of m=exp(X%*%beta),
+  #            and hence only two values of the NeG Bin probability of p, and hence
+  #            only two differenet Hermite Coeffcients I need to compute (for each k).
   #
   # Output
   #   GAMMA    covariance matrix ofcount series with a dummy regressor
@@ -176,38 +207,19 @@ CovarNegBinAR_Reg = function(n, r, p, phi){
   # Version    3.6.3
   #====================================================================================#
 
-
-  # STEP 1:
-  #N = sapply(unique(p),function(x)which(round(pnbinom(1:1000, r,x), 7) == 1)[1] )
-  N = sapply(unique(p),function(x)which(pnbinom(1:1000, r,x)>=1-1e-17)[1])-1
-  N[is.na(N)] = 1000
-
-
-  # STEP 2: Hermite coeficients
-  HCsmall = matrix(NA,max(N),length(unique(p)))
-
-  # keep track of which indices each unique HC is located at
-  index = matrix(0,n,2)
-
-  # only need to copmpute 2 different Hermnite Coefficients (for each k)
-  for(i in  1:length(unique(p))){
-    index[,i] = unique(p)[i]==p
-    HCsmall[,i] = HermCoefNegBin_2(r, unique(p)[i], N)
-  }
-
-  # STEP 3: ARMA autocorrelation function
+  # Compute ARMA autocorrelation function
   All.ar = apply(as.matrix(ARMAacf(ar = phi, lag.max = n)), 1,function(x)x^(1:20))
 
+  # Truncation of relation (67)--check me
+  M = 20
 
-  # Step 4: Compute the products g1^2, g1*g2 and g2^2 of the HCs
-  HCprod = matrix(NA,20,3)
-  for(i in 0:(length(unique(p))-1) ){
-    for(j in i: (length(unique(p))-1) ){
-      HCprod[,i+j+1] = HCsmall[,i+1]*HCsmall[,j+1]
-    }
-  }
+  # Compute the link coefficients l_k = factorial(k)*g_{t1,k}*g_{t2,k}
+  l = LinkCoef_Reg(r, p, M)
 
-  # STEP 5: Implement relation 67
+  # keep track of which indices each unique HC is located at
+  index = c(unique(p)[1]==p, unique(p)[2]==p)
+
+  # STEP 3: Implement relation 67
   k = 1:20
   kfac = factorial(k)
   G = matrix(NA,n,n)
@@ -258,14 +270,14 @@ HermCoefNegBin <- function(r,p){
 
 
 #---------Hermitte Coefficients for all k---------#
-HermCoefNegBin_2 <- function(r,p,N){
+HermCoefNegBin_2 <- function(r,p, M){
   #====================================================================================#
   # PURPOSE    Compute all Hermite Coefficients. See relation (21) in
   #            https://arxiv.org/pdf/1811.00203.pdf
   #
   # INPUT
   #   r,p      Marginal parameters
-  #   maxCoef  number of coefficients to return. Default = 20
+  #   M        number of coefficients to return
   #
   # Output
   #   HC       All Hermite coeficients
@@ -275,7 +287,11 @@ HermCoefNegBin_2 <- function(r,p,N){
   # Version    3.6.1
   #====================================================================================#
 
-  h = 1:max(N) #check me
+  # Compute truncation of relation (21) in arxiv link above
+  N = sapply(unique(p),function(x)which(pnbinom(1:1000, r,x)>=1-1e-17)[1])-1
+  N[is.na(N)] = 1000
+
+  h = 1:M # 20 is truncation of (67)
   HC = rep(NA, length(h)) # storage
   for(i in h) {
     HC[i] <- HermCoefNegBin_k(r, p , k = i, N)
@@ -287,7 +303,7 @@ HermCoefNegBin_2 <- function(r,p,N){
 
 
 #---------Hermitte Coefficients for on k---------#
-HermCoefNegBin_k <- function(r,p, k, N){
+HermCoefNegBin_k <- function(r, p, k, N){
   #====================================================================================#
   # PURPOSE    Compute kth Hermite Coefficient. See relation (21) in
   #            https://arxiv.org/pdf/1811.00203.pdf
