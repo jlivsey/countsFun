@@ -75,7 +75,7 @@ GaussLogLikNB_Reg = function(theta, Y, X, ARorder, M){
   # Date       March 2020
   # Version    3.6.1
   #====================================================================================#
-#print(theta)
+print(theta)
   # Number of parameters and sample size
   nparms = length(theta)
   n = length(Y)
