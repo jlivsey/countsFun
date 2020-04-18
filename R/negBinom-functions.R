@@ -317,8 +317,8 @@ HermCoefNegBin_k <- function(r,p, k, N){
   # N = max(sapply(unique(p),function(x)which(round(pnbinom(1:1000, r,x), 7) == 1)[1]))
 
   # compute terms in the sum of relation (21) in
-  terms <- exp((-qnorm(pnbinom(0:N, r,p, lower.tail= TRUE))^2)/2) *
-    her(qnorm(pnbinom(0:N, r,p, lower.tail = TRUE)))
+  terms <- exp((-qnorm(pnbinom(0:max(N), r,p, lower.tail= TRUE))^2)/2) *
+    her(qnorm(pnbinom(0:max(N), r,p, lower.tail = TRUE)))
 
   # take the sum of all terms
   HC_k <- sum(terms) / (sqrt(2*pi) *  factorial(k))
