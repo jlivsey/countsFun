@@ -8,10 +8,10 @@
 # R version 3.6.3
 
 
-
-
-# load all data
-setwd("C:/Users/Stef/Desktop/countsFun/Sims/PoissonAR1/GL")
+### load all data
+# GL sims
+setwd("~/github/countsFun/Sims/PoissonAR1/GL")
+# setwd("C:/Users/Stef/Desktop/countsFun/Sims/PoissonAR1/GL")
 load('PoisAR1_GL_N100_NS200_PhiNeg.Rdata')
 load('PoisAR1_GL_N200_NS200_PhiNeg.Rdata')
 load('PoisAR1_GL_N400_NS200_PhiNeg.Rdata')
@@ -19,8 +19,9 @@ load('PoisAR1_GL_N100_NS200_PhiPos.Rdata')
 load('PoisAR1_GL_N200_NS200_PhiPos.Rdata')
 load('PoisAR1_GL_N400_NS200_PhiPos.Rdata')
 
-
-setwd("C:/Users/Stef/Desktop/countsFun/Sims/PoissonAR1/PF")
+# PF sims
+setwd("~/github/countsFun/Sims/PoissonAR1/PF")
+# setwd("C:/Users/Stef/Desktop/countsFun/Sims/PoissonAR1/PF")
 load('PoisAR1_PF_N100_NS200_Part100_PhiNeg.Rdata')
 load('PoisAR1_PF_N200_NS200_Part100_PhiNeg.Rdata')
 load('PoisAR1_PF_N400_NS200_Part100_PhiNeg.Rdata')
@@ -28,7 +29,17 @@ load('PoisAR1_PF_N100_NS200_Part100_PhiPos.Rdata')
 load('PoisAR1_PF_N200_NS200_Part100_PhiPos.Rdata')
 load('PoisAR1_PF_N400_NS200_Part100_PhiPos.Rdata')
 
-d = rbind(df1,df2,df3,df4,df5,df6,df7,df8,df9,df10,df11,df12)
+# IYW sims
+setwd("~/github/countsFun/Sims/PoissonAR1/IYW")
+load("PoisAR1_IWY_N100_NS200_PhiNeg.RData")
+load("PoisAR1_IWY_N100_NS200_PhiPos.RData")
+load("PoisAR1_IWY_N200_NS200_PhiNeg.RData")
+load("PoisAR1_IWY_N200_NS200_PhiPos.RData")
+load("PoisAR1_IWY_N400_NS200_PhiNeg.RData")
+load("PoisAR1_IWY_N400_NS200_PhiPos.RData")
+
+d = rbind(df1,  df2,  df3,  df4,  df5,  df6,  df7,  df8,  df9,
+          df10, df11, df12, df13, df14, df15, df16, df17, df18)
 
 
 library(ggplot2)
@@ -97,5 +108,5 @@ p2 + geom_boxplot(outlier.size = 1/2, fatten = 1) +
   theme(text=element_text(size=16),legend.position="bottom",
         legend.text=element_text(size=rel(1)))
 
-ggsave("PAR1lam2phiPos75.pdf")
+# ggsave("PAR1lam2phiPos75.pdf")
 # dev.off()
