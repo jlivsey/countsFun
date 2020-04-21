@@ -1,12 +1,12 @@
 # Files to be run
 loadFiles <-
   c(
-  "PoisAR1_IYW_N100_NS200_PhiNeg.Rdata",
-  "PoisAR1_IYW_N100_NS200_PhiPos.Rdata",
-  "PoisAR1_IYW_N200_NS200_PhiNeg.Rdata",
-  "PoisAR1_IYW_N200_NS200_PhiPos.Rdata",
-  "PoisAR1_IYW_N400_NS200_PhiNeg.Rdata",
-  "PoisAR1_IYW_N400_NS200_PhiPos.Rdata"
+  "PoisAR1_IYW_N100_NS200_PhiNeg.RData",
+  "PoisAR1_IYW_N100_NS200_PhiPos.RData",
+  "PoisAR1_IYW_N200_NS200_PhiNeg.RData",
+  "PoisAR1_IYW_N200_NS200_PhiPos.RData",
+  "PoisAR1_IYW_N400_NS200_PhiNeg.RData",
+  "PoisAR1_IYW_N400_NS200_PhiPos.RData"
   )
 
 # Run all files
