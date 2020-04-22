@@ -22,7 +22,7 @@ link_coefs <- function(g_coefs, gamx0){
   K <- length(g_coefs)
   return(factorial(1:K) * g_coefs^2 / gamx0)
 }
-
+# test comment
 reversion <- function(A){
   # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   #   %
