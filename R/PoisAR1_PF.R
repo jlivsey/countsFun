@@ -1,7 +1,8 @@
 PoisAR1_PF = function(CountDist,MargParm,ARParm,
                        n, nsim, ParticleSchemes) {
 
-  # PURPOSE: Produce Poisson AR(1) PArticle filter estimates for revised Figure 3 (see aarxiv)
+  # PURPOSE: Wrapper that performs simulation and produces Poisson AR(1) Particle filter
+  # estimates for revised Figure 3 (see aarxiv)
   #
   #
   # AUTHORS: Stefanos Kechagias, James Livsey, Vladas Pipiras
