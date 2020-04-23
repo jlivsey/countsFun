@@ -4,7 +4,7 @@ PoisAR1_PF = function(CountDist,MargParm,ARParm,
   # PURPOSE: Produce Poisson AR(1) PArticle filter estimates for revised Figure 3 (see aarxiv)
   #
   #
-  # AUTHORS: Stefanos Kechagias, James Livsey
+  # AUTHORS: Stefanos Kechagias, James Livsey, Vladas Pipiras
   #
   # DATE:    April 2020
   #
@@ -12,9 +12,9 @@ PoisAR1_PF = function(CountDist,MargParm,ARParm,
 
 
   # load PF likelihood function and other necessary functions from UNC cluster directory
-  setwd("C:/Users/Stef/Desktop/countsFun/R")
-  source('LikSISGenDist_ARp_Res.R')
-  source('LikSIS_ARpGenDist_functions.R')
+
+  source('C:/Users/Stef/Desktop/countsFun/R/LikSISGenDist_ARp_Res.R')
+  source('C:/Users/Stef/Desktop/countsFun/R/LikSIS_ARpGenDist_functions.R')
 
   # load necessary libraries.
   library(itsmr)
@@ -23,15 +23,12 @@ PoisAR1_PF = function(CountDist,MargParm,ARParm,
   library(doParallel)
   library(tictoc)
 
-  # Setup the simulation scheme
-
-
-  PhiSign = ifelse(ARParm > 0, 'Pos', 'Neg')   # SIGN OF ar(1) param
-  ARorder = length(ARParm)                     # AR parameters
-  nfit = 1                                     # number of times that we fit the same realization
-  initial.param = c(MargParm, ARParm)          # Initial PArameters
-  no_cores <-
-    detectCores() - 1                # Select the number of cores
+  # Simulation scheme details
+  PhiSign       = ifelse(ARParm > 0, 'Pos', 'Neg')   # SIGN OF ar(1) param
+  ARorder       = length(ARParm)                     # AR parameters
+  nfit          = 1                                  # number of times that we fit the same realization
+  initial.param = c(MargParm, ARParm)                # Initial PArameters
+  no_cores      = detectCores() - 1                  # Select the number of cores
   ###########################################################################
 
   # generate all the realizations and save in a list

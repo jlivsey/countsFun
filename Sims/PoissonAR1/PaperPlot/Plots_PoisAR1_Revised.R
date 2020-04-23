@@ -1,7 +1,7 @@
 # PURPOSE: Parameter estimates boxplots for GL and PF Poisson AR(1) simulations - revision
 #
 #
-# AUTHORS: Stefanos Kechagias, James Livsey
+# AUTHORS: Stefanos Kechagias, James Livsey, Vladas Pipiras
 #
 # DATE:    April 2020
 #

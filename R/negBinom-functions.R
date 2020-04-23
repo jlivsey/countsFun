@@ -11,7 +11,7 @@ GaussLogLikNB = function(theta, data){
   # Output
   #   loglik   Gaussian log-likelihood
   #
-  # Authors    Stefanos Kechagias, James Livsey
+  # Authors    Stefanos Kechagias, James Livsey, Vladas Pipiras
   # Date       January 2020
   # Version    3.6.1
   #====================================================================================#

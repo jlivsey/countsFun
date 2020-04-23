@@ -10,7 +10,7 @@ CovarPoissonAR_fixedLamba = function(n, HC, phi){
   # Output
   #   GAMMA    covariance matrix ofcount series
   #
-  # Authors    Stefanos Kechagias, James Livsey
+  # Authors    Stefanos Kechagias, James Livsey, Vladas Pipiras
   # Date       January 2020
   # Version    3.6.1
   #######################################################################

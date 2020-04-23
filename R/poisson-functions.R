@@ -1,6 +1,6 @@
 # PURPOSE: Function for Poisson AR(1) analysis
 #
-# AUTHORS: Stefanos Kechagias, James Livsey
+# AUTHORS: Stefanos Kechagias, James Livsey, Vladas Pipiras
 #
 # DATE:    April 2020
 #

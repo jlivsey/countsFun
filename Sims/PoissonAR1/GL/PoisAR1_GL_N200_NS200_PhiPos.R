@@ -1,7 +1,7 @@
 # PURPOSE: Produce Poisson AR(1) Gaussian likelihood estimates for revised Figure 3 (see aarxiv)
 #
 #
-# AUTHORS: Stefanos Kechagias, James Livsey
+# AUTHORS: Stefanos Kechagias, James Livsey, Vladas Pipiras
 #
 # DATE:    April 2020
 #

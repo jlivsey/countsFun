@@ -4,7 +4,7 @@
 #
 # NOTES:
 #
-# AUTHORS: James Livsey, Stefanos Kechagias
+# AUTHORS: James Livsey, Stefanos Kechagias, Vladas Pipiras
 #
 # DATE:    January 2020
 #
