@@ -70,7 +70,7 @@ names(df) = c("Method", "T", "variable", "value" )
 levels(df$variable) = c("phi estimates", "lambda estimates")
 
 df$Method = as.factor(df$Method)
-levels(df$Method) = c("Gaussian Likelihood", "Particle Filtering")
+levels(df$Method) = c("Gaussian Likelihood", "Particle Filtering", "IYW")
 
 # Add true value to data.frame (for adding horizontal line to boxplots)
 df$true = rep(-99, dim(df)[1])
@@ -103,7 +103,7 @@ p2 + geom_boxplot(outlier.size = 1/2, fatten = 1) +
   geom_blank(aes(y = y_max))+
   ggtitle(label = "Poisson - AR(1)") +
   theme(plot.title = element_text(hjust = 0.5)) +
-  scale_fill_manual(values=c("#5F9EA0", "#F8F8FF")) +
+  # scale_fill_manual(values=c("#5F9EA0", "#F8F8FF")) +
   labs(x="T", y="Parameter Estimates")+
   theme(text=element_text(size=16),legend.position="bottom",
         legend.text=element_text(size=rel(1)))

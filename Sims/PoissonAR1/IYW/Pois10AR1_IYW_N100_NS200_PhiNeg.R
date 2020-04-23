@@ -1,7 +1,7 @@
 # PURPOSE: Produce Poisson AR(1) IWY estimates for revised Figure 3 (see aarxiv)
 #
 #
-# AUTHORS: Stefanos Kechagias, James Livsey, Vladas Pipiras
+# AUTHORS: Stefanos Kechagias, James Livsey
 #
 # DATE:    April 2020
 #
@@ -14,7 +14,7 @@ library(countsFun)
 
 # ---- setup parameters for Poisson(lam)-AR(1) series ----
 CountDist = "Poisson"                       # Distribution
-MargParm = 2                                # marginal parameter
+MargParm = 10                               # marginal parameter
 ARParm  = -0.75
 PhiSign = ifelse(ARParm > 0, 'Pos', 'Neg')  # SIGN OF ar(1) param
 ARorder = length(ARParm)                    # AR parameters
@@ -24,7 +24,7 @@ initial.param = c(MargParm, ARParm)         # Initial PArameters
 no_cores <- detectCores() -1                # Select the number of cores
 
 # Print File name
-fileName <- sprintf("PoisAR%s_IYW_N%s_NS%s_Phi%s", ARorder, n, nsim, PhiSign)
+fileName <- sprintf("Pois%sAR%s_IYW_N%s_NS%s_Phi%s", MargParm, ARorder, n, nsim, PhiSign)
 print(fileName)
 
 # Generate all the data and save in a list
