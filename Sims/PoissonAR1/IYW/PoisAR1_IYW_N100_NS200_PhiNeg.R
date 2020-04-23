@@ -24,7 +24,7 @@ initial.param = c(MargParm, ARParm)         # Initial PArameters
 no_cores <- detectCores() -1                # Select the number of cores
 
 # Print File name
-fileName <- sprintf("PoisAR%s_IWY_N%s_NS%s_Phi%s", ARorder, n, nsim, PhiSign)
+fileName <- sprintf("PoisAR%s_IYW_N%s_NS%s_Phi%s", ARorder, n, nsim, PhiSign)
 print(fileName)
 
 # Generate all the data and save in a list
