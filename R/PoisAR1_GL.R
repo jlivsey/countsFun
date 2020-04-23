@@ -11,11 +11,6 @@ PoisAR1_GL = function(CountDist,MargParm,ARParm, n, nsim, no_cores) {
   # R version 3.6.3
 
 
-# ---- Load libraries ----
-library(parallel)
-library(doParallel)
-library(countsFun)
-
 # ---- setup parameters for Poisson(lam)-AR(1) series ----
 PhiSign = ifelse(ARParm > 0, 'Pos', 'Neg')  # SIGN OF ar(1) param
 ARorder = length(ARParm)                    # AR parameters

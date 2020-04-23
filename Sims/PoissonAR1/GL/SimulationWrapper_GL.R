@@ -10,6 +10,11 @@
 # set directory to  save results
 setwd("C:/Users/Stef/Desktop/countsFun/Sims/PoissonAR1/GL/RData")
 
+# ---- Load libraries ----
+library(parallel)
+library(doParallel)
+library(countsFun)
+
 # fixed parameters across all simulation schemes
 CountDist       = "Poisson"
 MargParm        = 10
