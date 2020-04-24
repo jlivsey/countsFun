@@ -17,7 +17,7 @@ NegBinMA1_GL = function(CountDist,MargParm,MAParm,
 library(parallel)
 library(doParallel)
 library(countsFun)
-library(ggplot2)
+
 
 # ---- setup parameters for Poisson(lam)-AR(1) series ----
 
@@ -39,7 +39,7 @@ registerDoParallel(cl)
 # fit the gaussian log lik using foreach
 all = foreach(index = 1:nsim,
               .combine = rbind,
-              .packages = c("countsFun")) %dopar%
+              .packages = c("countsFun")) %do%
   FitGaussianLikNB_MA(initial.param, l[[index]])
 
 stopCluster(cl)

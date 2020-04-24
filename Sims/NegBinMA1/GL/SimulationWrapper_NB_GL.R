@@ -20,24 +20,42 @@ CountDist       = "NegBin"
 r               = 3
 p               = 0.2
 MargParm        = c(r,p)
-nsim            = 5
-no_cores <- detectCores() -1
+nsim            = 200
+no_cores <- detectCores()/2
 
 #-----------------------------------------------Positive MA parameter--------------------------------------------------#
 MAParm = -0.75
+ThetaSign = ifelse(MAParm > 0, 'Pos', 'Neg')   # SIGN OF ar(1) param
+
 n=100
-
-
 df7 = NegBinMA1_GL(CountDist, MargParm, MAParm, n, nsim, no_cores)
+save(df7, file = sprintf("NegBin%s_%sMA%s_GL_N%s_NS%s_T%s.RData", MargParm[1], MargParm[2], 1, n, nsim, ThetaSign))
 
-# optim.output <- optim(par     = initial.param,
-#                       fn      = GaussLogLikNB_MA,
-#                       data    = l[[1]],
-#                       method  = "BFGS",
-#                       hessian = TRUE)
-#
-#
-#
-# n=100
-# df7 = NegBinMA1_GL(CountDist, MargParm, MAParm, n, nsim, no_cores)
-#
+n=200
+df8 = NegBinMA1_GL(CountDist, MargParm, MAParm, n, nsim, no_cores)
+save(df8, file = sprintf("NegBin%s_%sMA%s_GL_N%s_NS%s_T%s.RData", MargParm[1], MargParm[2], 1, n, nsim, ThetaSign))
+
+n=400
+df9 = NegBinMA1_GL(CountDist, MargParm, MAParm, n, nsim, no_cores)
+save(df9, file = sprintf("NegBin%s_%sMA%s_GL_N%s_NS%s_T%s.RData", MargParm[1], MargParm[2], 1, n, nsim, ThetaSign))
+
+
+
+
+#-----------------------------------------------Negative MA parameter--------------------------------------------------#
+MAParm = 0.75
+ThetaSign = ifelse(MAParm > 0, 'Pos', 'Neg')   # SIGN OF ar(1) param
+
+n=100
+df10 = NegBinMA1_GL(CountDist, MargParm, MAParm, n, nsim, no_cores)
+save(df10, file = sprintf("NegBin%s_%sMA%s_GL_N%s_NS%s_T%s.RData", MargParm[1], MargParm[2], 1, n, nsim, ThetaSign))
+
+n=200
+df11 = NegBinMA1_GL(CountDist, MargParm, MAParm, n, nsim, no_cores)
+save(df11, file = sprintf("NegBin%s_%sMA%s_GL_N%s_NS%s_T%s.RData", MargParm[1], MargParm[2], 1, n, nsim, ThetaSign))
+
+n=400
+df12 = NegBinMA1_GL(CountDist, MargParm, MAParm, n, nsim, no_cores)
+save(df12, file = sprintf("NegBin%s_%sMA%s_GL_N%s_NS%s_T%s.RData", MargParm[1], MargParm[2], 1, n, nsim, ThetaSign))
+
+

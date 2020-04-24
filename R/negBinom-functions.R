@@ -251,7 +251,7 @@ HermCoefNegBin <- function(r,p){
   #====================================================================================#
 
   # truncation numbe: check me
-  N <- which(round(pnbinom(1:1000, r,p), 7) == 1)[1]
+  N <- which(round(pnbinom(1:1000, r,1-p), 7) == 1)[1]
   if(is.na(N)){
     N=1000
   }
@@ -286,7 +286,7 @@ HermCoefNegBin_2 <- function(r,p, M){
   #====================================================================================#
 
   # Compute truncation of relation (21) in arxiv link above
-  N = sapply(unique(p),function(x)which(pnbinom(1:1000, r,x)>=1-1e-17)[1])-1
+  N = sapply(unique(p),function(x)which(pnbinom(1:1000, r,1-x)>=1-1e-17)[1])-1
   N[is.na(N)] = 1000
 
   h = 1:M # 20 is truncation of (67)
@@ -331,8 +331,8 @@ HermCoefNegBin_k <- function(r, p, k, N){
   # N = max(sapply(unique(p),function(x)which(round(pnbinom(1:1000, r,x), 7) == 1)[1]))
 
   # compute terms in the sum of relation (21) in
-  terms <- exp((-qnorm(pnbinom(0:max(N), r,p, lower.tail= TRUE))^2)/2) *
-    her(qnorm(pnbinom(0:max(N), r,p, lower.tail = TRUE)))
+  terms <- exp((-qnorm(pnbinom(0:max(N), r,1-p, lower.tail= TRUE))^2)/2) *
+    her(qnorm(pnbinom(0:max(N), r,1-p, lower.tail = TRUE)))
 
   # take the sum of all terms
   HC_k <- sum(terms) / (sqrt(2*pi) *  factorial(k))
@@ -441,7 +441,7 @@ sim_negbin_ar = function(n, phi, r,p){
   # Version    3.6.1
   #====================================================================================#
   z = arima.sim(model = list(ar=phi), n = n); z = z/sd(z) # standardized
-  x = qnbinom(pnorm(z), r,p)
+  x = qnbinom(pnorm(z), r,1-p)
   return(x)
 }
 
@@ -550,7 +550,7 @@ CovarNegBinAR_4 = function(n, r, m, phi){
   p = m/(m+r)
 
   # truncation numbe: check me
-  N = sapply(unique(p),function(x)which(pnbinom(1:1000, r,x)>1-1e-7)[1])
+  N = sapply(unique(p),function(x)which(pnbinom(1:1000, r,1-x)>1-1e-7)[1])
   #N = sapply(unique(p),function(x)which(round(pnbinom(1:1000, r,x), 7) == 1)[1] )
   N[is.na(N)] = 1000
 
@@ -619,6 +619,10 @@ CountACVF_t1t2 = function(t1,t2, myacf, g){
 #---------vectorized autoCovariance function---------#
 CountACVF_2 <- Vectorize(CountACVF_t1t2, vectorize.args = c("t1", "t2"))
 
+
+
+
+
 #---------simulate negbin series (r,p) parametrization---------#
 sim_negbin_ma = function(n, theta, r,p){
   #====================================================================================#
@@ -638,7 +642,7 @@ sim_negbin_ma = function(n, theta, r,p){
   # Version    3.6.3
   #====================================================================================#
   z = arima.sim(model = list(order = c(0,0,1), ma=theta), n = n); z = z/sd(z) # standardized
-  x = qnbinom(pnorm(z), r,p)
+  x = qnbinom(pnorm(z), r, 1-p)
   return(x)
 }
 
@@ -699,18 +703,18 @@ GaussLogLikNB_MA = function(theta, data){
   n = length(data)
 
   #Select the mean value used to demean--sample or true?
-  MeanValue = r*(1-p)/p
+  MeanValue = r*p/(1-p)
 
   # assign large likelihood value if not causal or if meanm outside range
-  # if(abs(MAParm) > 0.99 || r<0.0001 || p<0.0001 || p>0.999){
-  #   return(10^16) #check me
-  # }
-
-
-  # assign large likelihood value if not causal or if meanm outside range
-  if(any(abs( polyroot(c(1, MAParm))  ) < 1) || MeanValue<0 ){
-    return(NA) #check me
+  if(abs(MAParm) > 0.99 || r<0.0001 || p<0.0001 || p>0.999){
+    return(10^16) #check me
   }
+
+
+  # assign large likelihood value if not causal or if meanm outside range
+  # if(abs(MAParm)>0.999 || MeanValue<0 ){
+  #   return(NA) #check me
+  # }
 
   # Compute the covariance matrix--relation (56) in https://arxiv.org/pdf/1811.00203.pdf
   GAMMA = CovarNegBinMA(n, r, p, MAParm)
@@ -757,7 +761,7 @@ FitGaussianLikNB_MA = function(initialParam, x){
   # save estimates, loglik and standard errors
   ParmEst[,1:nparms]   = optim.output$par
   loglik               = optim.output$value
-  se[,1:nparms]        = sqrt(abs(diag(solve(optim.output$hessian))))
+  #se[,1:nparms]        = sqrt(abs(diag(solve(optim.output$hessian))))
 
   All      = cbind(ParmEst, se, loglik)
   return(All)
