@@ -17,7 +17,7 @@ NegBinMA1_GL = function(CountDist, MargParm, MAParm, n, nsim, no_cores) {
   l <- list()
   for(r in 1:nsim){
     set.seed(r)
-    l[[r]] = sim_pois_ma(n, MAParm, MargParm )
+    l[[r]] = sim_negbin_ma(n, MAParm, MargParm[1], MargParm[2])
   }
 
   # initiate and register the cluster

@@ -24,9 +24,28 @@ nsim            = 5
 no_cores <- detectCores() -1
 
 #-----------------------------------------------Positive MA parameter--------------------------------------------------#
-MAParm = 0.75
+MAParm = -0.75
 ThetaSign = ifelse(MAParm > 0, 'Pos', 'Neg')   # SIGN OF MA(1) param
 
-n=100
-df7 = NegBinMA1_GL(CountDist, MargParm, MAParm, n, nsim, no_cores)
 
+# Generate all the data and save in a list
+n=100
+initial.param = c(MargParm, MAParm)
+l <- list()
+for(r in 1:nsim){
+  set.seed(r)
+  l[[r]] = sim_negbin_ma(n, MAParm, MargParm[1], MargParm[2])
+}
+
+
+optim.output <- optim(par     = initial.param,
+                      fn      = GaussLogLikNB_MA,
+                      data    = l[[1]],
+                      method  = "BFGS",
+                      hessian = TRUE)
+
+
+
+# n=100
+# df7 = NegBinMA1_GL(CountDist, MargParm, MAParm, n, nsim, no_cores)
+#
