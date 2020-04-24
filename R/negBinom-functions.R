@@ -621,4 +621,27 @@ CountACVF_t1t2 = function(t1,t2, myacf, g){
 #---------vectorized autoCovariance function---------#
 CountACVF_2 <- Vectorize(CountACVF_t1t2, vectorize.args = c("t1", "t2"))
 
+#---------simulate negbin series (r,p) parametrization---------#
+sim_negbin_ma = function(n, theta, r,p){
+  #====================================================================================#
+  # PURPOSE   Simulate Poisson series with AR structure. See relation (1)
+  #           in https://arxiv.org/pdf/1811.00203.pdf
+  #
+  # INPUT
+  #   n        series length
+  #   theta    MA parameter
+  #   r,p      Marginal Parameters
+  #
+  # Output
+  #   x        Poisson series
+  #
+  # Authors    Stefanos Kechagias, James Livsey, Vladas Pipiras
+  # Date       April 2020
+  # Version    3.6.3
+  #====================================================================================#
+  z = arima.sim(model = list(ma=theta), n = n); z = z/sd(z) # standardized
+  x = qnbinom(pnorm(z), r,p)
+  return(x)
+}
+
 
