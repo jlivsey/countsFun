@@ -37,6 +37,7 @@ for(r in 1:nsim){
   l[[r]] = sim_negbin_ma(n, MAParm, MargParm[1], MargParm[2])
 }
 
+df7 = NegBinMA1_GL(CountDist, MargParm, MAParm, n, nsim, no_cores)
 
 optim.output <- optim(par     = initial.param,
                       fn      = GaussLogLikNB_MA,
@@ -46,6 +47,6 @@ optim.output <- optim(par     = initial.param,
 
 
 
-# n=100
-# df7 = NegBinMA1_GL(CountDist, MargParm, MAParm, n, nsim, no_cores)
+n=100
+df7 = NegBinMA1_GL(CountDist, MargParm, MAParm, n, nsim, no_cores)
 #
