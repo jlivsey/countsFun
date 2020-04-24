@@ -12,8 +12,6 @@ PoisAR1_GL = function(CountDist,MargParm,ARParm, n, nsim, no_cores) {
 
 
 # ---- setup parameters for Poisson(lam)-AR(1) series ----
-PhiSign = ifelse(ARParm > 0, 'Pos', 'Neg')  # SIGN OF ar(1) param
-ARorder = length(ARParm)                    # AR parameters
 initial.param = c(MargParm, ARParm)         # Initial PArameters
 
 # Generate all the data and save in a list

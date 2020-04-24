@@ -8,7 +8,7 @@
 
 # Generate AR series
 sim_pois_ar = function(n, phi, lam){
-  #######################################################################
+  #------------------------------------------------------------------------#
   # PURPOSE   Simulate Poisson series with AR structure. See relation (1)
   #           in https://arxiv.org/pdf/1811.00203.pdf
   #
@@ -23,7 +23,7 @@ sim_pois_ar = function(n, phi, lam){
   # Authors    Stefanos Kechagias, James Livsey
   # Date       January 2020
   # Version    3.6.1
-  #######################################################################
+  #-----------------------------------------------------------------------#
 
   z = arima.sim(model = list(ar=phi), n = n); z = z/sd(z) # standardized
   x = qpois(pnorm(z), lam)
@@ -234,7 +234,7 @@ EvalInvQuadForm = function(A, v, DataMean ){
 
 # Poisson AR(1) Gaussian Lik
 GaussLogLik = function(theta, data){
-  #######################################################################
+  #-------------------------------------------------------------------------#
   # PURPOSE    Compute Gaussian log-likelihood for Poisson AR series
   #
   # INPUT
@@ -247,7 +247,7 @@ GaussLogLik = function(theta, data){
   # Authors    Stefanos Kechagias, James Livsey
   # Date       January 2020
   # Version    3.6.1
-  #######################################################################
+  #-------------------------------------------------------------------------#
 
   # retrieve parameters and sample size
   lam = theta[1]

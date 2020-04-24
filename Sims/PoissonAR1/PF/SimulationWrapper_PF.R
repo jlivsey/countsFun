@@ -8,7 +8,7 @@
 # R version 3.6.3
 
 # set directory to  save results
-setwd("C:/Users/Stef/Desktop/countsFun/Sims/PoissonAR1/PF")
+setwd("C:/Users/Stef/Desktop/countsFun/Sims/PoissonAR1/PF/RData")
 
 # fixed parameters across all simulation schemes
 CountDist       = "Poisson"
@@ -35,7 +35,7 @@ save(df3, file = sprintf("Pois%sAR%s_PF_N%s_NS%s_Part%s_Phi%s.RData",MargParm, 1
 
 
 # #-----------------------------------------------Negative AR parameter--------------------------------------------------#
-ARparm = -0.75
+ARParm = -0.75
 PhiSign = ifelse(ARParm > 0, 'Pos', 'Neg')   # SIGN OF ar(1) param
 
 n=100

@@ -637,7 +637,7 @@ sim_negbin_ma = function(n, theta, r,p){
   # Date       April 2020
   # Version    3.6.3
   #====================================================================================#
-  z = arima.sim(model = list(ma=theta), n = n); z = z/sd(z) # standardized
+  z = arima.sim(model = list(order = c(0,0,1), ma=theta), n = n); z = z/sd(z) # standardized
   x = qnbinom(pnorm(z), r,p)
   return(x)
 }
@@ -699,7 +699,13 @@ GaussLogLikNB_MA = function(theta, data){
   n = length(data)
 
   #Select the mean value used to demean--sample or true?
-  MeanValue = r*p/(1-p)
+  MeanValue = r*(1-p)/p
+
+  # assign large likelihood value if not causal or if meanm outside range
+  # if(abs(MAParm) > 0.99 || r<0.0001 || p<0.0001 || p>0.999){
+  #   return(10^16) #check me
+  # }
+
 
   # assign large likelihood value if not causal or if meanm outside range
   if(any(abs( polyroot(c(1, MAParm))  ) < 1) || MeanValue<0 ){
