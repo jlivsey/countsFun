@@ -27,7 +27,8 @@ symmetrize <- lavaSearch2:::symmetrize
 
 
 # load the data
-mysales = read.csv("C:/Users/Stef/Desktop/countsFun/data/MySelectedSeries.csv")
+#mysales = read.csv("C:/Users/Stef/Desktop/countsFun/data/MySelectedSeries.csv")
+mysales = read.csv("/Users/stef/Desktop/countsFun/data/MySelectedSeries.csv")
 
 
 # attach the datafrmae
@@ -50,31 +51,22 @@ b1 = 0.683351
 b = c(b0,b1)
 k  = 1/4
 phi = c(-0.1696836, 0.2796241, 0.2267073)
-
+LB = c(0.001, 0.001, -0.999)
+UB = c(Inf, 0.999, 0.999)
+MaxCdf = 5000
+nHC = 30
 theta = c(b,k,phi)
-X = cbind(rep(1,length(Buy)),Buy)
-tic()
-GaussLogLikNB_Reg(theta, MOVE, X,3 )
-toc()
+Regressor = cbind(rep(1,length(Buy)),Buy)
+# tic()
+# GaussLogLikNB_Reg(theta, MOVE, X, c(3,0), 5000, 30)
+# toc()
+X = MOVE
+x0 = theta
+ARMAorder = c(3,0)
 
 tic()
-mod2 = FitGaussianLikNB_Reg(theta, MOVE, X, 3)
+mod2 = FitGaussianLikNB_Reg(x0, X, Regressor, LB, UB, ARMAorder, MaxCdf, nHC)
 toc()
-
-
-# pest = mest/(mest+rest)
-# phiest = est[4:6]
-#
-# # generate negative binomial AR series
-# y  =sim_negbin_ar_2(400, phiest, rest, mest)
-
-
-# X = cbind(rep(1,length(Buy)),Buy)
-#
-# theta0 = c(-0.417066419898571, -0.87759943351099, 9.0907108753284,
-#            -0.20906710018397, 0.507553591887987, 0.188611090043294)
-
-#FitGaussianLikNB_2(theta, MOVE, X, 3)
 
 
 

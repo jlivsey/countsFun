@@ -787,9 +787,7 @@ GaussLogLikNB_Reg = function(theta, data, Regressor, ARMAorder, MaxCdf, nHC){
 
   # Compute truncation of relation (21) in arxiv
   N = sapply(unique(p),function(x)which(pnbinom(1:MaxCdf, r,1-x)>=1-1e-7)[1])-1
-  if(length(N)==0 |is.na(N) ){
-    N =MaxCdf
-  }
+  N[is.na(N)] = MaxCdf
 
   #Select the mean value used to demean--sample or true?
   MeanValue = r*p/(1-p)
@@ -810,7 +808,7 @@ GaussLogLikNB_Reg = function(theta, data, Regressor, ARMAorder, MaxCdf, nHC){
 
 
 #---------Fit Gaussian Likelihood function---------#
-FitGaussianLikNB_Reg = function(x0, X, Regrsessor, LB, UB, ARMAorder, MaxCdf, nHC){
+FitGaussianLikNB_Reg = function(x0, X, Regressor, LB, UB, ARMAorder, MaxCdf, nHC){
   #====================================================================================#
   # PURPOSE       Fit the Gaussian log-likelihood for NegBin series
   #
