@@ -39,7 +39,7 @@ registerDoParallel(cl)
 # fit the gaussian log lik using foreach
 all = foreach(index = 1:nsim,
               .combine = rbind,
-              .packages = c("countsFun")) %do%
+              .packages = c("countsFun")) %dopar%
   FitGaussianLikNB_MA(initial.param, l[[index]])
 
 stopCluster(cl)

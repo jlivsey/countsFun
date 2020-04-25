@@ -1,49 +1,4 @@
 
-#---------Likelihood function---------#
-GaussLogLikNB = function(theta, data){
-  #====================================================================================#
-  # PURPOSE    Compute Gaussian log-likelihood for NegBin AR series
-  #
-  # INPUT
-  #   theta    parameter vector containing the marginal and AR parameters
-  #   data     count series
-  #
-  # Output
-  #   loglik   Gaussian log-likelihood
-  #
-  # Authors    Stefanos Kechagias, James Livsey, Vladas Pipiras
-  # Date       January 2020
-  # Version    3.6.1
-  #====================================================================================#
-
-  # retrieve parameters and sample size
-  r = theta[1]
-  p = theta[2]
-  phi = theta[-c(1,2)]
-  n = length(data)
-
-  #Select the mean value used to demean--sample or true?
-  MeanValue = r*p/(1-p)
-
-  # assign large likelihood value if not causal or if meanm outside range
-  if(any(abs( polyroot(c(1, -phi))  ) < 1) || MeanValue<0 ){
-    return(NA) #check me
-  }
-
-  # Compute the covariance matrix--relation (56) in https://arxiv.org/pdf/1811.00203.pdf
-  GAMMA = CovarNegBinAR(n, r, p, phi)
-
-  # Compute the logdet and the quadratic part
-  logLikComponents = EvalInvQuadForm(GAMMA, as.numeric(data), MeanValue)
-
-  # final loglikelihood value
-  out = 0.5*logLikComponents[1] + 0.5*logLikComponents[2]
-
-  # the following will match the above if you subtract N/2*log(2*pi) and don't multiply with 2
-  # out = -2*dmvnorm(as.numeric(data), rep(lam, n), GAMMA, log = TRUE)
-  return(out)
-}
-
 #---------Likelihood function with regressor---------#
 GaussLogLikNB_Reg = function(theta, Y, X, ARorder, M){
   #====================================================================================#
@@ -113,7 +68,7 @@ print(theta)
 
 
 #---------Covariance matrix---------#
-CovarNegBinAR = function(n,r, p, phi){
+CovarNegBinAR = function(n,r, p, phi, N){
   #====================================================================================#
   # PURPOSE    Compute the covariance matrix of a NegBin AR series.
   #
@@ -121,13 +76,14 @@ CovarNegBinAR = function(n,r, p, phi){
   #   r,p      Marginal parameters
   #   phi      AR parameter
   #   n        size of the matrix
+  #   N        truncation of relation (21)
   #
   # Output
   #   GAMMA    covariance matrix ofcount series
   #
-  # Authors    Stefanos Kechagias, James Livsey
-  # Date       January 2020
-  # Version    3.6.1
+  # Authors    Stefanos Kechagias, James Livsey, Vladas Pipiras
+  # Date       April 2020
+  # Version    3.6.3
   #====================================================================================#
 
   # Hermite coeficients--relation (21) in https://arxiv.org/pdf/1811.00203.pdf
@@ -233,7 +189,7 @@ CovarNegBinAR_Reg = function(n, r, p, phi, M){
 
 
 #---------Hermitte Coefficients for all k---------#
-HermCoefNegBin <- function(r,p){
+HermCoefNegBin <- function(r, p, N, nHC){
   #====================================================================================#
   # PURPOSE    Compute all Hermite Coefficients. See relation (21) in
   #            https://arxiv.org/pdf/1811.00203.pdf
@@ -241,22 +197,18 @@ HermCoefNegBin <- function(r,p){
   # INPUT
   #   r,p      Marginal parameters
   #   maxCoef  number of coefficients to return. Default = 20
+  #   N        truncation of relation (21)
+  #   nHC      number of Hermitte coefficients
   #
   # Output
   #   HC       All Hermite coeficients
   #
-  # Authors    Stefanos Kechagias, James Livsey
-  # Date       January 2020
-  # Version    3.6.1
+  # Authors    Stefanos Kechagias, James Livsey, Vladas Pipiras
+  # Date       April 2020
+  # Version    3.6.3
   #====================================================================================#
 
-  # truncation numbe: check me
-  N <- which(round(pnbinom(1:1000, r,1-p), 7) == 1)[1]
-  if(is.na(N)){
-    N=1000
-  }
-
-  h = 1:20 #check me
+  h = 1:nHC #check me
   HC = rep(NA, length(h)) # storage
   for(i in h) {
     HC[i] <- HermCoefNegBin_k(r, p , k = i, N)
@@ -268,7 +220,7 @@ HermCoefNegBin <- function(r,p){
 
 
 #---------Hermitte Coefficients for all k---------#
-HermCoefNegBin_2 <- function(r,p, M){
+HermCoefNegBin_2 <- function(r, p, M){
   #====================================================================================#
   # PURPOSE    Compute all Hermite Coefficients. See relation (21) in
   #            https://arxiv.org/pdf/1811.00203.pdf
@@ -341,41 +293,41 @@ HermCoefNegBin_k <- function(r, p, k, N){
 
 
 #---------Fit Gaussian Likelihood function---------#
-FitGaussianLikNB = function(initialParam, x){
-  #====================================================================================#
-  # PURPOSE    Fit the Gaussian log-likelihood for NegBin AR series
-  #
-  # INPUT
-  #   initialParam       parameter vector containing the marginal and AR parameters
-  #   x                  count series
-  #
-  # Output
-  #   optim.output$par   parameter estimates
-  #
-  # Authors    Stefanos Kechagias, James Livsey
-  # Date       January 2020
-  # Version    3.6.1
-  #====================================================================================#
-  optim.output <- optim(par = initialParam,
-                        fn = GaussLogLikNB,
-                        data = x,
-                        method = "BFGS",
-                        hessian=TRUE)
-
-  nparms = length(initialParam)
-  ParmEst = matrix(0,nrow=1,ncol=nparms)
-  se =  matrix(NA,nrow=1,ncol=nparms)
-  loglik = rep(0,1)
-
-  # save estimates, loglik and standard errors
-  ParmEst[,1:nparms]   = optim.output$par
-  loglik               = optim.output$value
-  se[,1:nparms]        = sqrt(abs(diag(solve(optim.output$hessian))))
-
-  All      = cbind(ParmEst, se, loglik)
-  return(All)
-
-}
+# FitGaussianLikNB = function(initialParam, x){
+#   #====================================================================================#
+#   # PURPOSE    Fit the Gaussian log-likelihood for NegBin AR series
+#   #
+#   # INPUT
+#   #   initialParam       parameter vector containing the marginal and AR parameters
+#   #   x                  count series
+#   #
+#   # Output
+#   #   optim.output$par   parameter estimates
+#   #
+#   # Authors    Stefanos Kechagias, James Livsey
+#   # Date       January 2020
+#   # Version    3.6.1
+#   #====================================================================================#
+#   optim.output <- optim(par = initialParam,
+#                         fn = GaussLogLikNB,
+#                         data = x,
+#                         method = "BFGS",
+#                         hessian=TRUE)
+#
+#   nparms = length(initialParam)
+#   ParmEst = matrix(0,nrow=1,ncol=nparms)
+#   se =  matrix(NA,nrow=1,ncol=nparms)
+#   loglik = rep(0,1)
+#
+#   # save estimates, loglik and standard errors
+#   ParmEst[,1:nparms]   = optim.output$par
+#   loglik               = optim.output$value
+#   se[,1:nparms]        = sqrt(abs(diag(solve(optim.output$hessian))))
+#
+#   All      = cbind(ParmEst, se, loglik)
+#   return(All)
+#
+# }
 
 
 #---------Fit Gaussian Likelihood function with Regressor---------#
@@ -678,7 +630,6 @@ CovarNegBinMA = function(n,r, p, theta){
   return(GAMMA)
 }
 
-
 #---------Likelihood function---------#
 GaussLogLikNB_MA = function(theta, data){
   #====================================================================================#
@@ -730,7 +681,6 @@ GaussLogLikNB_MA = function(theta, data){
   return(out)
 }
 
-
 #---------Fit Gaussian Likelihood function---------#
 FitGaussianLikNB_MA = function(initialParam, x){
   #====================================================================================#
@@ -767,6 +717,178 @@ FitGaussianLikNB_MA = function(initialParam, x){
   return(All)
 
 }
+
+
+
+
+#---------simulate negbin series (r,p) parametrization---------#
+sim_negbin = function(n, ARMAmodel, r,p){
+  #====================================================================================#
+  # PURPOSE       Simulate NegBin series with ARMA structure. See relation (1)
+  #               in https://arxiv.org/pdf/1811.00203.pdf
+  #
+  # INPUT
+  #   n           series length
+  #   ARMAmodel   list with ARMA parameters
+  #   r,p         Marginal Parameters
+  #
+  # Output
+  #   X           Neg bin series
+  #
+  # Authors       Stefanos Kechagias, James Livsey, Vladas Pipiras
+  # Date          April 2020
+  # Version       3.6.3
+  #====================================================================================#
+
+  z = arima.sim(model = list(ar=ARMAmodel[[1]], ma=ARMAmodel[[2]]), n = n); z = z/sd(z)
+  X = qnbinom(pnorm(z), r, 1-p)
+  return(X)
+}
+
+#---------Covariance matrix---------#
+CovarNegBin = function(n, r, p, AR, MA, N, nHC){
+  #====================================================================================#
+  # PURPOSE     Compute the covariance matrix of a NegBin series.
+  #
+  # INPUT
+  #   r,p       Marginal parameters
+  #   AR,MA     ARMA parameters
+  #   n         size of the matrix
+  #   N         truncation for relation (21)
+  #   nHC       number of Hermitte coefficents to be computed
+  #
+  # Output
+  #   GAMMA     covariance matrix ofcount series
+  #
+  # Authors     Stefanos Kechagias, James Livsey, Vladas Pipiras
+  # Date        April 2020
+  # Version     3.6.3
+  #====================================================================================#
+
+  # Hermite coeficients--relation (21) in https://arxiv.org/pdf/1811.00203.pdf
+  HC = HermCoefNegBin(r,p,N, nHC)
+
+  # ARMA autocorrelation function
+  if(is.na(AR)){arma.acf <- ARMAacf(ma = MA, lag.max = n)}
+  if(is.na(MA)){arma.acf <- ARMAacf(ar = AR, lag.max = n)}
+  if(!is.na(AR) & !is.na(MA)){arma.acf <- ARMAacf(ar = AR, ma = MA, lag.max = n)}
+
+  # Autocovariance of count series--relation (9) in https://arxiv.org/pdf/1811.00203.pdf
+  gamma_x = CountACVF(h = 0:(n-1), myacf = arma.acf, g = HC)
+
+  # Final toeplitz covariance matrix--relation (56) in https://arxiv.org/pdf/1811.00203.pdf
+  GAMMA = toeplitz(gamma_x)
+  return(GAMMA)
+}
+
+#---------Likelihood function---------#
+GaussLogLikNB = function(theta, data, ARMAorder, MaxCdf, nHC){
+  #====================================================================================#
+  # PURPOSE      Compute Gaussian log-likelihood for NegBin series
+  #
+  # INPUT
+  #   theta      parameter vector containing the marginal and ARMA parameters
+  #   data       count series
+  #   ARMAorder  ordeer of ARMA model
+  #   MaxCdf     cdf will be computed up to this number (for light tails cdf=1 fast)
+  #   nHC        number of HC to be computed
+  #
+  #
+  # Output
+  #   loglik     Gaussian log-likelihood
+  #
+  # Authors      Stefanos Kechagias, James Livsey, Vladas Pipiras
+  # Date         April 2020
+  # Version      3.6.3
+  #====================================================================================#
+
+  # retrieve parameters and sample size
+  r = theta[1]
+  p = theta[2]
+  AR = ifelse(ARMAorder[1]>0, theta[3: (2+ARMAorder[1])], NA)
+  MA = ifelse(ARMAorder[2]>0, theta[(2+ARMAorder[1]+1) : length(theta)], NA)
+  n = length(data)
+
+  # compute truncation of relation (21)
+  N <- which(round(pnbinom(1:MaxCdf, r,1-p), 7) == 1)[1]
+  # if(length(N)==0 |is.na(N) ){
+  #   cat(sprintf("The max cdf value is %f and N=%f", max(round(pnbinom(1:MaxCdf, r,1-p), 7)),N))
+  #   stop("Haven't reached upper limit for cdf")
+  # }
+  if(length(N)==0 |is.na(N) ){
+    N =5000
+  }
+
+  #Select the mean value used to demean--sample or true?
+  MeanValue = r*p/(1-p)
+
+
+  # Compute the covariance matrix--relation (56) in https://arxiv.org/pdf/1811.00203.pdf
+  GAMMA = CovarNegBin(n, r, p, AR, MA, N, nHC)
+
+  # Compute the logdet and the quadratic part
+  logLikComponents = EvalInvQuadForm(GAMMA, as.numeric(data), MeanValue)
+
+  # final loglikelihood value
+  out = 0.5*logLikComponents[1] + 0.5*logLikComponents[2]
+
+  # the following will match the above if you subtract N/2*log(2*pi) and don't multiply with 2
+  # out = -2*dmvnorm(as.numeric(data), rep(lam, n), GAMMA, log = TRUE)
+  return(out)
+}
+
+#---------Fit Gaussian Likelihood function---------#
+FitGaussianLikNB = function(x0, X, LB, UB, ARMAorder, MaxCdf, nHC){
+  #====================================================================================#
+  # PURPOSE       Fit the Gaussian log-likelihood for NegBin series
+  #
+  # INPUT
+  #   x0          initial parameters
+  #   X           count series
+  #   LB          parameter lower bounds
+  #   UB          parameter upper bounds
+  #   ARMAorder   order of the udnerlying ARMA model
+  #   MaxCdf      cdf will be computed up to this number (for light tails cdf=1 fast)
+  #   nHC         number of HC to be computed
+  #
+  # OUTPUT
+  #   All         parameter estimates, standard errors, likelihood value
+  #
+  # NOTES         I may comment out se in cases where maximum is achieved at the boundary
+  #
+  # Authors       Stefanos Kechagias, James Livsey, Vladas Pipiras
+  # Date          April 2020
+  # Version       3.6.3
+  #====================================================================================#
+  optim.output <- optim(par       = x0,
+                        fn        = GaussLogLikNB,
+                        data      = X,
+                        ARMAorder = ARMAorder,
+                        MaxCdf    = MaxCdf,
+                        nHC       = nHC,
+                        method    = "L-BFGS-B",
+                        hessian   = TRUE,
+                        lower     = LB,
+                        upper     = UB
+                        )
+
+  nparms  = length(x0)
+  ParmEst = matrix(0,nrow=1,ncol=nparms)
+  se      = matrix(NA,nrow=1,ncol=nparms)
+  loglik  = rep(0,1)
+
+  # save estimates, loglik and standard errors
+  ParmEst[,1:nparms]   = optim.output$par
+  loglik               = optim.output$value
+  #se[,1:nparms]        = sqrt(abs(diag(solve(optim.output$hessian))))
+
+  All      = cbind(ParmEst, se, loglik)
+  return(All)
+
+}
+
+
+
 
 
 
