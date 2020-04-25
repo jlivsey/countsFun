@@ -11,7 +11,7 @@
 
 
 # load all data
-setwd("C:/Users/Stef/Desktop/countsFun/Sims/PoissonAR1/GL")
+setwd("C:/Users/Stef/Desktop/countsFun/Sims/PoissonAR1/GL/RData")
 load('PoisAR1_GL_N100_NS200_PhiNeg.Rdata')
 load('PoisAR1_GL_N200_NS200_PhiNeg.Rdata')
 load('PoisAR1_GL_N400_NS200_PhiNeg.Rdata')
@@ -20,15 +20,15 @@ load('PoisAR1_GL_N200_NS200_PhiPos.Rdata')
 load('PoisAR1_GL_N400_NS200_PhiPos.Rdata')
 
 
-setwd("C:/Users/Stef/Desktop/countsFun/Sims/PoissonAR1/PF")
-load('PoisAR1_PF_N100_NS200_Part100_PhiNeg.Rdata')
-load('PoisAR1_PF_N200_NS200_Part100_PhiNeg.Rdata')
-load('PoisAR1_PF_N400_NS200_Part100_PhiNeg.Rdata')
-load('PoisAR1_PF_N100_NS200_Part100_PhiPos.Rdata')
-load('PoisAR1_PF_N200_NS200_Part100_PhiPos.Rdata')
-load('PoisAR1_PF_N400_NS200_Part100_PhiPos.Rdata')
+setwd("C:/Users/Stef/Desktop/countsFun/Sims/PoissonAR1/PF/RData")
+load('Pois2AR1_PF_N100_NS200_Part100_PhiNeg.Rdata')
+load('Pois2AR1_PF_N200_NS200_Part100_PhiNeg.Rdata')
+load('Pois2AR1_PF_N400_NS200_Part100_PhiNeg.Rdata')
+load('Pois2AR1_PF_N100_NS200_Part100_PhiPos.Rdata')
+load('Pois2AR1_PF_N200_NS200_Part100_PhiPos.Rdata')
+load('Pois2AR1_PF_N400_NS200_Part100_PhiPos.Rdata')
 
-setwd("C:/Users/Stef/Desktop/countsFun/Sims/PoissonAR1/IYW")
+setwd("C:/Users/Stef/Desktop/countsFun/Sims/PoissonAR1/IYW/RData")
 load('PoisAR1_IYW_N100_NS200_PhiNeg.Rdata')
 load('PoisAR1_IYW_N200_NS200_PhiNeg.Rdata')
 load('PoisAR1_IYW_N400_NS200_PhiNeg.Rdata')

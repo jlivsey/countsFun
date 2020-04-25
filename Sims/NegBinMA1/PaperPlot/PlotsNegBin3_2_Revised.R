@@ -10,12 +10,12 @@
 
 # load all data
 setwd("C:/Users/Stef/Desktop/countsFun/Sims/NegBinMA1/GL/RData")
-load('NegBin3_0.2MA1_GL_N100_NS200_ThetaPos.Rdata')
-load('NegBin3_0.2MA1_GL_N200_NS200_ThetaPos.Rdata')
-load('NegBin3_0.2MA1_GL_N400_NS200_ThetaPos.Rdata')
-load('NegBin3_0.2MA1_GL_N100_NS200_ThetaNeg.Rdata')
-load('NegBin3_0.2MA1_GL_N200_NS200_ThetaNeg.Rdata')
-load('NegBin3_0.2MA1_GL_N400_NS200_ThetaNeg.Rdata')
+load('NegBin3_0.8MA1_GL_N100_NS200_ThetaPos.Rdata')
+load('NegBin3_0.8MA1_GL_N200_NS200_ThetaPos.Rdata')
+load('NegBin3_0.8MA1_GL_N400_NS200_ThetaPos.Rdata')
+load('NegBin3_0.8MA1_GL_N100_NS200_ThetaNeg.Rdata')
+load('NegBin3_0.8MA1_GL_N200_NS200_ThetaNeg.Rdata')
+load('NegBin3_0.8MA1_GL_N400_NS200_ThetaNeg.Rdata')
 
 d = rbind(
            df7,df8,df9,df10,df11,df12)
@@ -32,7 +32,7 @@ library(data.table)
 
 # What param config do we want to look at?
 r = 3
-p = .2
+p = .8
 theta = .75
 # subset data.frame by param config
 d2 = d[(d$r.true == r) &

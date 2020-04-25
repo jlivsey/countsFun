@@ -18,7 +18,7 @@ library(countsFun)
 # fixed parameters across all simulation schemes
 CountDist       = "NegBin"
 r               = 3
-prob            = 0.2
+prob            = 0.8
 MargParm        = c(r,prob)
 nsim            = 200
 no_cores <- detectCores()-1

@@ -816,7 +816,7 @@ GaussLogLikNB = function(theta, data, ARMAorder, MaxCdf, nHC){
   #   stop("Haven't reached upper limit for cdf")
   # }
   if(length(N)==0 |is.na(N) ){
-    N =5000
+    N =MaxCdf
   }
 
   #Select the mean value used to demean--sample or true?
