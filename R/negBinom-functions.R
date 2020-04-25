@@ -1,72 +1,4 @@
 
-#---------Likelihood function with regressor---------#
-GaussLogLikNB_Reg = function(theta, Y, X, ARorder, M){
-  #====================================================================================#
-  # PURPOSE    Compute Gaussian log-likelihood for NegBin AR series
-  #
-  #
-  # NOTES      Here I use the following parametrization:
-  #
-  #            log(mu) = b0 + b1X_i, with
-  #            E(Y/X) = mu, Var(Y/X) = mu + kmu^2,
-  #            The parameters that enter the likelihood are
-  #            b0, b1, k, and the AR parameters. The parameters k and mu are relted with
-  #            the classic Neg Bin parameters r and p via:
-  #            k =1/r and p = k*mu/(1+k*mu). Note that mu and p depend on each obs but k
-  #            and r do not.
-  #
-  # INPUT
-  #   theta    parameter vector containing the marginal and AR parameters
-  #   Y        count series
-  #   X        regressors (first column is always 1--intercept)
-  #   ARorder  AR order
-  #   M        truncation ofrelation (67) in https://arxiv.org/pdf/1811.00203.pdf
-  #
-  # Output
-  #   loglik   Gaussian log-likelihood
-  #
-  # Authors    Stefanos Kechagias, James Livsey
-  # Date       March 2020
-  # Version    3.6.1
-  #====================================================================================#
-print(theta)
-  # Number of parameters and sample size
-  nparms = length(theta)
-  n = length(Y)
-
-  # retrieve parameters
-  beta    = theta[1:(nparms-ARorder-1)]
-  k       = theta[nparms-ARorder]
-  phi     = theta[(nparms-ARorder+1):nparms]
-
-
-  # retrieve mean
-  m = exp(X%*%beta)
-
-  # retrieve neg binomial parameters
-  r = 1/k
-  p = k*m/(1+k*m)
-
-  # assign large likelihood value if not causal
-  if(any(abs( polyroot(c(1, -phi))  ) < 1)){
-    return(NA) #check me
-  }
-
-  # Compute the covariance matrix--relation (67) in https://arxiv.org/pdf/1811.00203.pdf
-  GAMMA = CovarNegBinAR_Reg(n, r, p, phi, M)
-
-  # Compute the logdet and the quadratic part
-  logLikComponents = EvalInvQuadForm(GAMMA, as.numeric(Y), m)
-
-  # final loglikelihood value
-  out = 0.5*logLikComponents[1] + 0.5*logLikComponents[2]
-
-  # the following will match the above if you subtract N/2*log(2*pi) and don't multiply with 2
-  # out = -2*dmvnorm(as.numeric(Y), rep(lam, n), GAMMA, log = TRUE)
-  return(out)
-}
-
-
 #---------Covariance matrix---------#
 CovarNegBinAR = function(n,r, p, phi, N){
   #====================================================================================#
@@ -220,14 +152,14 @@ HermCoefNegBin <- function(r, p, N, nHC){
 
 
 #---------Hermitte Coefficients for all k---------#
-HermCoefNegBin_2 <- function(r, p, M){
+HermCoefNegBin_2 <- function(r, p, nHC){
   #====================================================================================#
   # PURPOSE    Compute all Hermite Coefficients. See relation (21) in
   #            https://arxiv.org/pdf/1811.00203.pdf
   #
   # INPUT
   #   r,p      Marginal parameters
-  #   M        number of coefficients to return
+  #   nHC      number of coefficients to return
   #
   # Output
   #   HC       All Hermite coeficients
@@ -241,7 +173,7 @@ HermCoefNegBin_2 <- function(r, p, M){
   N = sapply(unique(p),function(x)which(pnbinom(1:1000, r,1-x)>=1-1e-17)[1])-1
   N[is.na(N)] = 1000
 
-  h = 1:M # 20 is truncation of (67)
+  h = 1:nHC # 20 is truncation of (67)
   HC = rep(NA, length(h)) # storage
   for(i in h) {
     HC[i] <- HermCoefNegBin_k(r, p , k = i, N)
@@ -289,88 +221,6 @@ HermCoefNegBin_k <- function(r, p, k, N){
   # take the sum of all terms
   HC_k <- sum(terms) / (sqrt(2*pi) *  factorial(k))
   return(HC_k)
-}
-
-
-#---------Fit Gaussian Likelihood function---------#
-# FitGaussianLikNB = function(initialParam, x){
-#   #====================================================================================#
-#   # PURPOSE    Fit the Gaussian log-likelihood for NegBin AR series
-#   #
-#   # INPUT
-#   #   initialParam       parameter vector containing the marginal and AR parameters
-#   #   x                  count series
-#   #
-#   # Output
-#   #   optim.output$par   parameter estimates
-#   #
-#   # Authors    Stefanos Kechagias, James Livsey
-#   # Date       January 2020
-#   # Version    3.6.1
-#   #====================================================================================#
-#   optim.output <- optim(par = initialParam,
-#                         fn = GaussLogLikNB,
-#                         data = x,
-#                         method = "BFGS",
-#                         hessian=TRUE)
-#
-#   nparms = length(initialParam)
-#   ParmEst = matrix(0,nrow=1,ncol=nparms)
-#   se =  matrix(NA,nrow=1,ncol=nparms)
-#   loglik = rep(0,1)
-#
-#   # save estimates, loglik and standard errors
-#   ParmEst[,1:nparms]   = optim.output$par
-#   loglik               = optim.output$value
-#   se[,1:nparms]        = sqrt(abs(diag(solve(optim.output$hessian))))
-#
-#   All      = cbind(ParmEst, se, loglik)
-#   return(All)
-#
-# }
-
-
-#---------Fit Gaussian Likelihood function with Regressor---------#
-FitGaussianLikNB_Reg = function(initialParam, data, Regressor, p, M){
-  #====================================================================================#
-  # PURPOSE:             Fit the Gaussian log-likelihood for NegBin AR
-  #                      series using the GLM paramtrization of the Negative
-  #                      Binomial.
-  #
-  # INPUT
-  #   initialParam       parameter vector containing the marginal and AR
-  #                      parameters
-  #   x                  count series
-  #
-  # Output
-  #   optim.output$par   parameter estimates
-  #
-  # Authors              Stefanos Kechagias, James Livsey
-  # Date                 March 2020
-  # Version              3.6.2
-  #====================================================================================#
-  optim.output <- optim(par = initialParam,
-                        fn = GaussLogLikNB_Reg,
-                        Y = data,
-                        X = Regressor,
-                        ARorder = p,
-                        M = M,
-                        method = "BFGS",
-                        hessian=TRUE)
-
-  nparms = length(initialParam)
-  ParmEst = matrix(0,nrow=1,ncol=nparms)
-  se =  matrix(NA,nrow=1,ncol=nparms)
-  loglik = rep(0,1)
-
-  # save estimates, loglik and standard errors
-  ParmEst[,1:nparms]   = optim.output$par
-  loglik               = optim.output$value
-  se[,1:nparms]        = sqrt(abs(diag(solve(optim.output$hessian))))
-
-  All      = cbind(ParmEst, se, loglik)
-  return(All)
-
 }
 
 
@@ -886,6 +736,175 @@ FitGaussianLikNB = function(x0, X, LB, UB, ARMAorder, MaxCdf, nHC){
   return(All)
 
 }
+
+
+#---------Likelihood function---------#
+GaussLogLikNB_Reg = function(theta, data, Regressor, ARMAorder, MaxCdf, nHC){
+  #====================================================================================#
+  # PURPOSE      Compute Gaussian log-likelihood for NegBin AR series
+  #
+  #
+  # NOTES        Here I use the following parametrization:
+  #
+  #              log(mu) = b0 + b1X_i, with
+  #              E(Y/X) = mu, Var(Y/X) = mu + kmu^2,
+  #              The parameters that enter the likelihood are
+  #              b0, b1, k, and the AR parameters. The parameters k and mu are relted with
+  #              the classic Neg Bin parameters r and p via:
+  #              k =1/r and p = k*mu/(1+k*mu). Note that mu and p depend on each obs but k
+  #              and r do not.
+  #
+  # INPUT
+  #   theta      parameter vector containing the marginal and AR parameters
+  #   data       count series
+  #   Regressor  regressors (first column is always 1--intercept)
+  #   ARorder    AR order
+  #   M          truncation ofrelation (67) in https://arxiv.org/pdf/1811.00203.pdf
+  #
+  # Output
+  #   loglik     Gaussian log-likelihood
+  #
+  # Authors      Stefanos Kechagias, James Livsey
+  # Date         April 2020
+  # Version      3.6.3
+  #====================================================================================#
+
+  # retrieve parameters and sample size
+  nparms = length(theta)
+  nMargParms = nparms - sum(ARMAorder)
+  beta       = theta[1:(nparms-sum(ARMAorder)-1)]
+  k          = theta[nparms-sum(ARMAorder)]
+  AR = ifelse(ARMAorder[1]>0, theta[(nparms-ARMAorder[1]+1):(nMargParms + ARMAorder[1])  ], NA)
+  MA = ifelse(ARMAorder[2]>0, theta[ (length(theta) - ARMAorder[2]) : length(theta)], NA)
+  n  = length(data)
+
+  # retrieve mean
+  m = exp(Regressor%*%beta)
+
+  # retrieve neg binomial parameters
+  r = 1/k
+  p = k*m/(1+k*m)
+
+  # Compute truncation of relation (21) in arxiv
+  N = sapply(unique(p),function(x)which(pnbinom(1:MaxCdf, r,1-x)>=1-1e-7)[1])-1
+  if(length(N)==0 |is.na(N) ){
+    N =MaxCdf
+  }
+
+  #Select the mean value used to demean--sample or true?
+  MeanValue = r*p/(1-p)
+
+  # Compute the covariance matrix--relation (56) in https://arxiv.org/pdf/1811.00203.pdf
+  GAMMA = CovarNegBin(n, r, p, AR, MA, N, nHC)
+
+  # Compute the logdet and the quadratic part
+  logLikComponents = EvalInvQuadForm(GAMMA, as.numeric(data), MeanValue)
+
+  # final loglikelihood value
+  out = 0.5*logLikComponents[1] + 0.5*logLikComponents[2]
+
+  # the following will match the above if you subtract N/2*log(2*pi) and don't multiply with 2
+  # out = -2*dmvnorm(as.numeric(data), rep(lam, n), GAMMA, log = TRUE)
+  return(out)
+}
+
+
+#---------Fit Gaussian Likelihood function---------#
+FitGaussianLikNB_Reg = function(x0, X, Regrsessor, LB, UB, ARMAorder, MaxCdf, nHC){
+  #====================================================================================#
+  # PURPOSE       Fit the Gaussian log-likelihood for NegBin series
+  #
+  # INPUT
+  #   x0          initial parameters
+  #   X           count series
+  #   LB          parameter lower bounds
+  #   UB          parameter upper bounds
+  #   ARMAorder   order of the udnerlying ARMA model
+  #   MaxCdf      cdf will be computed up to this number (for light tails cdf=1 fast)
+  #   nHC         number of HC to be computed
+  #
+  # OUTPUT
+  #   All         parameter estimates, standard errors, likelihood value
+  #
+  # NOTES         I may comment out se in cases where maximum is achieved at the boundary
+  #
+  # Authors       Stefanos Kechagias, James Livsey, Vladas Pipiras
+  # Date          April 2020
+  # Version       3.6.3
+  #====================================================================================#
+  optim.output <- optim(par       = x0,
+                        fn        = GaussLogLikNB,
+                        data      = X,
+                        Regressor = Regressor,
+                        ARMAorder = ARMAorder,
+                        MaxCdf    = MaxCdf,
+                        nHC       = nHC,
+                        method    = "L-BFGS-B",
+                        hessian   = TRUE,
+                        lower     = LB,
+                        upper     = UB
+  )
+
+  nparms  = length(x0)
+  ParmEst = matrix(0,nrow=1,ncol=nparms)
+  se      = matrix(NA,nrow=1,ncol=nparms)
+  loglik  = rep(0,1)
+
+  # save estimates, loglik and standard errors
+  ParmEst[,1:nparms]   = optim.output$par
+  loglik               = optim.output$value
+  #se[,1:nparms]        = sqrt(abs(diag(solve(optim.output$hessian))))
+
+  All      = cbind(ParmEst, se, loglik)
+  return(All)
+
+}
+
+
+
+
+
+
+# #---------Likelihood function with regressor---------#
+# GaussLogLikNB_Reg = function(theta, Y, X, ARorder, M){
+#
+#
+#   # Number of parameters and sample size
+#   nparms = length(theta)
+#   n = length(Y)
+#
+#   # retrieve parameters
+#   beta    = theta[1:(nparms-ARorder-1)]
+#   k       = theta[nparms-ARorder]
+#   phi     = theta[(nparms-ARorder+1):nparms]
+#
+#
+#   # retrieve mean
+#   m = exp(X%*%beta)
+#
+#   # retrieve neg binomial parameters
+#   r = 1/k
+#   p = k*m/(1+k*m)
+#
+#   # assign large likelihood value if not causal
+#   if(any(abs( polyroot(c(1, -phi))  ) < 1)){
+#     return(NA) #check me
+#   }
+#
+#   # Compute the covariance matrix--relation (67) in https://arxiv.org/pdf/1811.00203.pdf
+#   GAMMA = CovarNegBinAR_Reg(n, r, p, phi, M)
+#
+#   # Compute the logdet and the quadratic part
+#   logLikComponents = EvalInvQuadForm(GAMMA, as.numeric(Y), m)
+#
+#   # final loglikelihood value
+#   out = 0.5*logLikComponents[1] + 0.5*logLikComponents[2]
+#
+#   # the following will match the above if you subtract N/2*log(2*pi) and don't multiply with 2
+#   # out = -2*dmvnorm(as.numeric(Y), rep(lam, n), GAMMA, log = TRUE)
+#   return(out)
+# }
+
 
 
 
