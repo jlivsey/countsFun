@@ -33,7 +33,7 @@ CovarNegBinAR = function(n,r, p, phi, N){
 }
 
 #----------Link coefficients with Regressor---------#
-LinkCoef_Reg = function(r, p, M){
+LinkCoef_Reg = function(r, p, N, nHC){
   #====================================================================================#
   # PURPOSE    Compute the product  factorial(k)*g_{t1,k}*g_{t2,k} in relation (67) in
   #            https://arxiv.org/pdf/1811.00203.pdf when the regressor variable is only
@@ -55,12 +55,12 @@ LinkCoef_Reg = function(r, p, M){
 
 
   # compute Hermite coefficients from relation (21)
-  g1 = HermCoefNegBin_2(r, unique(p)[1], M)
-  g2 = HermCoefNegBin_2(r, unique(p)[2], M)
+  g1 = HermCoefNegBin(r, unique(p)[1],N[1], nHC)
+  g2 = HermCoefNegBin(r, unique(p)[2],N[2], nHC)
   HC = cbind(g1, g2)
 
   # Compute the products g1^2, g1*g2 and g2^2 of the HCs
-  HCprod = matrix(NA, M, 3)
+  HCprod = matrix(NA, nHC, 3)
   for(i in 0:(length(unique(p))-1) ){
     for(j in i: (length(unique(p))-1) ){
       HCprod[,i+j+1] = HC[,i+1]*HC[,j+1]
@@ -72,7 +72,7 @@ LinkCoef_Reg = function(r, p, M){
 
 
 #---------Covariance matrix with regressor---------#
-CovarNegBinAR_Reg = function(n, r, p, phi, M){
+CovarNegBinAR_Reg = function(n, r, p, phi, N, nHC){
   #====================================================================================#
   # PURPOSE    Compute the covariance matrix of a NegBin AR series that
   #            includes one dummy variable as a regressor. Here p depends on each
@@ -97,16 +97,16 @@ CovarNegBinAR_Reg = function(n, r, p, phi, M){
   #====================================================================================#
 
   # Compute ARMA autocorrelation function
-  All.ar = apply(as.matrix(ARMAacf(ar = phi, lag.max = n)), 1,function(x)x^(1:M))
+  All.ar = apply(as.matrix(ARMAacf(ar = phi, lag.max = n)), 1,function(x)x^(1:nHC))
 
   # Compute the link coefficients l_k = factorial(k)*g_{t1,k}*g_{t2,k}
-  linkCoef = LinkCoef_Reg(r, p, M)
+  linkCoef = LinkCoef_Reg(r, p, N, nHC)
 
   # keep track of which indices each unique HC is located at
   index = cbind(unique(p)[1]==p, unique(p)[2]==p)
 
   # STEP 3: Implement relation 67
-  k = 1:M
+  k = 1:nHC
   kfac = factorial(k)
   G = matrix(NA,n,n)
   for(t1 in 0:(n-1)){
@@ -619,12 +619,12 @@ CovarNegBin = function(n, r, p, AR, MA, N, nHC){
   HC = HermCoefNegBin(r,p,N, nHC)
 
   # ARMA autocorrelation function
-  if(is.na(AR)){arma.acf <- ARMAacf(ma = MA, lag.max = n)}
-  if(is.na(MA)){arma.acf <- ARMAacf(ar = AR, lag.max = n)}
-  if(!is.na(AR) & !is.na(MA)){arma.acf <- ARMAacf(ar = AR, ma = MA, lag.max = n)}
+  if(!length(AR)){arma.acf <- ARMAacf(ma = MA, lag.max = n)}
+  if(!length(MA)){arma.acf <- ARMAacf(ar = AR, lag.max = n)}
+  if(length(AR) & length(MA)){arma.acf <- ARMAacf(ar = AR, ma = MA, lag.max = n)}
 
   # Autocovariance of count series--relation (9) in https://arxiv.org/pdf/1811.00203.pdf
-  gamma_x = CountACVF(h = 0:(n-1), myacf = arma.acf, g = HC)
+  gamma_x = CountACVF_2(h = 0:(n-1), myacf = arma.acf, g = HC)
 
   # Final toeplitz covariance matrix--relation (56) in https://arxiv.org/pdf/1811.00203.pdf
   GAMMA = toeplitz(gamma_x)
@@ -655,8 +655,17 @@ GaussLogLikNB = function(theta, data, ARMAorder, MaxCdf, nHC){
   # retrieve parameters and sample size
   r = theta[1]
   p = theta[2]
-  AR = ifelse(ARMAorder[1]>0, theta[3: (2+ARMAorder[1])], NA)
-  MA = ifelse(ARMAorder[2]>0, theta[(2+ARMAorder[1]+1) : length(theta)], NA)
+  if(ARMAorder[1]>0){
+    AR = theta[(nparms-ARMAorder[1]+1):(nMargParms + ARMAorder[1])  ]
+  }else{
+    AR = NULL
+  }
+
+  if(ARMAorder[2]>0){
+    MA = theta[ (length(theta) - ARMAorder[2]) : length(theta)]
+  }else{
+    MA = NULL
+  }
   n = length(data)
 
   # compute truncation of relation (21)
@@ -774,9 +783,23 @@ GaussLogLikNB_Reg = function(theta, data, Regressor, ARMAorder, MaxCdf, nHC){
   nMargParms = nparms - sum(ARMAorder)
   beta       = theta[1:(nparms-sum(ARMAorder)-1)]
   k          = theta[nparms-sum(ARMAorder)]
-  AR = ifelse(ARMAorder[1]>0, theta[(nparms-ARMAorder[1]+1):(nMargParms + ARMAorder[1])  ], NA)
-  MA = ifelse(ARMAorder[2]>0, theta[ (length(theta) - ARMAorder[2]) : length(theta)], NA)
-  n  = length(data)
+  n          = length(data)
+  if(ARMAorder[1]>0){
+    AR = theta[(nparms-ARMAorder[1]+1):(nMargParms + ARMAorder[1])  ]
+  }else{
+    AR = NULL
+  }
+
+  if(ARMAorder[2]>0){
+    MA = theta[ (length(theta) - ARMAorder[2]) : length(theta)]
+  }else{
+    MA = NULL
+  }
+
+  # need only only causal
+  if(any(abs( polyroot(c(1, -AR))  ) < 1)){
+    return(10^6) #check me
+  }
 
   # retrieve mean
   m = exp(Regressor%*%beta)
@@ -793,7 +816,8 @@ GaussLogLikNB_Reg = function(theta, data, Regressor, ARMAorder, MaxCdf, nHC){
   MeanValue = r*p/(1-p)
 
   # Compute the covariance matrix--relation (56) in https://arxiv.org/pdf/1811.00203.pdf
-  GAMMA = CovarNegBin(n, r, p, AR, MA, N, nHC)
+  # GAMMA = CovarNegBin(n, r, p, AR, MA, N, nHC)
+  GAMMA = CovarNegBinAR_Reg(n, r, p, AR, N, nHC)
 
   # Compute the logdet and the quadratic part
   logLikComponents = EvalInvQuadForm(GAMMA, as.numeric(data), MeanValue)
@@ -831,7 +855,7 @@ FitGaussianLikNB_Reg = function(x0, X, Regressor, LB, UB, ARMAorder, MaxCdf, nHC
   # Version       3.6.3
   #====================================================================================#
   optim.output <- optim(par       = x0,
-                        fn        = GaussLogLikNB,
+                        fn        = GaussLogLikNB_Reg,
                         data      = X,
                         Regressor = Regressor,
                         ARMAorder = ARMAorder,

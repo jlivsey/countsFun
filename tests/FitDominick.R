@@ -51,23 +51,41 @@ b1 = 0.683351
 b = c(b0,b1)
 k  = 1/4
 phi = c(-0.1696836, 0.2796241, 0.2267073)
-LB = c(0.001, 0.001, -0.999)
-UB = c(Inf, 0.999, 0.999)
+#(b0, b1, k, phi1, phi2, phi3])
+LB = c(-Inf, -Inf, 0.001, -Inf, -Inf, -Inf)
+UB = c(Inf, Inf, Inf, Inf, Inf, Inf)
 MaxCdf = 5000
 nHC = 30
 theta = c(b,k,phi)
 Regressor = cbind(rep(1,length(Buy)),Buy)
+ARMAorder = c(3,0)
+theta = c(2.9713351, 1.3705352,0.6812780,-0.1979509,0.3350090,  0.2572088  )
+data = MOVE
+
+
 # tic()
-# GaussLogLikNB_Reg(theta, MOVE, X, c(3,0), 5000, 30)
+# GaussLogLikNB_Reg(theta, MOVE, Regressor, ARMAorder, MaxCdf, nHC)
 # toc()
+
 X = MOVE
 x0 = theta
 ARMAorder = c(3,0)
 
-tic()
-mod2 = FitGaussianLikNB_Reg(x0, X, Regressor, LB, UB, ARMAorder, MaxCdf, nHC)
-toc()
+optim.output <- optim(par       = x0,
+                      fn        = GaussLogLikNB_Reg,
+                      data      = X,
+                      Regressor = Regressor,
+                      ARMAorder = ARMAorder,
+                      MaxCdf    = MaxCdf,
+                      nHC       = nHC,
+                      method    = "L-BFGS-B",
+                      hessian   = TRUE,
+                      lower     = LB,
+                      upper     = UB
+)
 
-
+# tic()
+# mod2 = FitGaussianLikNB_Reg(x0, X, Regressor, LB, UB, ARMAorder, MaxCdf, nHC)
+# toc()
 
 
