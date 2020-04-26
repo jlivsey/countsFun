@@ -1,4 +1,4 @@
-# Add some functions that I will need in particle filtering approximation of 
+# Add some functions that I will need in particle filtering approximation of
 # likelihood. See file LikSIS_ARpGenDist.R
 
 #####------------------------------------------------------###################
@@ -54,7 +54,7 @@ qMixedPoisson = function(y, lam1, lam2, prob){
   for (n in 1:yl){
     while(pMixedPoisson(x[n], lam1, lam2, prob) < y[n]){ # R qpois would use <y; this choice makes the function right-continuous; this does not really matter for our model
       x[n] = x[n]+1
-    } 
+    }
   }
   return(x)
 }
@@ -81,12 +81,12 @@ FitMultiplePF = function(initialParam, data, CountDist, nfit, ParticleSchemes){
   # how many choices for the number of particles
   nparts = length(ParticleSchemes)
   nparms = length(initialParam)
-  
+
   # allocate memory to save parameter estimates, hessian values, and loglik values
   ParmEst = matrix(0,nrow=nfit*nparts,ncol=nparms)
   se =  matrix(NA,nrow=nfit*nparts,ncol=nparms)
   loglik = rep(0,nfit*nparts)
-  
+
 
   # Each realization will be fitted nfit*nparts many times
   for (j in 1:nfit){
@@ -95,25 +95,25 @@ FitMultiplePF = function(initialParam, data, CountDist, nfit, ParticleSchemes){
     for (k in 1:nparts){
       # number of particles to be used
       ParticleNumber = ParticleSchemes[k]
-      
+
       # remove the ParticleNumber from the likelihood function arguments
-      myfun = function(theta,data)LikSISGenDist_ARp_Res(theta,data,ParticleNumber, CountDist)
-      
+      myfun = function(theta,data)LikSISGenDist_ARp_Res(theta, data, ParticleNumber, CountDist)
+
       # run optimization for our model
       optim.output <- optim(par = initialParam, fn = myfun,
                             data=data,
                             hessian=TRUE, method = "BFGS")
-      
+
       # save estimates, loglik value and diagonal hessian
       ParmEst[nfit*(k-1)+j,]  = optim.output$par
       loglik[nfit*(k-1) +j]   = optim.output$value
       se[nfit*(k-1)+j,]       = sqrt(abs(diag(solve(optim.output$hessian))))
     }
   }
-  
+
   All = cbind(ParmEst, se, loglik)
   return(All)
-} 
+}
 
 
 

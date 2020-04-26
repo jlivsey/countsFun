@@ -8,7 +8,7 @@
 #'
 #'
 LikSISGenDist_ARp_Res = function(theta, data, ParticleNumber, CountDist){
-  ##########################################################################
+  #--------------------------------------------------------------------------#
   # PURPOSE:  Use particle filtering with resampling
   #           to approximate the likelihood of the
   #           a specified count time series model with an underlying AR(p)
@@ -32,7 +32,7 @@ LikSISGenDist_ARp_Res = function(theta, data, ParticleNumber, CountDist){
   #
   # AUTHORS: James Livsey, Vladas Pipiras, Stefanos Kechagias,
   # DATE:    November 2019
-  ##########################################################################
+  #--------------------------------------------------------------------------#
 
   old_state <- get_rand_state()
   on.exit(set_rand_state(old_state))
