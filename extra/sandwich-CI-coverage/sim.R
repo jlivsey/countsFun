@@ -3,6 +3,7 @@
 #           Model is Poisson - AR(1)
 library(countsFun)
 library(numDeriv)
+library(sandwich)
 
 sim_sandy <- function(lam, phi, n = 100, nsim = 200){
 
@@ -29,9 +30,10 @@ sim_sandy <- function(lam, phi, n = 100, nsim = 200){
 
   # standard erros with sandwhich method
   M <- (g) %*% t(g) # meat
-  B <- h          # bread
+  B <- h            # bread
   SE.sand <- solve(-M) %*% B %*% solve(-M)
 
+  # Does true parameter fall in CI
 
 
 }
