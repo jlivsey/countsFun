@@ -1,0 +1,32 @@
+Psuedo code for sim
+-------------------
+
+
+Input: lam, phi
+
+
+for(i in 1:nsim)
+
+	simulate Poisson-AR(1) series x
+
+	(will need GL lik'd function with input theta and data and scalar output)
+
+	run optim with GL [store optim parameters]
+
+	run numDeriv::hessian() at optim parameters
+
+	run numDeriv::grad() at optim parameters
+
+	extract SE's with just hessian diag(sqrt(solve(hessian)))
+
+	extract SE's using sandwhich estimators --- READ PAPERS TO GET THIS RIGHT
+
+	calculate 95% CI for both cases for both parameters
+		hat{lam} +- 1.96 * se_hess
+		hat{lam} +- 1.96 * se_sand
+		These values need to be stored for use outside for loop
+
+END for loop
+
+check if input param lam and phi fall inside CI's
+
