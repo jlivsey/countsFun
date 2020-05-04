@@ -19,7 +19,12 @@ for(i in 1:nsim)
 
 	extract SE's with just hessian diag(sqrt(solve(hessian)))
 
-	extract SE's using sandwhich estimators --- READ PAPERS TO GET THIS RIGHT
+	extract SE's using sandwhich estimators 
+		run DL with optim parameters --> xhats and v_i
+		how to run DL with optim paramters? 
+		DL: INPUTS: Gamma and data
+			OUTPUTS: xhats and v_i's 
+			Can have vector of xhats, v_i's 
 
 	calculate 95% CI for both cases for both parameters
 		hat{lam} +- 1.96 * se_hess

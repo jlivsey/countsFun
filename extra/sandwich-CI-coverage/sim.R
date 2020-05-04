@@ -29,9 +29,24 @@ sim_sandy <- function(lam, phi, n = 100, nsim = 200){
   SE.hess <- sqrt(diag(solve(h)))
 
   # standard erros with sandwhich method
-  M <- (g) %*% t(g) # meat
-  B <- h            # bread
-  SE.sand <- solve(-M) %*% B %*% solve(-M)
+  logfi <- function(theta, idx){
+    LAM <- theta[1]
+    PHI <- theta[2]
+    # HC <- HermCoef(LAM)
+    # ar.acf <- ARMAacf(ar = PHI, lag.max = n)
+    # g <- CountACVF(h = 0:(n-1), myacf = ar.acf, g = HC)
+    g <- ARMAacf(ar = PHI, lag.max = n)[2:(n+1)]
+    DLout <- DLalg(x, g)
+    ei <- DLout$e[idx]
+    vi <- DLout$v[idx]
+    return(-(log(vi) + ei^2/vi)/2)
+  }
+  gi <- matrix(-99, n, 2)
+  for(k in 1:n) gi[k, ] <- grad(func = logfi, x = out$par, idx = k)
+
+  A <- h
+  B <- t(gi) %*% gi
+  SE.sand <- solve(-A) %*% B %*% solve(-A)
 
   # Does true parameter fall in CI
 
