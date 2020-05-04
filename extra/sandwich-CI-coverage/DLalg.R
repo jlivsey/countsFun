@@ -1,11 +1,10 @@
 # Univariate Durbin-Levinson algoithm.
-# two functions. 1 runs algoritm the other
 
 # notes:
 #         1. I'm assuming variance gamma(0) = 1
 #         2. gamma vec being passed does not include variance so g[1] = gamma(1)
 
-DLalg <- function(x, g){
+DLalg <- function(x, g, lam){
   # parameters known from inputs
   n <- length(x)
 
@@ -14,12 +13,12 @@ DLalg <- function(x, g){
   v <- rep(NA, n)
 
   # inital values
-  phi[1, 1] <- g[1]
-  v[1] <- (1 -g[1]^2)
+  phi[1, 1] <- g[2]/g[1]
+  v[1] <- g[1]
 
   # main loop
   for(m in 2:n){
-    phi[m, m] <- (g[m] - sum(phi[m-1, 1:(m-1)] * g[(m-1):1])) / v[m-1]
+    phi[m, m] <- (g[m+1] - sum(phi[m-1, 1:(m-1)] * g[(m-1+1):2])) / v[m-1]
     phi[m, 1:(m-1)] <- phi[m-1, 1:(m-1)] - phi[m, m] * phi[m-1, (m-1):1]
     v[m] <- v[m-1] * (1 - phi[m, m]^2)
   }
