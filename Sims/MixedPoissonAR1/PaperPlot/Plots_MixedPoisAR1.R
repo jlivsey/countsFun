@@ -8,37 +8,22 @@
 # R version 3.6.3
 
 
+# setup d - Object used for ggplot
+dfCols    = c('estim.method', 'n',
+              'phi.true',  'phi.est',  'phi.se',
+              'lam1.true', 'lam1.est', 'lam1.se',
+              'lam2.true', 'lam2.est', 'lam2.se',
+              'prob.true', 'prob.est', 'prob.se')
+d = data.frame(matrix(ncol = length(dfCols)))
+names(d) <- dfCols
 
-
-# load all data
-setwd("C:/Users/Stef/Desktop/countsFun/Sims/PoissonAR1/GL/RData")
-load('PoisAR1_GL_N100_NS200_PhiNeg.Rdata')
-load('PoisAR1_GL_N200_NS200_PhiNeg.Rdata')
-load('PoisAR1_GL_N400_NS200_PhiNeg.Rdata')
-load('PoisAR1_GL_N100_NS200_PhiPos.Rdata')
-load('PoisAR1_GL_N200_NS200_PhiPos.Rdata')
-load('PoisAR1_GL_N400_NS200_PhiPos.Rdata')
-
-
-setwd("C:/Users/Stef/Desktop/countsFun/Sims/PoissonAR1/PF/RData")
-load('Pois2AR1_PF_N100_NS200_Part100_PhiNeg.Rdata')
-load('Pois2AR1_PF_N200_NS200_Part100_PhiNeg.Rdata')
-load('Pois2AR1_PF_N400_NS200_Part100_PhiNeg.Rdata')
-load('Pois2AR1_PF_N100_NS200_Part100_PhiPos.Rdata')
-load('Pois2AR1_PF_N200_NS200_Part100_PhiPos.Rdata')
-load('Pois2AR1_PF_N400_NS200_Part100_PhiPos.Rdata')
-
-setwd("C:/Users/Stef/Desktop/countsFun/Sims/PoissonAR1/IYW/RData")
-load('PoisAR1_IYW_N100_NS200_PhiNeg.Rdata')
-load('PoisAR1_IYW_N200_NS200_PhiNeg.Rdata')
-load('PoisAR1_IYW_N400_NS200_PhiNeg.Rdata')
-load('PoisAR1_IYW_N100_NS200_PhiPos.Rdata')
-load('PoisAR1_IYW_N200_NS200_PhiPos.Rdata')
-load('PoisAR1_IYW_N400_NS200_PhiPos.Rdata')
-
-d = rbind(df1,df2,df3,df4,df5,df6,
-          df7,df8,df9,df10,df11,df12,
-          df13,df14,df15,df16,df17,df18)
+# load IYW
+setwd("~/github/countsFun/Sims/MixedPoissonAR1/IYW")
+for(myfile in list.files('.', pattern = '.RData')){
+  print(myfile)
+  load(myfile)
+  d <- rbind(d, df)
+}
 
 
 library(ggplot2)
@@ -46,7 +31,6 @@ library(reshape2)
 library(data.table)
 
 # pdf(file = "PoisAR1-ggplot-lam2-phipos75.pdf", width = 7, height = 5)
-
 
 # Make sample size (n) a factor
 d$n = as.factor(d$n)
