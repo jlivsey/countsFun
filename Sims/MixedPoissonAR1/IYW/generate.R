@@ -1,4 +1,18 @@
+# PURPOSE: Produce file and output for Mixed-Poisson AR(1) IWY simulations
+#
+#
+# AUTHORS: Stefanos Kechagias, James Livsey
+#
+# DATE:    May 2020
+#
+# R version 3.6.3
+
+
+# Set working directory to location where all files should be written
+# simulation_function.R should also live here
 setwd("~/github/countsFun/Sims/MixedPoissonAR1/IYW")
+
+# Source main simulation function
 source('simulation_function.R')
 
 # Fixed parameters for all simulations
@@ -48,6 +62,5 @@ cat(contents, "\n", file = ff)
 source(ff)
 saveFileName <- paste0(fileName, ".RData")
 save(df, file = saveFileName)
-rm(list = ls()) # clear Global Environment for next sim file
 
 }}}}
