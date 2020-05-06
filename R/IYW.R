@@ -1,27 +1,3 @@
-# Generate AR series
-sim_pois_ar = function(n, phi, lam){
-  z = arima.sim(model = list(ar=phi), n = n); z = z/sd(z) # standardized
-  x = qpois(pnorm(z), lam)
-  return(x)
-}
-
-# function to calculate g_k coefs
-g_temp <- function(lam, k){
-  her <- as.function(polys[[k+1]]) # polys[[k]] = H_{k-1}
-  N = which(round(ppois(1:100, lam), 7) == 1)[1]
-  terms = exp(-qnorm(ppois(0:N, lam, lower.tail= TRUE))^2/2) *
-    her(qnorm(ppois(0:N, lam, lower.tail = TRUE)))
-  # return(list(val=sum(terms)/sqrt(2*pi)/factorial(k), terms=terms))
-  return(sum(terms)/sqrt(2*pi)/factorial(k))
-}
-
-# vectorize funciton
-g_coefs = Vectorize(g_temp, vectorize.args = "k")
-
-link_coefs <- function(g_coefs, gamx0){
-  K <- length(g_coefs)
-  return(factorial(1:K) * g_coefs^2 / gamx0)
-}
 # test comment
 reversion <- function(A){
   # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
