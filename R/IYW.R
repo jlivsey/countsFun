@@ -1,3 +1,10 @@
+# Calculates link coeficients mapping gam_X --> gam_Z
+# Inputs: hermite coefficients and marginal variance
+link_coefs <- function(hermite_coefs, gamx0){
+  K <- length(hermite_coefs)
+  return(factorial(1:K) * hermite_coefs^2 / gamx0)
+}
+
 # test comment
 reversion <- function(A){
   # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -55,7 +62,7 @@ reversion <- function(A){
   return(a)
 }
 
-
+# Power series f(x) = \sum_k coef_k * x^k
 temp_power_series <- function(x, coef){
   K = length(coef)
   return(sum(coef * x^{1:K}))
@@ -63,7 +70,7 @@ temp_power_series <- function(x, coef){
 power_series = Vectorize(temp_power_series, vectorize.args = "x")
 
 
-
+# Implied Yule-Walker for Poisson-AR(1) model
 fit_IWY <- function(x, p){
   # Estimate lambda values from data
   lam.est <- mean(x)
@@ -112,3 +119,50 @@ musig2rp <- function(mu, sig){
   p <- (sig^2 - mu) / sig^2
   return(c(r, p))
 }
+
+# Function Implied-Yule-Walker for mixed-Poisson-ARmodel
+fit_IWY_mixedPois_AR1 <- function(x, ar.order = 1){
+
+  n <- length(x)
+  prob.est <- 1/4
+  n1 <- floor(n * prob.est)
+
+  # Estimate both lambda values
+  x.sort <- sort(x)
+  lam1.est <- mean(x.sort[1:n1])
+  lam2.est <- mean(x.sort[(n1+1):n])
+
+  # Calculate Hermite coefficients
+  g.coefs <- HermCoefMixedPois(lam1 = lam1.est,
+                               lam2 = lam2.est,
+                               prob = prob.est)
+
+  # Link Coefficients of el: gam.x --> gam.z (autocorrelations--relation 29 May 1 version)
+  link.coefs <- link_coefs(hermite_coefs = g.coefs,
+                           # gamx0 = prob.est * lam1.est + (1-prob.est)*lam2.est)
+                           gamx0 = var(x))
+
+  # Inverse Link coefficients of f^-1: gam.z --> gam.x
+  #   (Perform reversion)
+  inv.link.coefs <- reversion(link.coefs)
+
+  # sample acf of count data
+  gam.x <- acf(x = x, lag.max = ar.order, plot = FALSE, type = "correlation")$acf
+
+  # compute gamma Z thru reversion
+  gam.z <- power_series(gam.x[,,1], inv.link.coefs)
+  gam.z[1] <- 1
+
+  # Construct block toeplitz matrix from given ACF function and AR(P)
+  R = toeplitz(gam.z[1:ar.order])
+
+  # stack the gammas
+  r = gam.z[2:(ar.order+1)]
+
+  # multivariate Yule-Walker
+  phi.est = r %*% solve(R)
+
+  return(c(lam1.est, lam2.est, prob.est, phi.est))
+
+}
+

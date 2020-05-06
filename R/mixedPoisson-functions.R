@@ -139,7 +139,7 @@ HermCoefMixedPois_k <- function(lam1, lam2, prob, k){
 
   # compute terms in the sum of relation (21) in
   terms <- exp((-qnorm(pmixpois(0:N, prob, lam1, lam2))^2)/2) *
-    her(qnorm(pmixpois(0:1000, prob, lam1, lam2)))
+    her(qnorm(pmixpois(0:N, prob, lam1, lam2)))
 
   # take the sum of all terms
   HC_k <- sum(terms) / (sqrt(2*pi) *  factorial(k))
