@@ -97,7 +97,7 @@ qmixpois = function(y, p, lam1, lam2){
 #' @export
 #'
 
-sim_mixpois_ar1 <- function(Tt, phi, p, lam1, lam2){
+sim_mixpois_ar1 <- function(Tt,phi,p,lam1,lam2){
   zt <- rep(0,Tt)
   zt[1] <- rnorm(1,0,1)
   for (t in 2:Tt){
@@ -105,4 +105,73 @@ sim_mixpois_ar1 <- function(Tt, phi, p, lam1, lam2){
   }
   xt <- qmixpois(pnorm(zt,0,1),p,lam1,lam2)
   return(xt)
+}
+
+
+
+# kth hermitte coefficient
+HermCoefMixedPois_k <- function(lam1, lam2, prob, k){
+  #######################################################################
+  # PURPOSE    Compute kth Hermite Coefficient. See relation (21) in
+  #            https://arxiv.org/pdf/1811.00203.pdf
+  #
+  # INPUT
+  #   lam1      Marginal parameter - first mean
+  #   lam2      Marginal parameter - second mean
+  #   prob      Marginal parameter - mixing probability
+  #   k        index of Hermite coefficient
+  #
+  # Output
+  #   HC_k     kth hermite coeficient
+  #
+  # Authors    Stefanos Kechagias, James Livsey
+  # Date       January 2020
+  # Version    3.6.1
+  #######################################################################
+
+  # function for (k-1)st Hermite Polynomial
+  her <- function(x){
+    evalHermPolynomial(k-1, x)
+  }
+
+  # truncation numbe: check me
+  N <- which(round(pmixpois(0:1000, prob, lam1, lam2), 7) == 1)[1]
+
+  # compute terms in the sum of relation (21) in
+  terms <- exp((-qnorm(pmixpois(0:N, prob, lam1, lam2))^2)/2) *
+    her(qnorm(pmixpois(0:1000, prob, lam1, lam2)))
+
+  # take the sum of all terms
+  HC_k <- sum(terms) / (sqrt(2*pi) *  factorial(k))
+  return(HC_k)
+}
+
+# all hermitte coefficients
+HermCoefMixedPois <- function(lam1, lam2, prob, maxCoef = 20){
+  #######################################################################
+  # PURPOSE    Compute all Hermite Coefficients. See relation (21) in
+  #            https://arxiv.org/pdf/1811.00203.pdf
+  #
+  # INPUT
+  #   lam1     Marginal parameter - first mean
+  #   lam2     Marginal parameter - second mean
+  #   prob     Marginal parameter - mixing probability
+  #   maxCoef  number of coefficients to return. Default = 20
+  #
+  # Output
+  #   HC       All Hermite coeficients
+  #
+  # Authors    Stefanos Kechagias, James Livsey
+  # Date       January 2020
+  # Version    3.6.1
+  #######################################################################
+
+  h = 1:maxCoef #check me
+  HC = rep(NA, length(h)) # storage
+  for(i in h) {
+    HC[i] <- HermCoefMixedPois_k(lam1, lam2, prob, k = i)
+  }
+
+  return(HC)
+
 }
