@@ -205,7 +205,7 @@ mixedPois_MLE <- function(x, inital.value){
   m <- 2
 
   #fit using nlm
-  fv <- suppressWarnings( nlm(of, initial.value, m, xf, print.level=0) )
+  fv <- suppressWarnings( nlm(of, inital.value, m, xf, print.level=0) )
   rv <- fv$est
 
   #lambda estimates
