@@ -131,7 +131,7 @@ fit_IWY_mixedPois_AR1 <- function(x, ar.order = 1){
   lam1.est <- mean(x.sort[1:n1])
   lam2.est <- mean(x.sort[(n1+1):n])
 
-  mleFit <- mixedPois_MLE(x, inital.value = c(lam1.est, lam2.est, prob.est))
+  mleFit <- mixedPois_MLE(x, c(log(lam1.est), log(lam2.est), prob.est))
   lam1.est <- mleFit[1]
   lam2.est <- mleFit[2]
   prob.est <- mlefit[3]
