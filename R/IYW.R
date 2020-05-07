@@ -134,7 +134,7 @@ fit_IWY_mixedPois_AR1 <- function(x, ar.order = 1){
   mleFit <- mixedPois_MLE(x, c(log(lam1.est), log(lam2.est), prob.est))
   lam1.est <- mleFit[1]
   lam2.est <- mleFit[2]
-  prob.est <- mlefit[3]
+  prob.est <- mleFit[3]
 
   # Calculate Hermite coefficients
   g.coefs <- HermCoefMixedPois(lam1 = lam1.est,
