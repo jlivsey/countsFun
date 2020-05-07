@@ -213,5 +213,6 @@ mixedPois_MLE <- function(x, inital.value){
   #mixing distribution
   prob.est <- w2np(rv[(m+1):(2*m-1)])
 
+  # return both mean parameters and smaller probability
   return(c(sort(lam.est), sort(prob.est)[1]))
 }
