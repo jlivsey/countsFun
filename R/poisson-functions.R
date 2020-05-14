@@ -336,7 +336,7 @@ GaussLogLik_fixedPhi = function(lam, phi_fixed, data){
   n = length(data)
 
   # assign large likelihood value if not causal and if lambda outside range
-  if(any(abs( polyroot(c(1, -phi))  ) < 1) || (lam < 0 || lam > 100))
+  if(any(abs( polyroot(c(1, -phi))  ) < 1) || (lam < 0 || lam > 100)){
     return(NA) #check me
   }
 

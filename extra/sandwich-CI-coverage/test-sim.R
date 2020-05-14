@@ -72,5 +72,5 @@ g4 <- ggplot(sandCI, aes(x = simnum, ymin = lower, ymax = upper, y = est)) +
 # number missed
 sum(sandCI$lower > .5 | sandCI$upper < .5)
 
-
+# Plot Results
 gridExtra::grid.arrange(g1, g2, g3, g4, nrow = 2, ncol = 2)
