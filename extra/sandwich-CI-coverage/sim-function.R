@@ -6,10 +6,11 @@ library(numDeriv)
 library(sandwich)
 
 
-sim_sandy <- function(lam, phi, n = 100, nsim = 200){
+sim_sandy <- function(lam, phi, n = 100, nsim = 100){
 
-  H <- matrix(NA, nsim, 2)
-  S <- matrix(NA, nsim, 2)
+  P <- matrix(NA, nsim, 2) # parameter estimates
+  H <- matrix(NA, nsim, 2) # Std error with hessian
+  S <- matrix(NA, nsim, 2) # std error with Sandwich estimator
 
   for(i in 1:nsim){
 
@@ -58,12 +59,15 @@ sim_sandy <- function(lam, phi, n = 100, nsim = 200){
   # standard errors usual way using hessian
   SE.hess <- sqrt(diag(solve(h)))
 
+  P[i, ] <- out$par
   H[i, ] <- SE.hess
   S[i, ] <- SE.sand
 
   }
 
-  return(list(H = H, S = S))
+  return(list(P = P,
+              H = H,
+              S = S))
 
 }
 
