@@ -1,9 +1,16 @@
-# Univariate Durbin-Levinson algoithm.
-
-# notes:
-#         1. I'm assuming variance gamma(0) = 1
-#         2. gamma vec being passed does not include variance so g[1] = gamma(1)
-
+#' Univariate Durbin-Levinson algoithm.
+#' This implimentation takes a mean value and subtracts it during calculation
+#' of one-step-ahead predictors and residuals
+#'
+#' @param x univariate time series
+#' @param g ACVF function where g[1] = gamma(0)
+#' @param lam mean
+#'
+#' @return list with lower triangular matrix of predicition coefficients, mses,
+#' one-step-ahead predictions and residuals
+#' @export
+#'
+#' @examples
 DLalg <- function(x, g, lam){
   # parameters known from inputs
   n <- length(x)
