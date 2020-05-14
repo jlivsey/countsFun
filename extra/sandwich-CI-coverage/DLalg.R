@@ -27,11 +27,11 @@ DLalg <- function(x, g, lam){
   xhat <- rep(NA, n+1) #storage
   xhat[1] <- 0
   for(m in 1:n){
-    xhat[m+1] <- sum(phi[m, 1:m] * x[m:1])
+    xhat[m+1] <- sum(phi[m, 1:m] * (x[m:1] - lam))
   }
 
   # residuals
-  e <- x - xhat[1:n]
+  e <- (x - lam) - xhat[1:n]
 
   return(list(
     phi  = phi,
