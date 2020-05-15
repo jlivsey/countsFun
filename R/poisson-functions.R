@@ -313,3 +313,45 @@ FitGaussianLik = function(initialParam, x){
 
 
 
+
+GaussLogLik_fixedPhi = function(lam, phi_fixed, data){
+  #-------------------------------------------------------------------------#
+  # PURPOSE    Compute Gaussian log-likelihood for Poisson AR series with Phi fixed
+  #
+  # INPUT
+  #   lam    Poisson mean parameter
+  #   phi_fixed  value to fix phi at
+  #   data     count series
+  #
+  # Output
+  #   loglik   Gaussian log-likelihood
+  #
+  # Authors    Stefanos Kechagias, James Livsey
+  # Date       January 2020
+  # Version    3.6.1
+  #-------------------------------------------------------------------------#
+
+  # retrieve parameters and sample size
+  phi = phi_fixed
+  n = length(data)
+
+  # assign large likelihood value if not causal and if lambda outside range
+  if(any(abs( polyroot(c(1, -phi))  ) < 1) || (lam < 0 || lam > 100)){
+    return(NA) #check me
+  }
+
+  # Compute the covariance matrix--relation (56) in https://arxiv.org/pdf/1811.00203.pdf
+  GAMMA = CovarPoissonAR(n, lam, phi)
+
+  # Compute the logdet and the quadratic part
+  logLikComponents = EvalInvQuadForm(GAMMA, as.numeric(data), lam)
+
+  # final loglikelihood value
+  out = 0.5*logLikComponents[1] + 0.5*logLikComponents[2]
+
+  # the following will match the above if you subtract N/2*log(2*pi) and don't multiply with 2
+  # out = -2*dmvnorm(as.numeric(data), rep(lam, n), GAMMA, log = TRUE)
+  return(out)
+}
+
+
