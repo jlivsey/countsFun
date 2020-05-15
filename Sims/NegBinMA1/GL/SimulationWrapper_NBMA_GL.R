@@ -21,7 +21,7 @@ r               = 3
 p               = 0.2
 MargParm        = c(r,p)
 nsim            = 200
-no_cores <- detectCores()/2
+no_cores <- detectCores()/2-1
 
 #-----------------------------------------------Positive MA parameter--------------------------------------------------#
 MAParm = -0.75

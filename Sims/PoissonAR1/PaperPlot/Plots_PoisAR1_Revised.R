@@ -53,7 +53,7 @@ d$n = as.factor(d$n)
 
 # What param config do we want to look at?
 lam = unique(d$lam.true)
-phi = .75
+phi = -.75
 PhiSign = ifelse(phi > 0, 'Pos', 'Neg')  # SIGN OF ar(1) param
 
 # subset data.frame by param config
@@ -70,7 +70,7 @@ names(df) = c("Method", "T", "variable", "value" )
 levels(df$variable) = c("phi estimates", "lambda estimates")
 
 df$Method = as.factor(df$Method)
-levels(df$Method) = c("Gaussian Likelihood", "Particle Filtering", "Implied Yule-Walker")
+levels(df$Method) = c("Gaussian Likelihood", "Particle Filtering", "Implied YW")
 
 # Add true value to data.frame (for adding horizontal line to boxplots)
 df$true = rep(-99, dim(df)[1])
@@ -105,8 +105,8 @@ p2 + geom_boxplot(outlier.size = 1/2, fatten = 1) +
   theme(plot.title = element_text(hjust = 0.5)) +
   scale_fill_manual(values=c("#F8F8FF", '#4169E1', "#20B2AA")) +
   labs(x="T", y="Parameter Estimates")+
-  theme(text=element_text(size=16),legend.position="bottom",
+  theme(text=element_text(size=18),legend.position="bottom",
         legend.text=element_text(size=rel(1)))
 
-ggsave(sprintf("C:/Users/Stef/Desktop/countsFun/Sims/PoissonAR1/PaperPlot/PAR1lam2phi%s75.pdf",PhiSign))
+ggsave(sprintf("C:/Users/Stef/Desktop/countsFun/Sims/PoissonAR1/PaperPlot/Pois%sAR1phi%s75.pdf",lam,PhiSign))
 # dev.off()

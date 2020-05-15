@@ -19,7 +19,7 @@ load('Pois10AR1_GL_N1000_NS200_PhiNeg.Rdata')
 load('Pois10AR1_GL_N100_NS200_PhiNeg.Rdata')
 load('Pois10AR1_GL_N200_NS200_PhiNeg.Rdata')
 
-d = rbind(df7, df8, df9, df19, df20)
+d = rbind(df7, df8, df9,df10,df11,df12, df19, df20)
 
 
 library(ggplot2)
@@ -34,7 +34,7 @@ d$n = as.factor(d$n)
 
 # What param config do we want to look at?
 lam = unique(d$lam.true)
-phi = .75
+phi = -.75
 PhiSign = ifelse(phi > 0, 'Pos', 'Neg')  # SIGN OF ar(1) param
 
 # subset data.frame by param config
@@ -51,7 +51,7 @@ names(df) = c("Method", "T", "variable", "value" )
 levels(df$variable) = c("phi estimates", "lambda estimates")
 
 df$Method = as.factor(df$Method)
-levels(df$Method) = c("Gaussian Likelihood", "Particle Filtering", "Implied Yule-Walker")
+levels(df$Method) = c("Gaussian Likelihood", "Particle Filtering", "Implied YW")
 
 # Add true value to data.frame (for adding horizontal line to boxplots)
 df$true = rep(-99, dim(df)[1])
@@ -72,8 +72,8 @@ phihat = df$value[df$variable=="phi estimates"]
 
 df[variable == "lambda estimates",y_min := min(lambdahat)]
 df[variable == "lambda estimates",y_max := max(lambdahat)]
-df[variable == "phi estimates",y_min := 0.4]
-df[variable == "phi estimates",y_max := 0.9]
+df[variable == "phi estimates",y_min := min(phihat)]
+df[variable == "phi estimates",y_max := max(phihat)]
 
 # make plot
 p2 <- ggplot(df, aes(x=T, y=value, fill=Method))
@@ -86,8 +86,8 @@ p2 + geom_boxplot(outlier.size = 1/2, fatten = 1) +
   theme(plot.title = element_text(hjust = 0.5)) +
   scale_fill_manual(values=c("#F8F8FF", '#4169E1', "#20B2AA")) +
   labs(x="T", y="Parameter Estimates")+
-  theme(text=element_text(size=16),legend.position="bottom",
+  theme(text=element_text(size=18),legend.position="bottom",
         legend.text=element_text(size=rel(1)))
 
-ggsave(sprintf("C:/Users/Stef/Desktop/countsFun/Sims/PoissonAR1/PaperPlot/PAR1lam2phi%s75.pdf",PhiSign))
+ggsave(sprintf("C:/Users/Stef/Desktop/countsFun/Sims/PoissonAR1/PaperPlot/Pois%sAR1lamphi%s75_N1000.pdf",lam,PhiSign))
 # dev.off()

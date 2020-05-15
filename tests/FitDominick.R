@@ -38,9 +38,9 @@ attach(mysales)
 #plot.ts(MOVE, ylab = "sales", xlab = "time")
 
 # use GCMR to fit the data
-# tic()
-# mod <- gcmr(MOVE~Buy, marginal = negbin.marg, cormat = arma.cormat(3, 0), no.se = FALSE)
-# toc()
+tic()
+mod <- gcmr(MOVE~Buy, marginal = negbin.marg, cormat = arma.cormat(3, 0), no.se = FALSE)
+toc()
 
 # plot residuals
 #plot(mod)
@@ -63,29 +63,13 @@ theta = c(2.9713351, 1.3705352,0.6812780,-0.1979509,0.3350090,  0.2572088  )
 data = MOVE
 
 
-# tic()
-# GaussLogLikNB_Reg(theta, MOVE, Regressor, ARMAorder, MaxCdf, nHC)
-# toc()
-
-X = MOVE
-x0 = theta
-ARMAorder = c(3,0)
-
-optim.output <- optim(par       = x0,
-                      fn        = GaussLogLikNB_Reg,
-                      data      = X,
-                      Regressor = Regressor,
-                      ARMAorder = ARMAorder,
-                      MaxCdf    = MaxCdf,
-                      nHC       = nHC,
-                      method    = "L-BFGS-B",
-                      hessian   = TRUE,
-                      lower     = LB,
-                      upper     = UB
-)
-
-# tic()
-# mod2 = FitGaussianLikNB_Reg(x0, X, Regressor, LB, UB, ARMAorder, MaxCdf, nHC)
-# toc()
+tic()
+mod1 = FitGaussianLikNB_Reg(theta, MOVE, Regressor, LB, UB, ARMAorder, MaxCdf, nHC,1)
+toc()
+tic()
+mod2 = FitGaussianLikNB_Reg(theta, MOVE, Regressor, LB, UB, ARMAorder, MaxCdf, nHC,0)
+toc()
+mod1
+mod2
 
 

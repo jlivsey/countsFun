@@ -30,7 +30,7 @@ PoisAR1_PF = function(CountDist,MargParm,ARParm,
   nfit          = 1                                  # number of times that we fit the same realization
   initial.param = c(MargParm, ARParm)                # Initial PArameters
   no_cores      = detectCores() - 1                  # Select the number of cores
-  ###########################################################################
+  ##-------------------------------------------------------------------------------------------------#
 
   # generate all the realizations and save in a list
   l <- list()

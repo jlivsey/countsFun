@@ -26,7 +26,7 @@ load('Pois10AR1_PF_N100_NS200_Part100_PhiPos.Rdata')
 load('Pois10AR1_PF_N200_NS200_Part100_PhiPos.Rdata')
 load('Pois10AR1_PF_N400_NS200_Part100_PhiPos.Rdata')
 
-setwd("C:/Users/Stef/Desktop/countsFun/Sims/PoissonAR1/IYW")
+setwd("C:/Users/Stef/Desktop/countsFun/Sims/PoissonAR1/IYW/RData")
 load('Pois10AR1_IYW_N100_NS200_PhiNeg.Rdata')
 load('Pois10AR1_IYW_N200_NS200_PhiNeg.Rdata')
 load('Pois10AR1_IYW_N400_NS200_PhiNeg.Rdata')
@@ -51,7 +51,7 @@ d$n = as.factor(d$n)
 
 # What param config do we want to look at?
 lam = unique(d$lam.true)
-phi = .75
+phi = -.75
 PhiSign = ifelse(phi > 0, 'Pos', 'Neg')  # SIGN OF ar(1) param
 
 # subset data.frame by param config
@@ -68,7 +68,7 @@ names(df) = c("Method", "T", "variable", "value" )
 levels(df$variable) = c("phi estimates", "lambda estimates")
 
 df$Method = as.factor(df$Method)
-levels(df$Method) = c("Gaussian Likelihood", "Particle Filtering", "Implied Yule-Walker")
+levels(df$Method) = c("Gaussian Likelihood", "Particle Filtering", "Implied YW")
 
 # Add true value to data.frame (for adding horizontal line to boxplots)
 df$true = rep(-99, dim(df)[1])

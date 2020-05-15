@@ -89,6 +89,8 @@ HermCoefNegBin_k <- function(r, p, k, N){
   terms <- exp((-qnorm(pnbinom(0:max(N), r,1-p, lower.tail= TRUE))^2)/2) *
     her(qnorm(pnbinom(0:max(N), r,1-p, lower.tail = TRUE)))
 
+  terms[is.nan(terms)]=0
+
   # take the sum of all terms
   HC_k <- sum(terms) / (sqrt(2*pi) *  factorial(k))
   return(HC_k)
@@ -154,7 +156,7 @@ CovarNegBin = function(n, r, p, AR, MA, N, nHC){
   if(length(AR) & length(MA)){arma.acf <- ARMAacf(ar = AR, ma = MA, lag.max = n)}
 
   # Autocovariance of count series--relation (9) in https://arxiv.org/pdf/1811.00203.pdf
-  gamma_x = CountACVF_2(h = 0:(n-1), myacf = arma.acf, g = HC)
+  gamma_x = CountACVF(h = 0:(n-1), myacf = arma.acf, g = HC)
 
   # Final toeplitz covariance matrix--relation (56) in https://arxiv.org/pdf/1811.00203.pdf
   GAMMA = toeplitz(gamma_x)
@@ -186,6 +188,8 @@ GaussLogLikNB = function(theta, data, ARMAorder, MaxCdf, nHC){
   # retrieve parameters and sample size
   r = theta[1]
   p = theta[2]
+  nparms  = length(theta)
+  nMargParms = nparms - sum(ARMAorder)
   if(ARMAorder[1]>0){
     AR = theta[(nparms-ARMAorder[1]+1):(nMargParms + ARMAorder[1])  ]
   }else{
@@ -193,7 +197,7 @@ GaussLogLikNB = function(theta, data, ARMAorder, MaxCdf, nHC){
   }
 
   if(ARMAorder[2]>0){
-    MA = theta[ (length(theta) - ARMAorder[2]) : length(theta)]
+    MA = theta[ (nMargParms+ARMAorder[1]+1) : length(theta)]
   }else{
     MA = NULL
   }
@@ -211,7 +215,6 @@ GaussLogLikNB = function(theta, data, ARMAorder, MaxCdf, nHC){
 
   #Select the mean value used to demean--sample or true?
   MeanValue = r*p/(1-p)
-
 
   # Compute the covariance matrix--relation (56) in https://arxiv.org/pdf/1811.00203.pdf
   GAMMA = CovarNegBin(n, r, p, AR, MA, N, nHC)
@@ -387,23 +390,25 @@ GaussLogLikNB_Reg = function(theta, data, Regressor, ARMAorder, MaxCdf, nHC){
   #   theta      parameter vector containing the marginal and AR parameters
   #   data       count series
   #   Regressor  regressors (first column is always 1--intercept)
-  #   ARorder    AR order
-  #   M          truncation ofrelation (67) in https://arxiv.org/pdf/1811.00203.pdf
+  #   ARMAorder  ARMA order
+  #   MaxCdf     cdf will be computed up to this number (for light tails cdf=1 fast)
+  #   nHC        number of HC to be computed
   #
   # Output
   #   loglik     Gaussian log-likelihood
   #
-  # Authors      Stefanos Kechagias, James Livsey
+  # Authors      Stefanos Kechagias, James Livsey, Vladas Pipiras
   # Date         April 2020
   # Version      3.6.3
   #====================================================================================#
 
   # retrieve parameters and sample size
-  nparms = length(theta)
+  nparms     = length(theta)
   nMargParms = nparms - sum(ARMAorder)
   beta       = theta[1:(nparms-sum(ARMAorder)-1)]
   k          = theta[nparms-sum(ARMAorder)]
   n          = length(data)
+
   if(ARMAorder[1]>0){
     AR = theta[(nparms-ARMAorder[1]+1):(nMargParms + ARMAorder[1])  ]
   }else{
@@ -451,8 +456,172 @@ GaussLogLikNB_Reg = function(theta, data, Regressor, ARMAorder, MaxCdf, nHC){
 }
 
 
+#----------Link coefficients with one dummy Regressor---------#
+LinkCoef_Reg2 = function(r, p, N, nHC){
+  #====================================================================================#
+  # PURPOSE    Compute the product  factorial(k)*g_{t1,k}*g_{t2,k} in relation (67) in
+  #            https://arxiv.org/pdf/1811.00203.pdf when the regressor variable is only
+  #            one dummy variable.
+  #
+  # INPUT
+  #   r, p     NB Marginal parameters
+  #
+  # Output
+  #   l        An MX3 matrix of link coefficients. M is the default truncatuon of relation
+  #            (67) and 3 is the number of different combinations of products
+  #            g_{t1,k}*g_{t2,k} (since for each t I will either have 1 or 0 for the
+  #            regressor variable).
+  #
+  # Authors    Stefanos Kechagias, James Livsey
+  # Date       April 2020
+  # Version    3.6.3
+  #====================================================================================#
+
+
+  # compute Hermite coefficients from relation (21)
+  g1 = HermCoefNegBin(unique(r)[1], p,N[1], nHC)
+  g2 = HermCoefNegBin(unique(r)[1], p,N[2], nHC)
+  HC = cbind(g1, g2)
+
+  # Compute the products g1^2, g1*g2 and g2^2 of the HCs
+  HCprod = matrix(NA, nHC, 3)
+  for(i in 0:(length(unique(r))-1) ){
+    for(j in i: (length(unique(r))-1) ){
+      HCprod[,i+j+1] = HC[,i+1]*HC[,j+1]
+    }
+  }
+
+  return(HCprod)
+}
+
+
+#---------Covariance matrix with one dummy Regressor---------#
+CovarNegBinAR_Reg2 = function(n, r, p, phi, N, nHC){
+  #====================================================================================#
+  # PURPOSE    Compute the covariance matrix of a NegBin AR series that
+  #            includes one dummy variable as a regressor. Here p depends on each
+  #            observation. See relation (67) in https://arxiv.org/pdf/1811.00203.pdf
+  #
+  # INPUT
+  #   r, p     NB MArginal parameters
+  #   phi      AR parameter
+  #   n        size of the matrix
+  #   M        truncation of relation (67)
+  #
+  # Notes      Since X is a dummy there are only two values of m=exp(X%*%beta),
+  #            and hence only two values of the NeG Bin probability of p, and hence
+  #            only two differenet Hermite Coeffcients I need to compute (for each k).
+  #
+  # Output
+  #   GAMMA    covariance matrix ofcount series with a dummy regressor
+  #
+  # Authors    Stefanos Kechagias, James Livsey
+  # Date       March 2020
+  # Version    3.6.3
+  #====================================================================================#
+
+  # Compute ARMA autocorrelation function
+  All.ar = apply(as.matrix(ARMAacf(ar = phi, lag.max = n)), 1,function(x)x^(1:nHC))
+
+  # Compute the link coefficients l_k = factorial(k)*g_{t1,k}*g_{t2,k}
+  linkCoef = LinkCoef_Reg2(r, p, N, nHC)
+
+  # keep track of which indices each unique HC is located at
+  index = cbind(unique(r)[1]==r, unique(r)[2]==r)
+
+  # STEP 3: Implement relation 67
+  k = 1:nHC
+  kfac = factorial(k)
+  G = matrix(NA,n,n)
+  for(t1 in 0:(n-1)){
+    for(t2 in 0:t1 ){
+      h = abs(t1-t2)+1
+      G[t1+1,t2+1]= sum(kfac*linkCoef[,index[t1+1,2]+index[t2+1,2]+1]*All.ar[,h])
+    }
+  }
+  G = symmetrize(G, update.upper=TRUE)
+  return(G)
+}
+
+
+#---------Guassian Likelihood function with a dummy Regressor---------#
+GaussLogLikNB_Reg2 = function(theta, data, Regressor, ARMAorder, MaxCdf, nHC){
+  #====================================================================================#
+  # PURPOSE      Compute Gaussian log-likelihood for NegBin AR series
+  #
+  #
+  # NOTES        Here I use the parametrization given in our paper see Section 5
+  #
+  #
+  # INPUT
+  #   theta      parameter vector containing the marginal and AR parameters
+  #   data       count series
+  #   Regressor  regressors (first column is always 1--intercept)
+  #   ARMAorder  ARMA order
+  #   MaxCdf     cdf will be computed up to this number (for light tails cdf=1 fast)
+  #   nHC        number of HC to be computed
+  #
+  # Output
+  #   loglik     Gaussian log-likelihood
+  #
+  # Authors      Stefanos Kechagias, James Livsey, Vladas Pipiras
+  # Date         April 2020
+  # Version      3.6.3
+  #====================================================================================#
+
+  # retrieve parameters and sample size
+  nparms     = length(theta)
+  nMargParms = nparms - sum(ARMAorder)
+  beta       = theta[1:(nparms-sum(ARMAorder)-1)]
+  p          = theta[nparms-sum(ARMAorder)]
+  n          = length(data)
+
+  if(ARMAorder[1]>0){
+    AR = theta[(nparms-ARMAorder[1]+1):(nMargParms + ARMAorder[1])  ]
+  }else{
+    AR = NULL
+  }
+
+  if(ARMAorder[2]>0){
+    MA = theta[ (length(theta) - ARMAorder[2]) : length(theta)]
+  }else{
+    MA = NULL
+  }
+
+  # need only only causal
+  if(any(abs( polyroot(c(1, -AR))  ) < 1)){
+    return(10^6) #check me
+  }
+
+  # retrieve mean
+  r = exp(Regressor%*%beta)
+
+
+  # Compute truncation of relation (21) in arxiv
+  N = sapply(unique(r),function(x)which(pnbinom(1:MaxCdf, x,1-p)>=1-1e-7)[1])-1
+  N[is.na(N)] = MaxCdf
+
+  #Select the mean value used to demean--sample or true?
+  MeanValue = r*p/(1-p)
+
+  # Compute the covariance matrix--relation (56) in https://arxiv.org/pdf/1811.00203.pdf
+  # GAMMA = CovarNegBin(n, r, p, AR, MA, N, nHC)
+  GAMMA = CovarNegBinAR_Reg2(n, r, p, AR, N, nHC)
+
+  # Compute the logdet and the quadratic part
+  logLikComponents = EvalInvQuadForm(GAMMA, as.numeric(data), MeanValue)
+
+  # final loglikelihood value
+  out = 0.5*logLikComponents[1] + 0.5*logLikComponents[2]
+
+  # the following will match the above if you subtract N/2*log(2*pi) and don't multiply with 2
+  # out = -2*dmvnorm(as.numeric(data), rep(lam, n), GAMMA, log = TRUE)
+  return(out)
+}
+
+
 #---------wrapper to fit Guassian Likelihood function with a dummy Regressor---------#
-FitGaussianLikNB_Reg = function(x0, X, Regressor, LB, UB, ARMAorder, MaxCdf, nHC){
+FitGaussianLikNB_Reg = function(x0, X, Regressor, LB, UB, ARMAorder, MaxCdf, nHC, Model){
   #====================================================================================#
   # PURPOSE       Fit the Gaussian log-likelihood for NegBin series
   #
@@ -464,6 +633,8 @@ FitGaussianLikNB_Reg = function(x0, X, Regressor, LB, UB, ARMAorder, MaxCdf, nHC
   #   ARMAorder   order of the udnerlying ARMA model
   #   MaxCdf      cdf will be computed up to this number (for light tails cdf=1 fast)
   #   nHC         number of HC to be computed
+  #   Model       =1 then r depends on t, p fixed, =0 p depends on t, r is fixed
+
   #
   # OUTPUT
   #   All         parameter estimates, standard errors, likelihood value
@@ -474,6 +645,20 @@ FitGaussianLikNB_Reg = function(x0, X, Regressor, LB, UB, ARMAorder, MaxCdf, nHC
   # Date          April 2020
   # Version       3.6.3
   #====================================================================================#
+if(Model){
+  optim.output <- optim(par       = x0,
+                        fn        = GaussLogLikNB_Reg2,
+                        data      = X,
+                        Regressor = Regressor,
+                        ARMAorder = ARMAorder,
+                        MaxCdf    = MaxCdf,
+                        nHC       = nHC,
+                        method    = "L-BFGS-B",
+                        hessian   = TRUE,
+                        lower     = LB,
+                        upper     = UB
+  )
+}else{
   optim.output <- optim(par       = x0,
                         fn        = GaussLogLikNB_Reg,
                         data      = X,
@@ -486,6 +671,7 @@ FitGaussianLikNB_Reg = function(x0, X, Regressor, LB, UB, ARMAorder, MaxCdf, nHC
                         lower     = LB,
                         upper     = UB
   )
+}
 
   nparms  = length(x0)
   ParmEst = matrix(0,nrow=1,ncol=nparms)
@@ -504,8 +690,63 @@ FitGaussianLikNB_Reg = function(x0, X, Regressor, LB, UB, ARMAorder, MaxCdf, nHC
 
 
 
+#---------initial estimates via method of moments and reversion
+ComputeInitNegBinMA = function(x,n,nHC){
+  #---------------------------------#
+  # Purpose: Method of Moment Initial estimates for negbin MA(1)
+  #
+  #
+  #
+  # Authors      Stefanos Kechagias, James Livsey, Vladas Pipiras
+  # Date         April 2020
+  # Version      3.6.3
+  #---------------------------------#
+
+  xbar = mean(x)
+  sSquare = var(x)
+
+  # Method of Moments for negBin
+  rEst = xbar^2/(sSquare - xbar)
+  pEst = 1 - xbar/sSquare
+
+  # compute thetaEst using reversion as in IYW
+  initParms = ComputeInitNegBinMAterm(x, rEst, pEst, n, nHC)
+
+  return(initParms)
+
+  }
 
 
+#---------link coefficients
+link_coefs <- function(g_coefs, gamx0){
+  K <- length(g_coefs)
+  return(factorial(1:K) * g_coefs^2 / gamx0)
+}
 
+#--------obtain initial estimate for MA term using acf and reversion
+ComputeInitNegBinMAterm = function(x, rEst, pEst, N, nHC){
 
+  # compute Hermite coefficients
+  g.coefs  = HermCoefNegBin(rEst, pEst, N, nHC)
+
+  # Compute acf of count series at lag 0
+  NegBinVar = rEst*pEst/(1-pEst)^2
+
+  # compute link coeffcients
+  link.coefs <- link_coefs(g.coefs, NegBinVar)
+
+  # compute Inverse Link coefficients of f^-1: gam.z --> gam.x
+  inv.link.coefs <- reversion(link.coefs)
+
+  # sample acf of count data
+  gam.x <- acf(x = x, lag.max = 30, plot = FALSE, type = "correlation")$acf
+
+  # compute gamma Z thru reversion
+  gam.z <- power_series(gam.x[,,1], inv.link.coefs)
+  gam.z = gam.z/gam.z[1]
+
+  thetaEst = gam.z[2]
+  InitEstimates = c(rEst,pEst,thetaEst)
+  return(InitEstimates)
+}
 

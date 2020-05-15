@@ -21,7 +21,7 @@ r               = 3
 prob            = 0.8
 MargParm        = c(r,prob)
 nsim            = 200
-no_cores <- detectCores()-1
+no_cores <- detectCores()/2-1
 LB = c(0.001, 0.001, -0.999)
 UB = c(Inf, 0.999, 0.999)
 MaxCdf = 5000
@@ -32,20 +32,19 @@ q = 1
 #-----------------------------------------------Positive MA parameter--------------------------------------------------#
 MAParm = 0.75
 trueParam = c(MargParm, MAParm)
-initParam = trueParam
 ThetaSign = ifelse(MAParm > 0, 'Pos', 'Neg')   # SIGN OF ar(1) param
 
 n=100
-df7 = NegBin_GL(initParam, trueParam, p,q, LB, UB, MaxCdf, nHC, n, nsim, no_cores)
-save(df7, file = sprintf("NegBin%s_%sMA%s_GL_N%s_NS%s_Theta%s.RData", MargParm[1], MargParm[2], 1, n, nsim, ThetaSign))
+df7 = NegBin_GL(trueParam, p,q, LB, UB, MaxCdf, nHC, n, nsim, no_cores)
+save(df7, file = sprintf("NegBin%s_%sMA%s_GL_N%s_NS%s_Theta%s_NotTrue.RData", MargParm[1], MargParm[2], 1, n, nsim, ThetaSign))
 
 n=200
-df8 = NegBin_GL(initParam, trueParam, p,q, LB, UB, MaxCdf, nHC, n, nsim, no_cores)
-save(df8, file = sprintf("NegBin%s_%sMA%s_GL_N%s_NS%s_Theta%s.RData", MargParm[1], MargParm[2], 1, n, nsim, ThetaSign))
+df8 = NegBin_GL(trueParam, p,q, LB, UB, MaxCdf, nHC, n, nsim, no_cores)
+save(df8, file = sprintf("NegBin%s_%sMA%s_GL_N%s_NS%s_Theta%s_NotTrue.RData", MargParm[1], MargParm[2], 1, n, nsim, ThetaSign))
 
 n=400
-df9 = NegBin_GL(initParam, trueParam, p,q, LB, UB, MaxCdf, nHC, n, nsim, no_cores)
-save(df9, file = sprintf("NegBin%s_%sMA%s_GL_N%s_NS%s_Theta%s.RData", MargParm[1], MargParm[2], 1, n, nsim, ThetaSign))
+df9 = NegBin_GL(trueParam, p,q, LB, UB, MaxCdf, nHC, n, nsim, no_cores)
+save(df9, file = sprintf("NegBin%s_%sMA%s_GL_N%s_NS%s_Theta%s_NotTrue.RData", MargParm[1], MargParm[2], 1, n, nsim, ThetaSign))
 
 
 
@@ -53,17 +52,16 @@ save(df9, file = sprintf("NegBin%s_%sMA%s_GL_N%s_NS%s_Theta%s.RData", MargParm[1
 #-----------------------------------------------Negative MA parameter--------------------------------------------------#
 MAParm = -0.75
 trueParam = c(MargParm, MAParm)
-initParam = trueParam
 ThetaSign = ifelse(MAParm > 0, 'Pos', 'Neg')   # SIGN OF ar(1) param
 
 n=100
-df10 = NegBin_GL(initParam, trueParam, p,q, LB, UB, MaxCdf, nHC, n, nsim, no_cores)
-save(df10, file = sprintf("NegBin%s_%sMA%s_GL_N%s_NS%s_Theta%s.RData", MargParm[1], MargParm[2], 1, n, nsim, ThetaSign))
+df10 = NegBin_GL(trueParam, p,q, LB, UB, MaxCdf, nHC, n, nsim, no_cores)
+save(df10, file = sprintf("NegBin%s_%sMA%s_GL_N%s_NS%s_Theta%s_NotTrue.RData", MargParm[1], MargParm[2], 1, n, nsim, ThetaSign))
 
 n=200
-df11 = NegBin_GL(initParam, trueParam, p,q, LB, UB, MaxCdf, nHC, n, nsim, no_cores)
-save(df11, file = sprintf("NegBin%s_%sMA%s_GL_N%s_NS%s_Theta%s.RData", MargParm[1], MargParm[2], 1, n, nsim, ThetaSign))
+df11 = NegBin_GL(trueParam, p,q, LB, UB, MaxCdf, nHC, n, nsim, no_cores)
+save(df11, file = sprintf("NegBin%s_%sMA%s_GL_N%s_NS%s_Theta%s_NotTrue.RData", MargParm[1], MargParm[2], 1, n, nsim, ThetaSign))
 
 n=400
-df12 = NegBin_GL(initParam, trueParam, p,q, LB, UB, MaxCdf, nHC, n, nsim, no_cores)
-save(df12, file = sprintf("NegBin%s_%sMA%s_GL_N%s_NS%s_Theta%s.RData", MargParm[1], MargParm[2], 1, n, nsim, ThetaSign))
+df12 = NegBin_GL(trueParam, p,q, LB, UB, MaxCdf, nHC, n, nsim, no_cores)
+save(df12, file = sprintf("NegBin%s_%sMA%s_GL_N%s_NS%s_Theta%s_NotTrue.RData", MargParm[1], MargParm[2], 1, n, nsim, ThetaSign))

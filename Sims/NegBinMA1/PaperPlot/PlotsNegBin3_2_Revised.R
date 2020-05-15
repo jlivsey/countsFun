@@ -8,7 +8,8 @@
 # R version 3.6.3
 
 
-# load all data
+# # load all data
+
 setwd("C:/Users/Stef/Desktop/countsFun/Sims/NegBinMA1/GL/RData")
 load('NegBin3_0.8MA1_GL_N100_NS200_ThetaPos.Rdata')
 load('NegBin3_0.8MA1_GL_N200_NS200_ThetaPos.Rdata')
@@ -17,7 +18,18 @@ load('NegBin3_0.8MA1_GL_N100_NS200_ThetaNeg.Rdata')
 load('NegBin3_0.8MA1_GL_N200_NS200_ThetaNeg.Rdata')
 load('NegBin3_0.8MA1_GL_N400_NS200_ThetaNeg.Rdata')
 
-d = rbind(
+
+setwd("C:/Users/Stef/Desktop/countsFun/Sims/NegBinMA1/PF/RData")
+load('NegBin3_0.8MA1_PF_N100_NS200_Part100_ThetaPos_e1.Rdata')
+load('NegBin3_0.8MA1_PF_N200_NS200_Part100_ThetaPos_e1.Rdata')
+load('NegBin3_0.8MA1_PF_N400_NS200_Part100_ThetaPos_e1.Rdata')
+load('NegBin3_0.8MA1_PF_N100_NS200_Part100_ThetaNeg_e1.Rdata')
+load('NegBin3_0.8MA1_PF_N200_NS200_Part100_ThetaNeg_e1.Rdata')
+load('NegBin3_0.8MA1_PF_N400_NS200_Part100_ThetaNeg_e1.Rdata')
+
+
+#d = rbind(df1, df2,df3,df4,df5,df6)
+d = rbind(df1, df2,df3,df4,df5,df6,
            df7,df8,df9,df10,df11,df12)
 
 # Make sample size (n) a factor
@@ -33,7 +45,7 @@ library(data.table)
 # What param config do we want to look at?
 r = 3
 p = .8
-theta = .75
+theta = -.75
 # subset data.frame by param config
 d2 = d[(d$r.true == r) &
          (d$p.true == p) &
@@ -48,7 +60,7 @@ names(df) = c("Method", "T", "variable", "value" )
 levels(df$variable) = c("r estimates", "p estimates", "theta estimates")
 
 df$Method = as.factor(df$Method)
-levels(df$Method) = c("Gaussian Likelihood")
+levels(df$Method) = c("Gaussian Likelihood", "Particle Filtering")
 
 # Center around zero
 # df$value[df$variable=="r estimates"] = r - df$value[df$variable=="r estimates"]
