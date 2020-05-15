@@ -27,7 +27,7 @@ DLalg <- function(x, g, lam){
   for(m in 2:n){
     phi[m, m] <- (g[m+1] - sum(phi[m-1, 1:(m-1)] * g[(m-1+1):2])) / v[m-1]
     phi[m, 1:(m-1)] <- phi[m-1, 1:(m-1)] - phi[m, m] * phi[m-1, (m-1):1]
-    v[m] <- v[m-1] * (1 - phi[m, m]^2)
+    v[m] <- v[m-1] * (1 - phi[m-1, m-1]^2)
   }
 
   # Calculate xhat's
