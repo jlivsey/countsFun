@@ -216,3 +216,158 @@ mixedPois_MLE <- function(x, inital.value){
   # return both mean parameters and smaller probability
   return(c(sort(lam.est), sort(prob.est)[1]))
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#---------Gaussian Likelihood function---------#
+GaussLogLik_mixedPois = function(theta, data, ARMAorder, MaxCdf, nHC){
+  #====================================================================================#
+  # PURPOSE      Compute Gaussian log-likelihood for mixed-Poisson series
+  #
+  # INPUT
+  #   theta      parameter vector containing the marginal and ARMA parameters
+  #   data       count series
+  #   ARMAorder  order of ARMA model
+  #   MaxCdf     cd fwill be computed up to this number (for light tails cdf=1 fast)
+  #   nHC        number of HC to be computed
+  #
+  #
+  # Output
+  #   loglik     Gaussian log-likelihood
+  #
+  # Authors      Stefanos Kechagias, James Livsey, Vladas Pipiras
+  # Date         April 2020
+  # Version      3.6.3
+  #====================================================================================#
+
+  # retrieve parameters and sample size
+  r = theta[1]
+  p = theta[2]
+  if(ARMAorder[1]>0){
+    AR = theta[(nparms-ARMAorder[1]+1):(nMargParms + ARMAorder[1])  ]
+  }else{
+    AR = NULL
+  }
+
+  if(ARMAorder[2]>0){
+    MA = theta[ (length(theta) - ARMAorder[2]) : length(theta)]
+  }else{
+    MA = NULL
+  }
+  n = length(data)
+
+  # compute truncation of relation (21)
+  N <- which(round(pnbinom(1:MaxCdf, r,1-p), 7) == 1)[1]
+  # if(length(N)==0 |is.na(N) ){
+  #   cat(sprintf("The max cdf value is %f and N=%f", max(round(pnbinom(1:MaxCdf, r,1-p), 7)),N))
+  #   stop("Haven't reached upper limit for cdf")
+  # }
+  if(length(N)==0 |is.na(N) ){
+    N =MaxCdf
+  }
+
+  #Select the mean value used to demean--sample or true?
+  MeanValue = r*p/(1-p)
+
+
+  # Compute the covariance matrix--relation (56) in https://arxiv.org/pdf/1811.00203.pdf
+  GAMMA = CovarNegBin(n, r, p, AR, MA, N, nHC)
+
+  # Compute the logdet and the quadratic part
+  logLikComponents = EvalInvQuadForm(GAMMA, as.numeric(data), MeanValue)
+
+  # final loglikelihood value
+  out = 0.5*logLikComponents[1] + 0.5*logLikComponents[2]
+
+  # the following will match the above if you subtract N/2*log(2*pi) and don't multiply with 2
+  # out = -2*dmvnorm(as.numeric(data), rep(lam, n), GAMMA, log = TRUE)
+  return(out)
+}
+
+
+#---------wrapper to fit Gaussian Likelihood function---------#
+FitGaussianLik_mixedPois = function(x0, X, LB, UB, ARMAorder, MaxCdf, nHC){
+  #====================================================================================#
+  # PURPOSE       Fit the Gaussian log-likelihood for NegBin series
+  #
+  # INPUT
+  #   x0          initial parameters
+  #   X           count series
+  #   LB          parameter lower bounds
+  #   UB          parameter upper bounds
+  #   ARMAorder   order of the udnerlying ARMA model
+  #   MaxCdf      cdf will be computed up to this number (for light tails cdf=1 fast)
+  #   nHC         number of HC to be computed
+  #
+  # OUTPUT
+  #   All         parameter estimates, standard errors, likelihood value
+  #
+  # NOTES         I may comment out se in cases where maximum is achieved at the boundary
+  #
+  # Authors       Stefanos Kechagias, James Livsey, Vladas Pipiras
+  # Date          April 2020
+  # Version       3.6.3
+  #====================================================================================#
+  optim.output <- optim(par       = x0,
+                        fn        = GaussLogLikNB,
+                        data      = X,
+                        ARMAorder = ARMAorder,
+                        MaxCdf    = MaxCdf,
+                        nHC       = nHC,
+                        method    = "L-BFGS-B",
+                        hessian   = TRUE,
+                        lower     = LB,
+                        upper     = UB
+  )
+
+  nparms  = length(x0)
+  ParmEst = matrix(0,nrow=1,ncol=nparms)
+  se      = matrix(NA,nrow=1,ncol=nparms)
+  loglik  = rep(0,1)
+
+  # save estimates, loglik and standard errors
+  ParmEst[,1:nparms]   = optim.output$par
+  loglik               = optim.output$value
+  #se[,1:nparms]        = sqrt(abs(diag(solve(optim.output$hessian))))
+
+  All      = cbind(ParmEst, se, loglik)
+  return(All)
+
+}
+
