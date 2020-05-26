@@ -2,7 +2,8 @@
 # Inputs: hermite coefficients and marginal variance
 link_coefs <- function(hermite_coefs, gamx0){
   K <- length(hermite_coefs)
-  return(factorial(1:K) * hermite_coefs^2 / gamx0)
+  out <- factorial(1:K) * hermite_coefs^2 / gamx0
+  return(out)
 }
 
 # test comment
