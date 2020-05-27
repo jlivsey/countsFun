@@ -6,7 +6,6 @@ source('~/github/countsFun/extra/sandwich-CI-coverage/sim-function.R')
 # Simulation parameters
 lam_tru <- 1
 phi_tru <- .5
-nsim    <- 200
 
 # Run simulation
 A <- sim_sandy(lam = lam_tru, phi = phi_tru, n = 100, nsim = 200)
