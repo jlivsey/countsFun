@@ -1,13 +1,13 @@
 library(ggplot2)
 
 # Load Results
-A <- sandwich_lam1_phiPt5
+A <- sandwich_lam30_phi0fixed
 
 # parameter settings
-lam_tru <- 1
-phi_tru <- .5
+lam_tru <- 30
+phi_tru <- 0
 nsim <- 200
-was_phi_estimated <- TRUE
+was_phi_estimated <- FALSE
 
 # Extract values from simulation
 lamhat <- A$P[, 1]
@@ -93,9 +93,9 @@ if(was_phi_estimated){
 }
 
 # numerical results
-print(numMiss_lamHess)
-print(numMiss_lamSand)
+print(numMiss_lamHess/nsim)
+print(numMiss_lamSand/nsim)
 if(was_phi_estimated){
-  print(numMiss_phiHess)
-  print(numMiss_phiSand)
+  print(numMiss_phiHess/nsim)
+  print(numMiss_phiSand/nsim)
 }
