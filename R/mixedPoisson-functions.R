@@ -351,7 +351,7 @@ FitGaussianLik_mixedPois = function(x0, X, LB, UB, ARMAorder, MaxCdf, nHC){
 
 
 
-CovarPoissonAR = function(n, lam1, lam2, prob, phi){
+CovarMixedPoissonAR = function(n, lam1, lam2, prob, phi){
   #######################################################################
   # PURPOSE    Compute the covariance matrix of a Mixed-Poisson AR(1) series.
   #
