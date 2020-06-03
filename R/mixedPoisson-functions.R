@@ -256,55 +256,33 @@ mixedPois_MLE <- function(x, inital.value){
 
 
 #---------Gaussian Likelihood function---------#
-GaussLogLik_mixedPois = function(theta, data, ARMAorder, MaxCdf, nHC){
+GaussLogLik_mixedPois_AR1 = function(theta, data){
   #====================================================================================#
   # PURPOSE      Compute Gaussian log-likelihood for mixed-Poisson series
   #
   # INPUT
-  #   theta      parameter vector containing the marginal and ARMA parameters
+  #   theta      parameter vector containing (lambda, phi)
   #   data       count series
-  #   ARMAorder  order of ARMA model
-  #   MaxCdf     cd fwill be computed up to this number (for light tails cdf=1 fast)
-  #   nHC        number of HC to be computed
-  #
   #
   # Output
   #   loglik     Gaussian log-likelihood
   #
   # Authors      Stefanos Kechagias, James Livsey, Vladas Pipiras
-  # Date         April 2020
+  # Date         June 2020
   # Version      3.6.3
   #====================================================================================#
 
   # retrieve parameters and sample size
-  r = theta[1]
-  p = theta[2]
-  if(ARMAorder[1]>0){
-    AR = theta[(nparms-ARMAorder[1]+1):(nMargParms + ARMAorder[1])  ]
-  }else{
-    AR = NULL
-  }
+  lam = theta[1]
+  phi = theta[2]
 
-  if(ARMAorder[2]>0){
-    MA = theta[ (length(theta) - ARMAorder[2]) : length(theta)]
-  }else{
-    MA = NULL
-  }
   n = length(data)
 
   # compute truncation of relation (21)
-  N <- which(round(pnbinom(1:MaxCdf, r,1-p), 7) == 1)[1]
-  # if(length(N)==0 |is.na(N) ){
-  #   cat(sprintf("The max cdf value is %f and N=%f", max(round(pnbinom(1:MaxCdf, r,1-p), 7)),N))
-  #   stop("Haven't reached upper limit for cdf")
-  # }
-  if(length(N)==0 |is.na(N) ){
-    N =MaxCdf
-  }
+  N <- which(round(pmixpois(1:1000, prob, lam1, lam2), 7) == 1)[1]
 
   #Select the mean value used to demean--sample or true?
-  MeanValue = r*p/(1-p)
-
+  MeanValue = prob*lam1 + (1-prob)*lam2
 
   # Compute the covariance matrix--relation (56) in https://arxiv.org/pdf/1811.00203.pdf
   GAMMA = CovarNegBin(n, r, p, AR, MA, N, nHC)
@@ -371,3 +349,37 @@ FitGaussianLik_mixedPois = function(x0, X, LB, UB, ARMAorder, MaxCdf, nHC){
 
 }
 
+
+
+CovarPoissonAR = function(n, lam1, lam2, prob, phi){
+  #######################################################################
+  # PURPOSE    Compute the covariance matrix of a Mixed-Poisson AR(1) series.
+  #
+  # INPUT
+  #   lam1     First Marginal mean parameter
+  #   lam2     Second Marginal mean parameter
+  #   prob     Third Marginal parameter - mixing probability
+  #   phi      AR parameter
+  #   n        size of the matrix
+  #
+  # Output
+  #   GAMMA    covariance matrix of count series
+  #
+  # Authors    Stefanos Kechagias, James Livsey
+  # Date       June 2020
+  # Version    3.6.1
+  #######################################################################
+
+  # Hermite coeficients--relation (21) in https://arxiv.org/pdf/1811.00203.pdf
+  HC <- HermCoefMixedPois(lam1, lam2, prob, maxCoef = 20)
+
+  # ARMA autocorrelation function
+  ar.acf <- ARMAacf(ar = phi, lag.max = n)
+
+  # Autocovariance of count series--relation (9) in https://arxiv.org/pdf/1811.00203.pdf
+  gamma_x = CountACVF(h = 0:(n-1), myacf = ar.acf, g = HC)
+
+  # Final toeplitz covariance matrix--relation (56) in https://arxiv.org/pdf/1811.00203.pdf
+  GAMMA = toeplitz(gamma_x)
+  return(GAMMA)
+}
