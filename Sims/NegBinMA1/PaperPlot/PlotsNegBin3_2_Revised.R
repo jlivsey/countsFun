@@ -20,12 +20,12 @@ load('NegBin3_0.8MA1_GL_N400_NS200_ThetaNeg.Rdata')
 
 
 setwd("C:/Users/Stef/Desktop/countsFun/Sims/NegBinMA1/PF/RData")
-load('NegBin3_0.8MA1_PF_N100_NS200_Part100_ThetaPos_e1.Rdata')
-load('NegBin3_0.8MA1_PF_N200_NS200_Part100_ThetaPos_e1.Rdata')
-load('NegBin3_0.8MA1_PF_N400_NS200_Part100_ThetaPos_e1.Rdata')
-load('NegBin3_0.8MA1_PF_N100_NS200_Part100_ThetaNeg_e1.Rdata')
-load('NegBin3_0.8MA1_PF_N200_NS200_Part100_ThetaNeg_e1.Rdata')
-load('NegBin3_0.8MA1_PF_N400_NS200_Part100_ThetaNeg_e1.Rdata')
+load('NegBin3_0.8MA1_PF_N100_NS200_Part1000_ThetaPos_e1.Rdata')
+load('NegBin3_0.8MA1_PF_N200_NS200_Part1000_ThetaPos_e1.Rdata')
+load('NegBin3_0.8MA1_PF_N400_NS200_Part1000_ThetaPos_e1.Rdata')
+load('NegBin3_0.8MA1_PF_N100_NS200_Part1000_ThetaNeg_e1.Rdata')
+load('NegBin3_0.8MA1_PF_N200_NS200_Part1000_ThetaNeg_e1.Rdata')
+load('NegBin3_0.8MA1_PF_N400_NS200_Part1000_ThetaNeg_e1.Rdata')
 
 
 #d = rbind(df1, df2,df3,df4,df5,df6)
@@ -45,7 +45,7 @@ library(data.table)
 # What param config do we want to look at?
 r = 3
 p = .8
-theta = -.75
+theta = .75
 # subset data.frame by param config
 d2 = d[(d$r.true == r) &
          (d$p.true == p) &

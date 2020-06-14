@@ -364,7 +364,7 @@ ParticleFilterMA1_Res = function(theta, data, ARMAorder, ParticleNumber, CountDi
   # AUTHORS: James Livsey, Vladas Pipiras, Stefanos Kechagias,
   # DATE:    April 2020
   #------------------------------------------------------------------------------------#
-print(theta)
+
 old_state <- get_rand_state()
 on.exit(set_rand_state(old_state))
  #print(theta)
@@ -518,6 +518,129 @@ ParticleFilterMA1 = function(theta, data, ARMAorder, ParticleNumber, CountDist){
 
   #print(theta)
   # FIX ME: When I add the function in LGC the following can happen in LGC and pass here as arguments
+  old_state <- get_rand_state()
+  on.exit(set_rand_state(old_state))
+  # retrieve indices of marginal distribution parameters
+  MargParmIndices = switch(CountDist,
+                           "Poisson"             = 1,
+                           "Negative Binomial"   = 1:2,
+                           "Mixed Poisson"       = 1:3,
+                           "Generalized Poisson" = 1:2,
+                           "Binomial"            = 1:2)
+
+  # retrieve marginal cdf
+  mycdf = switch(CountDist,
+                 "Poisson"                       = ppois,
+                 "Negative Binomial"             = function(x, theta){ pnbinom(q = x, size = theta[1], prob = 1-theta[2]) },
+                 "Mixed Poisson"                 = pMixedPoisson,
+                 "Generalized Poisson"           = pGenPoisson,
+                 "Binomial"                      = pbinom
+  )
+
+  # retrieve marginal pdf
+  mypdf = switch(CountDist,
+                 "Poisson"                       = dpois,
+                 "Negative Binomial"             = function(x, theta){ dnbinom(x, size = theta[1], prob = 1-theta[2]) },
+                 "Mixed Poisson"                 = dMixedPoisson,
+                 "Generalized Poisson"           = dGenPoisson,
+                 "Binomial"                      = dbinom
+  )
+
+  # retrieve marginal distribution parameters
+  MargParms = theta[MargParmIndices]
+  nMargParms = length(MargParms) # num param in MargParms
+
+
+  # retrieve MA parameters
+  tht = theta[nMargParms + 1]
+  xt = data
+  T1 = length(xt)
+  N = ParticleNumber          # number of particles
+  wgh = matrix(0,T1,N)        # to collect all particle weights
+
+
+
+  # Compute integral limits
+  a = rep( qnorm(mycdf(xt[1]-1,t(MargParms)),0,1), N)
+  b = rep( qnorm(mycdf(xt[1],t(MargParms)),0,1), N)
+
+  # Generate N(0,1) variables restricted to (ai,bi),i=1,...n
+  zprev = qnorm(runif(length(a),0,1)*(pnorm(b,0,1)-pnorm(a,0,1))+pnorm(a,0,1),0,1)
+
+  # Exact form for one-step ahead prediction in MA(1) ase
+  rt0 = 1+tht^2
+  zhat = tht*zprev/rt0
+
+  # particle filter weights
+  wprev = rep(1,N)
+  wgh[1,] = wprev
+  nloglik = 0 # initialize likelihood
+
+  for (t in 2:T1){
+    rt0 = 1+tht^2-tht^2/rt0 # This is based on p. 173 in BD book
+    rt = sqrt(rt0/(1+tht^2))
+
+    # compute limits of truncated normal distribution
+    a = as.numeric(qnorm(mycdf(xt[t]-1,MargParms),0,1) - zhat)/rt
+    b = as.numeric(qnorm(mycdf(xt[t],MargParms),0,1) -   zhat)/rt
+
+    # draw errors from truncated normal
+    err = qnorm(runif(length(a),0,1)*(pnorm(b,0,1)-pnorm(a,0,1))+pnorm(a,0,1),0,1)
+
+    # Update the underlying Gaussian series (see step 3 in SIS section in the paper)
+    znew = zhat + rt*err
+
+    zhat = tht*(znew-zhat)/rt0
+
+    wgh[t,] = wprev*(pnorm(b,0,1) - pnorm(a,0,1))
+    wprev = wgh[t,]
+  }
+
+  # likelihood approximation
+  lik = mypdf(xt[1],MargParms)*mean(na.omit(wgh[T1,]))
+
+  # for log-likelihood we use a bias correction--see par2.3 in Durbin Koopman, 1997
+  nloglik = -log(lik)
+  #- (1/(2*N))*(var(na.omit(wgh[T1,]))/mean(na.omit(wgh[T1,])))/mean(na.omit(wgh[T1,]))
+
+  if (nloglik==Inf | is.na(nloglik)){
+    out = 10^6
+  }else{
+    out = nloglik
+  }
+
+  return(out)
+}
+
+ParticleFilterMA1New = function(theta, data, ARMAorder, ParticleNumber, CountDist){
+  #------------------------------------------------------------------------------------#
+  # PURPOSE:  Use particle filtering with resampling to approximate the likelihood
+  #           of the a specified count time series model with an underlying MA(1)
+  #           dependence structure.
+  #
+  # NOTES:    1. See "Latent Gaussian Count Time Series Modeling" for  more
+  #           details. A first version of the paper can be found at:
+  #           https://arxiv.org/abs/1811.00203
+  #           2. This function is very similar to LikSISGenDist_ARp but here
+  #           I have a resampling step.
+  #
+  # INPUTS:
+  #    theta:            parameter vector
+  #    data:             data
+  #    ParticleNumber:   number of particles to be used.
+  #    CountDist:        count marginal distribution
+  #    epsilon           resampling when ESS<epsilon*N
+  #
+  # OUTPUT:
+  #    loglik:           approximate log-likelihood
+  #
+  #
+  # AUTHORS: James Livsey, Vladas Pipiras, Stefanos Kechagias,
+  # DATE:    April 2020
+  #------------------------------------------------------------------------------------#
+
+  #print(theta)
+  # FIX ME: When I add the function in LGC the following can happen in LGC and pass here as arguments
 
   # retrieve indices of marginal distribution parameters
   MargParmIndices = switch(CountDist,
@@ -593,23 +716,21 @@ ParticleFilterMA1 = function(theta, data, ARMAorder, ParticleNumber, CountDist){
 
     wgh[t,] = wprev*(pnorm(b,0,1) - pnorm(a,0,1))
     wprev = wgh[t,]
+  }
 
-    # break if I got NA weight
-    if (any(is.na(wgh[t,]))| sum(wgh[t,])==0 ){
-      nloglik = 10^6
-      break
-    }
 
-    # update likelihood
-    nloglik = nloglik - log(mean(wgh[t,]))
+
+  # break if I got NA weight
+  if (any(is.na(wgh[t,]))| sum(wgh[t,])==0 ){
+    nloglik = 10^6
+    break
   }
 
   # likelihood approximation
-  nloglik = nloglik - log(mypdf(xt[1],MargParms))
-
+  lik = mypdf(xt[1],MargParms)*mean(na.omit(wgh[T1,]))
 
   # for log-likelihood we use a bias correction--see par2.3 in Durbin Koopman, 1997
-  nloglik = nloglik
+  nloglik = -log(lik)
   #- (1/(2*N))*(var(na.omit(wgh[T1,]))/mean(na.omit(wgh[T1,])))/mean(na.omit(wgh[T1,]))
 
   out =nloglik
@@ -617,7 +738,6 @@ ParticleFilterMA1 = function(theta, data, ARMAorder, ParticleNumber, CountDist){
 
   return(out)
 }
-
 
 
 #---------new wrapper to fit PF likelihood---------#
@@ -660,6 +780,7 @@ FitMultiplePFNew = function(x0, X, CountDist, Particles, LB, UB, ARMAorder, epsi
   se =  matrix(NA,nrow=nfit*nparts,ncol=nparms)
   loglik = rep(0,nfit*nparts)
 
+  n = length(X)
 
   # Each realization will be fitted nfit*nparts many times
   for (j in 1:nfit){
@@ -669,29 +790,57 @@ FitMultiplePFNew = function(x0, X, CountDist, Particles, LB, UB, ARMAorder, epsi
       # number of particles to be used
       ParticleNumber = Particles[k]
       if(!UseDEOptim){
-        # run optimization for our model
-        optim.output <- optim(par            = x0,
-                              fn             = ParticleFilterMA1_Res,
-                              data           = X,
-                              ARMAorder      = ARMAorder,
-                              ParticleNumber = ParticleNumber,
-                              CountDist      = CountDist,
-                              epsilon        = epsilon,
-                              lower          = LB,
-                              upper          = UB,
-                              hessian        = TRUE,
-                              method         = "L-BFGS-B")
-      }else{
-        optim.output<- DEoptim::DEoptim(fn             = ParticleFilterMA1_Res,
-                                        lower          = LB,
-                                        upper          = UB,
-                                        data           = X,
-                                        ARMAorder      = ARMAorder,
-                                        ParticleNumber = ParticleNumber,
-                                        CountDist      = CountDist,
-                                        epsilon        = epsilon,
-                                        control        = DEoptim::DEoptim.control(trace = 10, itermax = 200, steptol = 50, reltol = 1e-5))
-      }
+        if (n<400){
+          # run optimization for our model
+          optim.output <- optim(par            = x0,
+                                fn             = ParticleFilterMA1,
+                                data           = X,
+                                ARMAorder      = ARMAorder,
+                                ParticleNumber = ParticleNumber,
+                                CountDist      = CountDist,
+                                lower          = LB,
+                                upper          = UB,
+                                hessian        = TRUE,
+                                method         = "L-BFGS-B")
+
+        }else{
+          # run optimization for our model
+          optim.output <- optim(par            = x0,
+                                fn             = ParticleFilterMA1_Res,
+                                data           = X,
+                                ARMAorder      = ARMAorder,
+                                ParticleNumber = ParticleNumber,
+                                CountDist      = CountDist,
+                                epsilon        = epsilon,
+                                lower          = LB,
+                                upper          = UB,
+                                hessian        = TRUE,
+                                method         = "L-BFGS-B")
+          }
+        }else{
+          if(n<400){
+            optim.output<- DEoptim::DEoptim(fn             = ParticleFilterMA1,
+                                            lower          = LB,
+                                            upper          = UB,
+                                            data           = X,
+                                            ARMAorder      = ARMAorder,
+                                            ParticleNumber = ParticleNumber,
+                                            CountDist      = CountDist,
+                                            control        = DEoptim::DEoptim.control(trace = 10, itermax = 200, steptol = 50, reltol = 1e-5))
+
+
+          }else{
+            optim.output<- DEoptim::DEoptim(fn             = ParticleFilterMA1_Res,
+                                            lower          = LB,
+                                            upper          = UB,
+                                            data           = X,
+                                            ARMAorder      = ARMAorder,
+                                            ParticleNumber = ParticleNumber,
+                                            CountDist      = CountDist,
+                                            epsilon        = epsilon,
+                                            control        = DEoptim::DEoptim.control(trace = 10, itermax = 200, steptol = 50, reltol = 1e-5))
+          }
+          }
 
 
       # save estimates, loglik value and diagonal hessian

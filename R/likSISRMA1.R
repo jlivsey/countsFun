@@ -1,4 +1,6 @@
 likSISRMA1 = function(theta, data,ARMAorder, CountDist){
+  old_state <- get_rand_state()
+  on.exit(set_rand_state(old_state))
   MargParmIndices = switch(CountDist,
                            "Poisson"             = 1,
                            "Negative Binomial"   = 1:2,
@@ -84,6 +86,12 @@ print(theta)
   nloglik <- nloglik - 2*log(pdf(xt[1],theta1))
 
 
-  out = if (is.na(nloglik)) Inf else nloglik
+  out = nloglik
+
+
+  if (out==Inf | is.na(out)){
+    out = 10^8
+  }
+
   return(out)
 }

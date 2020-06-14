@@ -38,7 +38,7 @@ likSISMA1 = function(theta, data,ARMAorder, CountDist){
     tht = theta[theta2.idx]
     xt = data
     T1 = length(xt)
-    N = 1000 # number of particles
+    N = 5 # number of particles
     prt = matrix(0,N,T1) # to collect all particles
     wgh = matrix(0,N,T1) # to collect all particle weights
 
