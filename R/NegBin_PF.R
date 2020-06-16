@@ -1,4 +1,4 @@
-NegBin_PF = function(trueParam, p, q, LB, UB, n, nsim, Particles, epsilon,  no_cores, UseDEOptim, nHC){
+NegBin_PF = function(trueParam, p, q, LB, UB, n, nsim, Particles, epsilon,  no_cores, UseDEOptim, nHC, useTrueInit){
 
   #---------------------------------------------------------------------------------------------#
   # PURPOSE:        Fit many realizations of synthetic Negative Binomial data with an
@@ -48,7 +48,11 @@ NegBin_PF = function(trueParam, p, q, LB, UB, n, nsim, Particles, epsilon,  no_c
   for(r in 1:nsim){
     set.seed(r)
     l[[r]] = sim_negbin(n, ARMAmodel, MargParm[1], MargParm[2] )
-    initParam[[r]] = ComputeInitNegBinMA(l[[r]],n,nHC)
+    if(!useTrueInit){
+      initParam[[r]] = ComputeInitNegBinMA(l[[r]],n,nHC)
+    }else{
+      initParam[[r]] = trueParam
+    }
   }
 
 
@@ -60,7 +64,7 @@ NegBin_PF = function(trueParam, p, q, LB, UB, n, nsim, Particles, epsilon,  no_c
   all = foreach(index = 1:nsim,
                 .combine = rbind,
                 .packages = c("FitAR","countsFun")) %dopar%
-    FitMultiplePFNew(initParam[[index]], l[[index]], CountDist, Particles, LB, UB, ARMAorder, epsilon, UseDEOptim)
+    FitMultiplePFMA1New(initParam[[index]], l[[index]], CountDist, Particles, LB, UB, ARMAorder, epsilon, UseDEOptim)
 
 
   stopCluster(cl)

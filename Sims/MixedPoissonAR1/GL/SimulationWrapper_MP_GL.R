@@ -19,7 +19,7 @@ library(optimx)
 # fixed parameters across all simulation schemes
 CountDist       = "Mixed Poisson"
 nsim            = 200
-no_cores <- detectCores()/2-1
+no_cores <- detectCores()-1
 LB = c(0.001, 0.01, 0.01, -0.995)
 UB = c(0.499, Inf, Inf, 0.995)
 MaxCdf = 5000
@@ -39,15 +39,15 @@ trueParam = c(MargParm, ARParm)
 
 n =100
 df7 = MixedPoisson_GL(trueParam, p, q, LB, UB, MaxCdf, nHC, n, nsim, no_cores)
-save(df7, file = sprintf("MixedPoisson%s_%s_%sAR%s_GL_N%s_NS%s_True.RData", MargParm[1], MargParm[2],MargParm[3], 1, n, nsim))
+save(df7, file = sprintf("MixedPoisson%s_%s_%sAR%s_GL_N%s_NS%s_NotTrue.RData", MargParm[1], MargParm[2],MargParm[3], 1, n, nsim))
 
 n =200
 df8 = MixedPoisson_GL(trueParam, p, q, LB, UB, MaxCdf, nHC, n, nsim, no_cores)
-save(df8, file = sprintf("MixedPoisson%s_%s_%sAR%s_GL_N%s_NS%s_True.RData", MargParm[1], MargParm[2],MargParm[3], 1, n, nsim))
+save(df8, file = sprintf("MixedPoisson%s_%s_%sAR%s_GL_N%s_NS%s_NotTrue.RData", MargParm[1], MargParm[2],MargParm[3], 1, n, nsim))
 
 n =400
 df9 = MixedPoisson_GL(trueParam, p, q, LB, UB, MaxCdf, nHC, n, nsim, no_cores)
-save(df9, file = sprintf("MixedPoisson%s_%s_%sAR%s_GL_N%s_NS%s_True.RData", MargParm[1], MargParm[2],MargParm[3], 1, n, nsim))
+save(df9, file = sprintf("MixedPoisson%s_%s_%sAR%s_GL_N%s_NS%s_NotTrue.RData", MargParm[1], MargParm[2],MargParm[3], 1, n, nsim))
 
 
 #-----------------------------------------------Negative MA parameter--------------------------------------------------#
@@ -59,15 +59,15 @@ trueParam = c(MargParm, ARParm)
 
 n =100
 df10 = MixedPoisson_GL(trueParam, p, q, LB, UB, MaxCdf, nHC, n, nsim, no_cores)
-save(df10, file = sprintf("MixedPoisson%s_%s_%sAR%s_GL_N%s_NS%s_True.RData", MargParm[1], MargParm[2],MargParm[3], 1, n, nsim))
+save(df10, file = sprintf("MixedPoisson%s_%s_%sAR%s_GL_N%s_NS%s_NotTrue.RData", MargParm[1], MargParm[2],MargParm[3], 1, n, nsim))
 
 n =200
 df11 = MixedPoisson_GL(trueParam, p, q, LB, UB, MaxCdf, nHC, n, nsim, no_cores)
-save(df11, file = sprintf("MixedPoisson%s_%s_%sAR%s_GL_N%s_NS%s_True.RData", MargParm[1], MargParm[2],MargParm[3], 1, n, nsim))
+save(df11, file = sprintf("MixedPoisson%s_%s_%sAR%s_GL_N%s_NS%s_NotTrue.RData", MargParm[1], MargParm[2],MargParm[3], 1, n, nsim))
 
 n =400
 df12 = MixedPoisson_GL(trueParam, p, q, LB, UB, MaxCdf, nHC, n, nsim, no_cores)
-save(df12, file = sprintf("MixedPoisson%s_%s_%sAR%s_GL_N%s_NS%s_True.RData", MargParm[1], MargParm[2],MargParm[3], 1, n, nsim))
+save(df12, file = sprintf("MixedPoisson%s_%s_%sAR%s_GL_N%s_NS%s_NotTrue.RData", MargParm[1], MargParm[2],MargParm[3], 1, n, nsim))
 
 
 

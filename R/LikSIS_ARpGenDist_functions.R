@@ -24,35 +24,6 @@ sim_pois_ar = function(n, phi, lam){
   return(x)
 }
 
-sim_MixPois_ar <- function(n,phi,lam1,lam2, prob){
-  z = arima.sim(model = list(ar=phi), n = n); z = z/sd(z) # standardized
-  x  = qMixedPoisson(pnorm(z),lam1,lam2, prob)
-  return(x)
-}
-
-
-# mixed poisson cdf
-pMixedPoisson = function(q, lam1, lam2, prob){
-  # theta[1] is the mixing probability
-  # theta[2], theta[3] are the lambda parameters
-  prob*ppois(q, lam1) + (1-prob)*ppois(q, lam2)
-}
-
-dMixedPoisson = function(x, lam1, lam2, prob){
-  prob*dpois(x, lam1) + (1-prob)*dpois(x, lam2)
-}
-
-qMixedPoisson = function(y, lam1, lam2, prob){
-  yl = length(y)
-  x = rep(0,yl)
-  for (n in 1:yl){
-    while(pMixedPoisson(x[n], lam1, lam2, prob) < y[n]){ # R qpois would use <y; this choice makes the function right-continuous; this does not really matter for our model
-      x[n] = x[n]+1
-    }
-  }
-  return(x)
-}
-
 
 # Generalized Poisson cdf, pdf
 pGenPoisson = function(q, theta, lam){ cdf.vec <- rep(-99,length(q))
@@ -159,8 +130,8 @@ ParticleFilterRes = function(theta, data, ARMAorder, ParticleNumber, CountDist, 
   # retrieve marginal cdf
   mycdf = switch(CountDist,
                  "Poisson"             = ppois,
-                 "Negative Binomial"   = function(x, theta){ pnbinom(q = x, size = theta[1], prob = 1-theta[2])},
-                 "Mixed Poisson"       = pMixedPoisson,
+                 "Negative Binomial"   = function(x, theta){ pnbinom (q = x, size = theta[1], prob = 1-theta[2])},
+                 "Mixed Poisson"       = function(x, theta){ pmixpois(x, p = theta[1], lam1 = theta[2], lam2 = theta[3])},
                  "Generalized Poisson" = pGenPoisson,
                  "Binomial"            = pbinom
   )
@@ -168,8 +139,8 @@ ParticleFilterRes = function(theta, data, ARMAorder, ParticleNumber, CountDist, 
   # retrieve marginal pdf
   mypdf = switch(CountDist,
                  "Poisson"             = dpois,
-                 "Negative Binomial"   = function(x, theta){ dnbinom(x, size = theta[1], prob = 1-theta[2]) },
-                 "Mixed Poisson"       = dMixedPoisson,
+                 "Negative Binomial"   = function(x, theta){ dnbinom (x, size = theta[1], prob = 1-theta[2]) },
+                 "Mixed Poisson"       = function(x, theta){ dmixpois(x, p = theta[1], lam1 = theta[2], lam2 = theta[3])},
                  "Generalized Poisson" = dGenPoisson,
                  "Binomial"            = dbinom
   )
@@ -741,7 +712,7 @@ ParticleFilterMA1New = function(theta, data, ARMAorder, ParticleNumber, CountDis
 
 
 #---------new wrapper to fit PF likelihood---------#
-FitMultiplePFNew = function(x0, X, CountDist, Particles, LB, UB, ARMAorder, epsilon, UseDEOptim){
+FitMultiplePFMA1New = function(x0, X, CountDist, Particles, LB, UB, ARMAorder, epsilon, UseDEOptim){
   #====================================================================================#
   # PURPOSE       Fit the Particle Filter log-likelihood. This function maximizes
   #               the PF likelihood, nfit manys times for nparts many choices of
@@ -854,6 +825,124 @@ FitMultiplePFNew = function(x0, X, CountDist, Particles, LB, UB, ARMAorder, epsi
   return(All)
 }
 
+#---------new wrapper to fit PF likelihood---------#
+FitMultiplePFAR1New = function(x0, X, CountDist, Particles, LB, UB, ARMAorder, epsilon, UseDEOptim){
+  #====================================================================================#
+  # PURPOSE       Fit the Particle Filter log-likelihood. This function maximizes
+  #               the PF likelihood, nfit manys times for nparts many choices of
+  #               particle numbers, thus yielding a total of nfit*nparts many estimates
+  #
+  # INPUT
+  #   x0          initial parameters
+  #   X           count series
+  #   CountDist   prescribed count distribution
+  #   Particles   vector with different choices for number of particles
+  #   LB          parameter lower bounds
+  #   UB          parameter upper bounds
+  #   ARMAorder   order of the udnerlying ARMA model
+  #   epsilon     resampling when ESS<epsilon*N
+  #   UseDEOptim  flag, if=1 then use Deoptim for optimization
+  #
+  #   MaxCdf      cdf will be computed up to this number (for light tails cdf=1 fast)
+  #   nHC         number of HC to be computed
+  #
+  # OUTPUT
+  #   All         parameter estimates, standard errors, likelihood value
+  #
+  # NOTES         I may comment out se in cases where maximum is achieved at the boundary
+  #
+  # Authors       Stefanos Kechagias, James Livsey, Vladas Pipiras
+  # Date          April 2020
+  # Version       3.6.3
+  #====================================================================================#
+
+  # how many choices for the number of particles
+  nparts = length(Particles)
+  nparms = length(x0)
+  nfit = 1
+  # allocate memory to save parameter estimates, hessian values, and loglik values
+  ParmEst = matrix(0,nrow=nfit*nparts,ncol=nparms)
+  se =  matrix(NA,nrow=nfit*nparts,ncol=nparms)
+  loglik = rep(0,nfit*nparts)
+
+  n = length(X)
+
+  # Each realization will be fitted nfit*nparts many times
+  for (j in 1:nfit){
+    set.seed(j)
+    # for each fit repeat for different number of particles
+    for (k in 1:nparts){
+      # number of particles to be used
+      ParticleNumber = Particles[k]
+      if(!UseDEOptim){
+        if (n<400){
+          # run optimization for our model
+          optim.output <- optim(par            = x0,
+                                fn             = ParticleFilterRes,
+                                data           = X,
+                                ARMAorder      = ARMAorder,
+                                ParticleNumber = ParticleNumber,
+                                CountDist      = CountDist,
+                                epsilon        = epsilon,
+                                lower          = LB,
+                                upper          = UB,
+                                hessian        = TRUE,
+                                method         = "L-BFGS-B")
+
+        }else{
+          # run optimization for our model
+          optim.output <- optim(par            = x0,
+                                fn             = ParticleFilterRes,
+                                data           = X,
+                                ARMAorder      = ARMAorder,
+                                ParticleNumber = ParticleNumber,
+                                CountDist      = CountDist,
+                                epsilon        = epsilon,
+                                lower          = LB,
+                                upper          = UB,
+                                hessian        = TRUE,
+                                method         = "L-BFGS-B")
+        }
+      }else{
+        if(n<400){
+          optim.output<- DEoptim::DEoptim(fn             = ParticleFilterRes,
+                                          lower          = LB,
+                                          upper          = UB,
+                                          data           = X,
+                                          ARMAorder      = ARMAorder,
+                                          ParticleNumber = ParticleNumber,
+                                          CountDist      = CountDist,
+                                          epsilon        = epsilon,
+                                          control        = DEoptim::DEoptim.control(trace = 10, itermax = 200, steptol = 50, reltol = 1e-5))
+
+
+        }else{
+          optim.output<- DEoptim::DEoptim(fn             = ParticleFilterRes,
+                                          lower          = LB,
+                                          upper          = UB,
+                                          data           = X,
+                                          ARMAorder      = ARMAorder,
+                                          ParticleNumber = ParticleNumber,
+                                          CountDist      = CountDist,
+                                          epsilon        = epsilon,
+                                          control        = DEoptim::DEoptim.control(trace = 10, itermax = 200, steptol = 50, reltol = 1e-5))
+        }
+      }
+
+
+      # save estimates, loglik value and diagonal hessian
+      ParmEst[nfit*(k-1)+j,]  = optim.output$par
+      loglik[nfit*(k-1) +j]   = optim.output$value
+      se[nfit*(k-1)+j,]       = sqrt(abs(diag(solve(optim.output$hessian))))
+    }
+  }
+
+  All = cbind(ParmEst, se, loglik)
+  return(All)
+}
+
+
+
 z.rest = function(a,b){
   # Generates N(0,1) variables restricted to (ai,bi),i=1,...n
   qnorm(runif(length(a),0,1)*(pnorm(b,0,1)-pnorm(a,0,1))+pnorm(a,0,1),0,1)
@@ -926,6 +1015,35 @@ likSISR = function(theta, data){
 }
 
 
+
+# sim_MixPois_ar <- function(n,phi,lam1,lam2, prob){
+#   z = arima.sim(model = list(ar=phi), n = n); z = z/sd(z) # standardized
+#   x  = qMixedPoisson(pnorm(z),lam1,lam2, prob)
+#   return(x)
+# }
+#
+#
+# # mixed poisson cdf
+# pMixedPoisson = function(q, lam1, lam2, prob){
+#   # theta[1] is the mixing probability
+#   # theta[2], theta[3] are the lambda parameters
+#   prob*ppois(q, lam1) + (1-prob)*ppois(q, lam2)
+# }
+#
+# dMixedPoisson = function(x, lam1, lam2, prob){
+#   prob*dpois(x, lam1) + (1-prob)*dpois(x, lam2)
+# }
+#
+# qMixedPoisson = function(y, lam1, lam2, prob){
+#   yl = length(y)
+#   x = rep(0,yl)
+#   for (n in 1:yl){
+#     while(pMixedPoisson(x[n], lam1, lam2, prob) < y[n]){ # R qpois would use <y; this choice makes the function right-continuous; this does not really matter for our model
+#       x[n] = x[n]+1
+#     }
+#   }
+#   return(x)
+# }
 
 
 

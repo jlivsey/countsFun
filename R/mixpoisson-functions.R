@@ -17,6 +17,14 @@ pmixpois = function(x, p, lam1, lam2){
   return(y)
 }
 
+
+#---------pdf of mixpoisson series---------#
+dmixpois = function(x, p, lam1, lam2){
+  y = p*dpois(x,lam1) + (1-p)*dpois(x,lam2)
+  return(y)
+}
+
+
 #---------generate mixpoisson series---------#
 rmixpois = function(n, p, lam1, lam2){
   u = runif(n)
@@ -288,3 +296,71 @@ FitGaussianLikMP = function(x0, X, LB, UB, ARMAorder, MaxCdf, nHC){
 }
 
 
+#---------initial estimates via pmle and reversion
+ComputeInitMixedPoissonAR = function(x,n,nHC,LB,UB){
+  #---------------------------------#
+  # Purpose: Method of Moment Initial estimates for MixPois AR(1)
+  #
+  #
+  #
+  # Authors      Stefanos Kechagias, James Livsey, Vladas Pipiras
+  # Date         June 2020
+  # Version      3.6.3
+  #---------------------------------#
+
+  # pmle for marginal parameters
+  MixPois_PMLE <- pmle.pois(x,2)
+
+  pEst  = MixPois_PMLE[[1]][1]
+  l1Est = MixPois_PMLE[[2]][1]
+  l2Est = MixPois_PMLE[[2]][2]
+
+
+  # correct estimates if they are outside the feasible region
+  if(pEst<LB[1]){pEst = 1.1*LB[1]}
+  if(pEst>UB[1]){pEst = 0.9*UB[1]}
+
+  if(l1Est<LB[2]){l1Est = 1.1*LB[2]}
+  if(l2Est<LB[3]){l2Est = 1.1*LB[3]}
+
+
+  # compute thetaEst using reversion as in IYW
+  initParms = ComputeInitMixedPoissonARterm(x, pEst, l1Est, l2Est, n, nHC, LB, UB)
+
+  return(initParms)
+
+}
+
+
+#--------obtain initial estimate for AR term using acf and reversion
+ComputeInitMixedPoissonARterm = function(x, pEst, l1Est, l2Est, N, nHC, LB, UB){
+
+  # compute Hermite coefficients
+  g.coefs  = HermCoefMixedPoisson(pEst, l1Est, l2Est, N, nHC)
+
+  # Compute acf of count series at lag 0--(mfg of mixed Pois = mix of Pois mgfs )
+  MixedPoissonVar = pEst*(l1Est^2 + l1Est) + (1-pEst)*(l2Est^2 + l2Est) -
+                    (pEst*l1Est + (1-pEst)*l2Est)^2
+
+  # compute link coeffcients
+  link.coefs <- link_coefs(g.coefs, MixedPoissonVar)
+
+  # compute Inverse Link coefficients of f^-1: gam.z --> gam.x
+  inv.link.coefs <- reversion(link.coefs)
+
+  # sample acf of count data
+  gam.x <- acf(x = x, lag.max = 30, plot = FALSE, type = "correlation")$acf
+
+  # compute gamma Z thru reversion
+  gam.z <- power_series(gam.x[,,1], inv.link.coefs)
+  gam.z = gam.z/gam.z[1]
+
+  phiEst = gam.z[2]
+
+  # correct if I am outside the boundaries
+  if(phiEst<LB[4]){phiEst = 1.1*LB[4]}
+  if(phiEst>UB[4]){phiEst = 0.9*UB[4]}
+
+  InitEstimates = c(pEst, l1Est, l2Est, phiEst)
+  return(InitEstimates)
+}

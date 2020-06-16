@@ -1,20 +1,20 @@
-MixedPoisson_GL = function(trueParam, p, q, LB, UB, MaxCdf, nHC, n, nsim, no_cores){
+MixedPoisson_PF = function(trueParam, p, q, LB, UB, n, nsim, Particles, epsilon,  no_cores, UseDEOptim, nHC, useTrueInit){
 
   #---------------------------------------------------------------------------------------------#
-  # PURPOSE:        Fit Gaussian likelihood to many realizations of synthetic MixPois data with
-  #                 an underlying ARMA series.
+  # PURPOSE:        Fit many realizations of synthetic Mixed Poisson data with an
+  #                 underlying ARMA series using particle filtering.
   #
   # INPUTS
-  #   initParam     initial parameters
   #   trueParam     true parameters
   #   p,q           orders of underlying ARMA model
   #   LB            lower bound for parameters
   #   UB            upper bound for parameters
-  #   MaxCdf        cdf will be computed up to this number (for light tails cdf=1 fast)
   #   n             sample size
   #   nsim          number of realizations to be fitted
+  #   Particles     number of particles
+  #   epsilon       resampling when ESS<epsilon*N
   #   no_cores      number of cores to be used
-  #   nHC           number of HC to be computed
+  #   nHC           number of HC used for initial estimation
   #
   # OUTPUT
   #   df            parameter estimates, true values, standard errors and likelihood value
@@ -23,7 +23,7 @@ MixedPoisson_GL = function(trueParam, p, q, LB, UB, MaxCdf, nHC, n, nsim, no_cor
   #
   # AUTHORS:        James Livsey, Stefanos Kechagias, Vladas Pipiras
   #
-  # DATE:           April 2020
+  # DATE:           June 2020
   #
   # R version 3.6.3
   #---------------------------------------------------------------------------------------------#
@@ -32,35 +32,44 @@ MixedPoisson_GL = function(trueParam, p, q, LB, UB, MaxCdf, nHC, n, nsim, no_cor
   library(parallel)
   library(doParallel)
   library(countsFun)
-  library(optimx)
   library(MixtureInf)
+
+  # distribution and ARMA order
+  CountDist = "Mixed Poisson"
+  ARMAorder = c(p,q)
 
   # list with true ARMA parameters
   ARMAmodel = list(NULL,NULL)
   if(p>0){ARMAmodel[[1]] = trueParam[4:(3+p)]}
   if(q>0){ARMAmodel[[2]] = trueParam[(4+p):length(trueParam)]}
 
-  # Generate all the data and save it in a list
+  # Generate all the data and save it in a list. Also compute all initial points
   l <- list()
   initParam <- list()
   for(r in 1:nsim){
     set.seed(r)
-    l[[r]] = sim_mixedPoisson(n, ARMAmodel, MargParm[1], MargParm[2], MargParm[3] )
-    initParam[[r]] = ComputeInitMixedPoissonAR(l[[r]],n,nHC,LB,UB)
+    l[[r]] = sim_mixedPoisson(n, ARMAmodel, MargParm[1], MargParm[2],MargParm[3] )
+    if(!useTrueInit){
+      initParam[[r]] = ComputeInitMixedPoissonAR(l[[r]],n,nHC,LB,UB)
+    }else{
+      initParam[[r]] = trueParam
+    }
   }
+
 
   # initiate and register the cluster
   cl <- makeCluster(no_cores)
   registerDoParallel(cl)
 
-  # fit the gaussian log likelihood using foreach
+  # fit the Particle Filter likelihood using foreach
   all = foreach(index = 1:nsim,
                 .combine = rbind,
-                .packages = c("countsFun","optimx")) %dopar%
-    FitGaussianLikMP(initParam[[index]], l[[index]], LB, UB, c(p,q), MaxCdf, nHC)
+                .packages = c("FitAR","countsFun")) %dopar%
+    FitMultiplePFAR1New(initParam[[index]], l[[index]], CountDist, Particles, LB, UB, ARMAorder, epsilon, UseDEOptim)
 
 
   stopCluster(cl)
+
 
   # Prepare results for the plot.
   df = data.frame(matrix(ncol = 14, nrow = nsim))
@@ -101,47 +110,24 @@ MixedPoisson_GL = function(trueParam, p, q, LB, UB, MaxCdf, nHC, n, nsim, no_cor
   df[,12] = all[,8]
 
 
-  df[,13]   = 'gaussianLik'
+  df[,13]   = 'particle'
   df[,14]   = n
+
+
 
   return(df)
 }
 
 
 
-#
-#   for(index in 1 :3){
-#     FitGaussianLikMP(initParam[[index]], l[[index]], LB, UB, c(p,q), MaxCdf, nHC)
-#   }
-#
-#   FitGaussianLikMP(initParam[[34]], l[[34]], LB, UB, c(p,q), MaxCdf, nHC)
-#
-#
-#
-# i = 181
-#   optimx.output <- optim(par       = initParam[[i]],
-#                         fn        = GaussLogLikMP,
-#                         data      = l[[i]],
-#                         ARMAorder = c(p,q),
-#                         MaxCdf    = MaxCdf,
-#                         nHC       = nHC,
-#                         method    = "L-BFGS-B",
-#                         hessian   = TRUE,
-#                         lower     = LB,
-#                         upper     = UB
-#   )
-#
-#   # save estimates, loglik and standard errors
-#   ParmEst  = c(optimx.output$p1,optimx.output$p2,optimx.output$p3,optimx.output$p4)
-#
-#   ARMAorder = c(1,0)
-#   # compute hessian
-#   H = gHgen(par   = ParmEst,
-#             fn    = GaussLogLikMP,
-#             data  = l[[i]],
-#             ARMAorder = ARMAorder,
-#             MaxCdf    = MaxCdf,
-#             nHC       = nHC
-#   )$Hn
-#
-#   se      = sqrt(abs(diag(solve(H))))
+
+# theta = initParam[[1]]
+# data = l[[1]]
+# ARMAorder = c(1,0)
+# ParticleNumber = Particles
+# ParticleFilterRes(theta, data, ARMAorder, ParticleNumber, CountDist, epsilon)
+
+
+
+
+

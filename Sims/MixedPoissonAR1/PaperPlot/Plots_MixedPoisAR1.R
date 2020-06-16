@@ -27,12 +27,12 @@ df18 = df
 
 
 setwd("C:/Users/Stef/Desktop/countsFun/Sims/MixedPoissonAR1/GL/RData")
-load('MixedPoisson0.25_2_10AR1_GL_N100_NS200_True.RData')
-load('MixedPoisson0.25_2_10AR1_GL_N200_NS200_True.RData')
-load('MixedPoisson0.25_2_10AR1_GL_N400_NS200_True.RData')
-load('MixedPoisson0.25_2_5AR1_GL_N100_NS200_True.RData')
-load('MixedPoisson0.25_2_5AR1_GL_N200_NS200_True.RData')
-load('MixedPoisson0.25_2_5AR1_GL_N400_NS200_True.RData')
+load('MixedPoisson0.25_2_10AR1_GL_N100_NS200_NotTrue.RData')
+load('MixedPoisson0.25_2_10AR1_GL_N200_NS200_NotTrue.RData')
+load('MixedPoisson0.25_2_10AR1_GL_N400_NS200_NotTrue.RData')
+load('MixedPoisson0.25_2_5AR1_GL_N100_NS200_NotTrue.RData')
+load('MixedPoisson0.25_2_5AR1_GL_N200_NS200_NotTrue.RData')
+load('MixedPoisson0.25_2_5AR1_GL_N400_NS200_NotTrue.RData')
 
 
 d_IYW = rbind(df13,df14,df15,df16,df17,df18)
@@ -59,13 +59,13 @@ d$n = as.factor(d$n)
 
 # What param config do we want to look at?
 lam1 = unique(d$lam1.true)
-lam2 = 5
+lam2 = 10
 p = 0.25
 phi = .75
 
 
 # subset data.frame by param config
-d2 = d[(d$lam2.true == 5), ]
+d2 = d[(d$lam2.true == lam2), ]
 
 
 # Reshape data to fit ggplot framework
