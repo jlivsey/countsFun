@@ -10,7 +10,9 @@
 
 # Set working directory to location where all files should be written
 # simulation_function.R should also live here
-setwd("~/github/countsFun/Sims/MixedPoissonAR1/GL")
+# setwd("~/github/countsFun/Sims/MixedPoissonAR1/GL")
+setwd('C:/Users/Stef/Desktop/countsFun/Sims/MixedPoissonAR1/GL')
+
 
 # Source main simulation function
 source('simulation_function.R')
@@ -20,11 +22,11 @@ nsim <- 200
 prob <- 1/4
 
 # Parameter sequences
-n_seq    <- c(100, 200, 400)
+n_seq    <- c(100)
 lam1_seq <- 2
-lam2_seq <- c(3, 5, 10)
+lam2_seq <- c(3)
 prob_seq <- 1/4
-phi_seq <- c(-.75, .75)
+phi_seq <- c( .75)
 
 # Loop and define parameters for each simulation
 for(n_idx    in 1:length(n_seq)){

@@ -23,6 +23,12 @@ simulation_mixedPoissonAR1_GL <- function(n, lam1, lam2, phi, prob, nsim){
   # Prepare results for the plot.
   df = data.frame(matrix(ncol = length(dfCols), nrow = nsim))
   names(df) <- dfCols
+  trueParam = c(lam1,lam2,prob)
+  LB = c(0.001, 0.001, 0.001)
+  UB = c(Inf, Inf, 0.999)
+  ARMAorder = c(1,0)
+  MaxCdf = 5000
+  nHC = 30
 
   for(r in 1:nsim){
 
@@ -33,8 +39,8 @@ simulation_mixedPoissonAR1_GL <- function(n, lam1, lam2, phi, prob, nsim){
                         lam2 = lam2,
                         prob = prob)
 
-    fit <- fit_GL_mixedPois_AR1(x)
 
+    fit = FitGaussianLik_mixedPois(trueParam, x, LB, UB, ARMAorder, MaxCdf, nHC)
     # estimates from this replication to data.frame
     df[r,1] = 'GL'
     df[r,2] = n
