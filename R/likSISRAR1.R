@@ -10,7 +10,7 @@ likSISRAR1 = function(theta, data, ARMAorder, CountDist){
   cdf = switch(CountDist,
                  "Poisson"                       = ppois,
                  "Negative Binomial"             = function(x, theta){ pnbinom(q = x, size = theta[1], prob = 1-theta[2]) },
-                 "Mixed Poisson"                 = pMixedPoisson,
+                 "Mixed Poisson"                 = function(x, theta){ pmixpois(x, p = theta[1], lam1 = theta[2], lam2 = theta[3])},
                  "Generalized Poisson"           = pGenPoisson,
                  "Binomial"                      = pbinom
   )
@@ -19,7 +19,7 @@ likSISRAR1 = function(theta, data, ARMAorder, CountDist){
   pdf = switch(CountDist,
                  "Poisson"                       = dpois,
                  "Negative Binomial"             = function(x, theta){ dnbinom(x, size = theta[1], prob = theta[2]) },
-                 "Mixed Poisson"                 = dMixedPoisson,
+                 "Mixed Poisson"                 = function(x, theta){ dmixpois(x, p = theta[1], lam1 = theta[2], lam2 = theta[3])},
                  "Generalized Poisson"           = dGenPoisson,
                  "Binomial"                      = dbinom
   )

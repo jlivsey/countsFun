@@ -33,6 +33,7 @@ MixedPoisson_PF = function(trueParam, p, q, LB, UB, n, nsim, Particles, epsilon,
   library(doParallel)
   library(countsFun)
   library(MixtureInf)
+  library(FitAR)
 
   # distribution and ARMA order
   CountDist = "Mixed Poisson"
@@ -64,15 +65,15 @@ MixedPoisson_PF = function(trueParam, p, q, LB, UB, n, nsim, Particles, epsilon,
   # fit the Particle Filter likelihood using foreach
   all = foreach(index = 1:nsim,
                 .combine = rbind,
-                .packages = c("FitAR","countsFun")) %dopar%
-    FitMultiplePFAR1New(initParam[[index]], l[[index]], CountDist, Particles, LB, UB, ARMAorder, epsilon, UseDEOptim)
+                .packages = c("FitAR","countsFun","optimx")) %dopar%
+    FitMultiplePFRes(initParam[[index]], l[[index]], CountDist, Particles, LB, UB, ARMAorder, epsilon)
 
 
   stopCluster(cl)
 
 
   # Prepare results for the plot.
-  df = data.frame(matrix(ncol = 14, nrow = nsim))
+  df = data.frame(matrix(ncol = 18, nrow = nsim))
 
 
   names(df) = c('p.true',
@@ -88,7 +89,11 @@ MixedPoisson_PF = function(trueParam, p, q, LB, UB, n, nsim, Particles, epsilon,
                 'phi.est',
                 'phi.se',
                 'estim.method',
-                'n')
+                'n',
+                'loglik',
+                'convcode',
+                'kkt1',
+                'kkt2')
 
   # fix me generalize this
   # true values
@@ -112,6 +117,11 @@ MixedPoisson_PF = function(trueParam, p, q, LB, UB, n, nsim, Particles, epsilon,
 
   df[,13]   = 'particle'
   df[,14]   = n
+  df[,15]   = all[,9]
+  df[,16]   = all[,10]
+  df[,17]   = all[,11]
+  df[,18]   = all[,12]
+
 
 
 
@@ -121,13 +131,81 @@ MixedPoisson_PF = function(trueParam, p, q, LB, UB, n, nsim, Particles, epsilon,
 
 
 
-# theta = initParam[[1]]
-# data = l[[1]]
+# i = 60
+# x0 = initParam[[i]]
+# X  = l[[i]]
 # ARMAorder = c(1,0)
 # ParticleNumber = Particles
-# ParticleFilterRes(theta, data, ARMAorder, ParticleNumber, CountDist, epsilon)
+#
+# optim.output <- optimx(par           = x0,
+#                        fn             = ParticleFilterRes,
+#                        data           = X,
+#                        ARMAorder      = ARMAorder,
+#                        ParticleNumber = ParticleNumber,
+#                        CountDist      = CountDist,
+#                        epsilon        = epsilon,
+#                        lower          = LB,
+#                        upper          = UB,
+#                        hessian        = TRUE,
+#                        method         = "L-BFGS-B",
+#                        control        = list(dowarn = FALSE))
+#
+#
+# ParmEst = c(optim.output$p1,optim.output$p2,optim.output$p3,optim.output$p4)
+# loglik   = optim.output$value
+#
+#
+# H = gHgen(par       = ParmEst,
+#           fn        = ParticleFilterRes,
+#           data      = X,
+#           ARMAorder = ARMAorder,
+#           CountDist      = CountDist,
+#           ParticleNumber = ParticleNumber,
+#           epsilon        = epsilon
+# )
+# ifelse(H$hessOK,H$Hn,NA)
 
 
 
 
 
+
+
+
+
+
+# i = 60
+# x0 = initParam[[i]]
+# X  = l[[i]]
+# ARMAorder = c(1,0)
+# ParticleNumber = Particles
+# ParticleFilterRes(x0, X, ARMAorder, ParticleNumber, CountDist, epsilon)
+# # #
+# # #
+# # FitMultiplePFRes(initParam[[1]], l[[1]], CountDist, Particles, LB, UB, ARMAorder, epsilon)
+# optim.output <- optimx(par            = x0,
+#                        fn             = ParticleFilterRes,
+#                        data           = X,
+#                        ARMAorder      = ARMAorder,
+#                        ParticleNumber = ParticleNumber,
+#                        CountDist      = CountDist,
+#                        epsilon        = epsilon,
+#                        lower          = LB,
+#                        upper          = UB,
+#                        method         = "L-BFGS-B",
+#                        control        = (dowarn = FALSE))
+
+#
+# ParmEst = c(optim.output$p1,optim.output$p2,optim.output$p3,optim.output$p4)
+# loglik   = optim.output$value
+#
+# # compute hessian
+# H = gHgen(par       = ParmEst,
+#           fn        = ParticleFilterRes,
+#           data      = X,
+#           ARMAorder = ARMAorder,
+#           ParticleNumber = ParticleNumber,
+#           CountDist      = CountDist,
+#           epsilon        = epsilon
+# )$Hn
+#

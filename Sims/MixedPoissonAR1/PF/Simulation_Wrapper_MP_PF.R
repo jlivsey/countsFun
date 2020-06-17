@@ -27,7 +27,7 @@ p           = 1
 q           = 0
 ARParm      = 0.75
 Particles   = 100
-epsilon     = 1
+epsilon     = 0.5
 lam1        = 2
 prob        = 0.25
 useTrueInit = 0
@@ -38,15 +38,15 @@ MargParm  = c(prob, lam1, lam2)
 trueParam = c(MargParm, ARParm)
 
 n = 100
-df1 = MixedPoisson_PF(trueParam, p, q, LB, UB, n, nsim, Particles, epsilon, no_cores, 0, nHC, 1-useTrueInit)
+df1 = MixedPoisson_PF(trueParam, p, q, LB, UB, n, nsim, Particles, epsilon, no_cores, 0, nHC, useTrueInit)
 save(df1, file = sprintf("MixedPoisson%s_%s_%sAR%s_PF_N%s_NS%s_Part%s_e%s.RData", MargParm[1], MargParm[2],MargParm[3], 1, n, nsim, Particles, epsilon))
 
 n = 200
-df2 = MixedPoisson_PF(trueParam, p, q, LB, UB, n, nsim, Particles, epsilon, no_cores, 0, nHC, 1-useTrueInit)
+df2 = MixedPoisson_PF(trueParam, p, q, LB, UB, n, nsim, Particles, epsilon, no_cores, 0, nHC, useTrueInit)
 save(df2, file = sprintf("MixedPoisson%s_%s_%sAR%s_PF_N%s_NS%s_Part%s_e%s.RData", MargParm[1], MargParm[2],MargParm[3], 1, n, nsim, Particles, epsilon))
 
 n = 400
-df3 = MixedPoisson_PF(trueParam, p, q, LB, UB, n, nsim, Particles, epsilon, no_cores, 0, nHC, 1-useTrueInit)
+df3 = MixedPoisson_PF(trueParam, p, q, LB, UB, n, nsim, Particles, epsilon, no_cores, 0, nHC, useTrueInit)
 save(df3, file = sprintf("MixedPoisson%s_%s_%sAR%s_PF_N%s_NS%s_Part%s_e%s.RData", MargParm[1], MargParm[2],MargParm[3], 1, n, nsim, Particles, epsilon))
 
 
@@ -56,15 +56,15 @@ MargParm  = c(prob, lam1, lam2)
 trueParam = c(MargParm, ARParm)
 
 n = 100
-df4 = MixedPoisson_PF(trueParam, p, q, LB, UB, n, nsim, Particles, epsilon, no_cores, 0, nHC, 1-useTrueInit)
+df4 = MixedPoisson_PF(trueParam, p, q, LB, UB, n, nsim, Particles, epsilon, no_cores, 0, nHC, useTrueInit)
 save(df4, file = sprintf("MixedPoisson%s_%s_%sAR%s_PF_N%s_NS%s_Part%s_e%s.RData", MargParm[1], MargParm[2],MargParm[3], 1, n, nsim, Particles, epsilon))
 
 n = 200
-df5 = MixedPoisson_PF(trueParam, p, q, LB, UB, n, nsim, Particles, epsilon, no_cores, 0, nHC, 1-useTrueInit)
+df5 = MixedPoisson_PF(trueParam, p, q, LB, UB, n, nsim, Particles, epsilon, no_cores, 0, nHC, useTrueInit)
 save(df5, file = sprintf("MixedPoisson%s_%s_%sAR%s_PF_N%s_NS%s_Part%s_e%s.RData", MargParm[1], MargParm[2],MargParm[3], 1, n, nsim, Particles, epsilon))
 
 n = 400
-df6 = MixedPoisson_PF(trueParam, p, q, LB, UB, n, nsim, Particles, epsilon, no_cores, 0, nHC, 1-useTrueInit)
+df6 = MixedPoisson_PF(trueParam, p, q, LB, UB, n, nsim, Particles, epsilon, no_cores, 0, nHC, useTrueInit)
 save(df6, file = sprintf("MixedPoisson%s_%s_%sAR%s_PF_N%s_NS%s_Part%s_e%s.RData", MargParm[1], MargParm[2],MargParm[3], 1, n, nsim, Particles, epsilon))
 
 
