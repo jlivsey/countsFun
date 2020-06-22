@@ -172,7 +172,7 @@ CovarMixedPoisson = function(n, p, lam1,lam2, AR, MA, N, nHC){
 #---------Gaussian Likelihood function---------#
 GaussLogLikMP = function(theta, data, ARMAorder, MaxCdf, nHC){
   #====================================================================================#
-  # PURPOSE      Compute Gaussian log-likelihood for NegBin series
+  # PURPOSE      Compute Gaussian log-likelihood for Mixed-Poisson series
   #
   # INPUT
   #   theta      parameter vector containing the marginal and ARMA parameters
