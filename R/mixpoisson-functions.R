@@ -214,7 +214,7 @@ GaussLogLikMP = function(theta, data, ARMAorder, MaxCdf, nHC){
 
 
   if(length(N)==0 |is.na(N) ){
-    N =MaxCdf
+    N = MaxCdf
   }
 
   #Select the mean value used to demean--sample or true?
