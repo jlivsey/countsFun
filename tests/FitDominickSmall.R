@@ -76,7 +76,6 @@ nHC = 30
 ARMAorder = c(3,0)
 epsilon = 1
 ParticleNumber  = 100
-CountDist = "Negative Binomial"
 
 # regressor variable with intercept
 Regressor = cbind(rep(1,length(Buy)),Buy)
@@ -92,8 +91,10 @@ ARMAorder = c(3,0)
 CountDist = "Generalized Poisson"
 ParticleNumber  = 100
 epsilon = 0.5
-ParticleFilterRes_Reg(theta, MOVE, Regressor, ARMAorder, ParticleNumber, CountDist, epsilon)
 
+tic()
+GaussLogLikGP_Reg(theta, MOVE, Regressor, ARMAorder, 300, nHC)
+toc()
 
 
 tic()
@@ -147,12 +148,13 @@ optim.output5 <- optimx(par            = theta,
 
 # GL with p depending on t
 tic()
-theta = c(1,0.4, 0.5,-0.3,0,0)
+theta = c(2, 1, 0.5, -0.3,0.2,0.1)
 mod2 = FitGaussianLikNB_Reg(theta, MOVE, Regressor, LB, UB, ARMAorder, MaxCdf, nHC,0)
 toc()
 
 # PF with p depending on t
-theta = c(1,0, 0.5,0,0,0)
+CountDist = "Negative Binomial"
+theta = c(2, 1, 0.5, -0.3,0.2,0.1)
 tic()
 mod3 = FitMultiplePFResReg(theta, MOVE, Regressor,CountDist, ParticleNumber, LB, UB, ARMAorder, epsilon)
 toc()
@@ -162,14 +164,18 @@ toc()
 
 
 
-
-
-
-
-
-
-
-
+optim.output2 <- optim(par       = theta,
+                       fn        = GaussLogLikNB_Reg,
+                       data      = MOVE,
+                       Regressor = Regressor,
+                       ARMAorder = ARMAorder,
+                       MaxCdf    = 300,
+                       nHC       = nHC,
+                       hessian   = TRUE,
+                       lower     = LB,
+                       upper     = UB,
+                       control = list(all.methods = TRUE,trace = 2)
+)
 
 
 
