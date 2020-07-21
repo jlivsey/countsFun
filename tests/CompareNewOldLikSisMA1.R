@@ -16,7 +16,7 @@ initial.param = c(lam, phi)
 theta = initial.param
 data = x
 CountDist = "Poisson"
-ParticleNumber = 1000
+ParticleNumber = 5
 ARMAorder = c(0,1)
 CountDist = "Poisson"
 
@@ -24,6 +24,8 @@ CountDist = "Poisson"
 
 # to match with old code I need to multiply with 2 and remove the bias correction
 # LikSISGenDist_ARp_Res(initial.param,x,ParticleNumber,CountDist)
+set.seed(1)
 ParticleFilterMA1_Res(initial.param, x, ARMAorder, ParticleNumber, CountDist, 0)
 
+set.seed(1)
 likSISRMA1(initial.param,x,ARMAorder,CountDist)/2

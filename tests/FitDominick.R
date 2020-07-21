@@ -32,8 +32,10 @@ mysales = read.csv("/Users/stef/Desktop/countsFun/data/MySelectedSeries.csv")
 
 
 # attach the datafrmae
-attach(mysales)
-
+n = 200
+Smallsales  = mysales[1:n,]
+attach(Smallsales)
+acf(MOVE)$acf[2]
 # plot the series
 #plot.ts(MOVE, ylab = "sales", xlab = "time")
 

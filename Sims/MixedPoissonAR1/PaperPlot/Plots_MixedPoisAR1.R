@@ -52,7 +52,7 @@ d$n = as.factor(d$n)
 
 # What param config do we want to look at?
 lam1 = unique(d$lam1.true)
-lam2 = 5
+lam2 = 10
 p = 0.25
 phi = .75
 
@@ -111,6 +111,7 @@ df$y_max[df$variable == "p estimates"]= max(phat)
 p2 <- ggplot(df, aes(x=T, y=value, fill=Method))
 p2 + geom_boxplot(outlier.size = 1/2, fatten = 1) +
   geom_hline(aes(yintercept = true), col="black", lty="dashed") +
+  stat_summary(fun=mean, geom="point", aes(x = T, shape = Method, size = Method ),position=position_dodge(width=0.75)) +
   facet_wrap(~facet, nrow=2, scales="free", labeller = label_parsed) +
   geom_blank(data = df, aes(y = y_min)) +
   geom_blank(data = df, aes(y = y_max))+
@@ -118,9 +119,25 @@ p2 + geom_boxplot(outlier.size = 1/2, fatten = 1) +
   theme(plot.title = element_text(hjust = 0.5)) +
   scale_fill_manual(values=c("#F8F8FF", '#4169E1', "#20B2AA")) +
   scale_color_manual(values=c("#F8F8FF", '#4169E1', "#20B2AA")) +
+  scale_shape_manual(values=c(1, 2, 0))+
+  scale_size_manual(values=c(3.5, 3, 3))+
   labs(x="T", y="Parameter Estimates")+
   theme(text=element_text(size=18),legend.position="bottom",
-        legend.text=element_text(size=rel(1)))
+        legend.text=element_text(size=rel(1)),legend.key.size = unit(2,"line"),
+        strip.text.x = element_text(size = 18, margin = margin( b = 2, t = 2) ))
+
+
+
+
+
+
+
+
+# ggsave(sprintf("C:/Users/Stef/Desktop/countsFun/Sims/NegBinMA1/PaperPlot/NegBin%s_%sTheta%s%s.pdf",r,10*p,100*theta,ThetaSign))
+# dev.off()
+
+
+
 
 
 

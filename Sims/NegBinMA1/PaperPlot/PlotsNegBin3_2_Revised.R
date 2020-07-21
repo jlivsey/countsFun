@@ -22,11 +22,13 @@ load('NegBin3_0.8MA1_GL_N400_NS200_ThetaNeg.Rdata')
 setwd("C:/Users/Stef/Desktop/countsFun/Sims/NegBinMA1/PF/RData")
 load('NegBin3_0.8MA1_PF_N100_NS200_Part1000_ThetaPos_e1.Rdata')
 load('NegBin3_0.8MA1_PF_N200_NS200_Part1000_ThetaPos_e1.Rdata')
-load('NegBin3_0.8MA1_PF_N400_NS200_Part1000_ThetaPos_e1.Rdata')
 load('NegBin3_0.8MA1_PF_N100_NS200_Part1000_ThetaNeg_e1.Rdata')
 load('NegBin3_0.8MA1_PF_N200_NS200_Part1000_ThetaNeg_e1.Rdata')
-load('NegBin3_0.8MA1_PF_N400_NS200_Part1000_ThetaNeg_e1.Rdata')
 
+#load('NegBin3_0.8MA1_PF_N400_NS200_Part1000_ThetaNeg_e1.Rdata')
+#load('NegBin3_0.8MA1_PF_N400_NS200_Part1000_ThetaPos_e1.Rdata')
+load('NegBin3_0.8MA1_PF_N400_NS200_Part10_ThetaNeg_e1_Deopt.Rdata')
+load('NegBin3_0.8MA1_PF_N400_NS200_Part10_ThetaPos_e1_Deopt.Rdata')
 
 #d = rbind(df1, df2,df3,df4,df5,df6)
 d = rbind(df1, df2,df3,df4,df5,df6,
@@ -46,6 +48,7 @@ library(data.table)
 r = 3
 p = .8
 theta = .75
+ThetaSign = ifelse(theta > 0, 'Pos', 'Neg')  # SIGN OF ar(1) param
 # subset data.frame by param config
 d2 = d[(d$r.true == r) &
          (d$p.true == p) &
@@ -86,13 +89,20 @@ phat = df$value[df$variable=="p estimates"]
 # make plot
 p2 <- ggplot(df, aes(x=T, y=value, fill=Method))
 p2 + geom_boxplot(outlier.size = 1/2, fatten = 1) +
+  stat_summary(fun=mean, geom="point", aes(x = T, shape = Method, size = Method ),position=position_dodge(width=0.75)) +
   facet_wrap(~facet, scales="free",labeller = label_parsed) +
   ggtitle(label = "Negative Binomial - MA(1)") +
   theme(plot.title = element_text(hjust = 0.5)) +
-  scale_fill_manual(values=c("#5F9EA0", "#F8F8FF")) +
+  scale_fill_manual(values=c( "#F8F8FF", "#20B2AA")) +
   geom_hline(aes(yintercept = true), col="black", lty="dashed") +
+  scale_shape_manual(values=c(1, 2))+
+  scale_size_manual(values=c(3.5, 3))+
   labs(x="T", y="Parameter Estimates")+
-  theme(text=element_text(size=16),legend.position="bottom",
-        legend.text=element_text(size=rel(1)))
-#ggsave("NBMA1r3p2thPos75.pdf")
-# dev.off()
+  theme(text=element_text(size=18),legend.position="bottom",
+        legend.text=element_text(size=rel(1)),legend.key.size = unit(3,"line"),
+        strip.text.x = element_text(size = 18, margin = margin( b = 2, t = 2) ))
+
+
+ggsave(sprintf("C:/Users/Stef/Dropbox/latentGaussCounts/paper_new_rev1/figs/NegBin%s_%sTheta%s75.pdf",r,10*p,ThetaSign))
+dev.off()
+

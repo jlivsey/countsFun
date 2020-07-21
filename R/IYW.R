@@ -1,8 +1,8 @@
 # Calculates link coeficients mapping gam_X --> gam_Z
 # Inputs: hermite coefficients and marginal variance
-link_coefs <- function(hermite_coefs, gamx0){
-  K <- length(hermite_coefs)
-  out <- factorial(1:K) * hermite_coefs^2 / gamx0
+link_coefs <- function(g_coefs, gamx0){
+  K <- length(g_coefs)
+  out <- factorial(1:K) * g_coefs^2 / gamx0
   return(out)
 }
 
@@ -143,7 +143,7 @@ fit_IWY_mixedPois_AR1 <- function(x, ar.order = 1){
                                prob = prob.est)
 
   # Link Coefficients of el: gam.x --> gam.z (autocorrelations--relation 29 May 1 version)
-  link.coefs <- link_coefs(hermite_coefs = g.coefs,
+  link.coefs <- link_coefs(g.coefs,
                            # gamx0 = prob.est * lam1.est + (1-prob.est)*lam2.est)
                            gamx0 = var(x))
 

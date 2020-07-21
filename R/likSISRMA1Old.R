@@ -1,7 +1,5 @@
-likSISRMA1 = function(theta, data,ARMAorder,ParticleNumber, CountDist, epsilon){
+likSISRMA1Old = function(theta, data,ARMAorder,ParticleNumber, CountDist, epsilon){
 
-  old_state <- get_rand_state()
-  on.exit(set_rand_state(old_state))
 
   MargParmIndices = switch(CountDist,
                            "Poisson"             = 1,

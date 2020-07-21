@@ -8,15 +8,8 @@
 # R version 3.6.3
 library(dplyr)
 
-setwd("C:/Users/Stef/Desktop/countsFun/Sims/MixedPoissonAR1/IYW/RData")
-load('MixedPoisson0.25_2_5AR1_IYW_N100_NS200.RData')
-load('MixedPoisson0.25_2_5AR1_IYW_N200_NS200.RData')
-load('MixedPoisson0.25_2_5AR1_IYW_N400_NS200.RData')
-load('MixedPoisson0.25_2_10AR1_IYW_N100_NS200.RData')
-load('MixedPoisson0.25_2_10AR1_IYW_N200_NS200.RData')
-load('MixedPoisson0.25_2_10AR1_IYW_N400_NS200.RData')
 
-
+# df7-df12
 setwd("C:/Users/Stef/Desktop/countsFun/Sims/MixedPoissonAR1/GL/RData")
 load('MixedPoisson0.25_2_10AR1_GL_N100_NS200_NotTrue.RData')
 load('MixedPoisson0.25_2_10AR1_GL_N200_NS200_NotTrue.RData')
@@ -25,7 +18,16 @@ load('MixedPoisson0.25_2_5AR1_GL_N100_NS200_NotTrue.RData')
 load('MixedPoisson0.25_2_5AR1_GL_N200_NS200_NotTrue.RData')
 load('MixedPoisson0.25_2_5AR1_GL_N400_NS200_NotTrue.RData')
 
+#df13-df19
+setwd("C:/Users/Stef/Desktop/countsFun/Sims/MixedPoissonAR1/IYW/RData")
+load('MixedPoisson0.25_2_5AR1_IYW_N100_NS200.RData')
+load('MixedPoisson0.25_2_5AR1_IYW_N200_NS200.RData')
+load('MixedPoisson0.25_2_5AR1_IYW_N400_NS200.RData')
+load('MixedPoisson0.25_2_10AR1_IYW_N100_NS200.RData')
+load('MixedPoisson0.25_2_10AR1_IYW_N200_NS200.RData')
+load('MixedPoisson0.25_2_10AR1_IYW_N400_NS200.RData')
 
+# df1-df6
 setwd("C:/Users/Stef/Desktop/countsFun/Sims/MixedPoissonAR1/PF/RData")
 load('MixedPoisson0.25_2_10AR1_PF_N100_NS200_Part100_e1.RData')
 load('MixedPoisson0.25_2_10AR1_PF_N200_NS200_Part100_e1.RData')
@@ -35,9 +37,9 @@ load('MixedPoisson0.25_2_5AR1_PF_N200_NS200_Part100_e1.RData')
 load('MixedPoisson0.25_2_5AR1_PF_N400_NS200_Part100_e1.RData')
 
 
-d = rbind(df1[,1:14],df2[,1:14],df3[,1:14],df4,df5,df6,
-          df7,df8,df9,df10,df11,df12,
-          df13,df14,df15,df16,df17,df18)
+d = rbind(df7,df8,df9,df10,df11,df12,
+          df13,df14,df15,df16,df17,df18,
+          df1[,1:14],df2[,1:14],df3[,1:14],df4,df5,df6)
 
 
 library(ggplot2)
@@ -52,10 +54,10 @@ d$n = as.factor(d$n)
 
 # What param config do we want to look at?
 lam1 = unique(d$lam1.true)
-lam2 = 5
+lam2 = 10
 p = 0.25
 phi = .75
-
+PhiSign = ifelse(phi > 0, 'Pos', 'Neg')  # SIGN OF ar(1) param
 
 # subset data.frame by param config
 d2 = d[(d$lam2.true == lam2), ]
@@ -105,6 +107,8 @@ df$y_max[df$variable == "phi estimates"]= 1
 df$y_min[df$variable == "p estimates"]= 0
 df$y_max[df$variable == "p estimates"]= 0.5
 
+# compute means
+dfMeans = as.data.frame(df %>% group_by(variable, Method, T) %>% summarise(value = mean(value)))
 
 # cuttoff for large outliers
 c = 0.975
@@ -128,58 +132,36 @@ finalOutliers$facet = factor(finalOutliers$variable, levels = c("lambda1 estimat
                                         expression("widehat(phi)"),
                                         expression("widehat(p)")))
 
+dfMeans$facet = factor(dfMeans$variable, levels = c("lambda1 estimates", "lambda2 estimates", "phi estimates",  "p estimates"),
+                             labels = c(TeX('$\\widehat{\\lambda}_1$'),
+                                        TeX('$\\widehat{\\lambda}_2$'),
+                                        expression("widehat(phi)"),
+                                        expression("widehat(p)")))
+
 
 
 # make plot
+colors = c("#F8F8FF", '#4169E1',"#20B2AA")
 p2 <- ggplot(dftbl, aes(x=T, y=value, fill=Method))
 p2 + geom_boxplot(outlier.size = 1/2, fatten = 1) +
-  geom_point(data = finalOutliers, position=position_dodge(width=0.75), aes(x=T, y=value, color = Method, size = Frequency, group = Method),inherit.aes = FALSE)+
+  geom_point(data = finalOutliers, position=position_dodge(width=0.75), aes(x=T, y=value, color = Method, size = Frequency, group = Method))+
+  geom_point(data = dfMeans,       position=position_dodge(width=0.75), aes(x=T, y=value, shape = Method, size = 7))+
   geom_hline(aes(yintercept = true), col="black", lty="dashed") +
   facet_wrap(~facet, nrow=2, scales="free", labeller = label_parsed) +
   #geom_blank(data = dftbl, aes(y = y_min)) +
   #geom_blank(data = dftbl, aes(y = y_max))+
   ggtitle(label = "Mixed Poisson - AR(1)") +
   theme(plot.title = element_text(hjust = 0.5)) +
-  scale_fill_manual(values=c("#F8F8FF", '#4169E1', "#20B2AA")) +
-  scale_color_manual(values=c("#F8F8FF", '#4169E1', "#20B2AA")) +
+  scale_fill_manual(values=colors) +
+  scale_color_manual(values=colors) +
+  scale_shape_manual(values=c(1, 2, 0))+
+  #scale_size_manual(values=c(3.5, 3, 3))+
   labs(x="T", y="Parameter Estimates")+
   theme(text=element_text(size=18),legend.position="bottom",
-        legend.text=element_text(size=rel(1)))
+        legend.text=element_text(size=rel(1)),legend.key.size = unit(1,"line"),
+        strip.text.x = element_text(size = 16, margin = margin( b = 1, t = 1) ))
 
 
+ggsave(sprintf("C:/Users/Stef/Dropbox/latentGaussCounts/paper_new_rev1/figs/MixedPoisson%s_%s_%sAR1phi%s75.pdf",lam1,lam2,p,PhiSign))
+dev.off()
 
-
-#ggsave(sprintf("C:/Users/Stef/Desktop/countsFun/Sims/PoissonAR1/PaperPlot/Pois%sAR1phi%s75.pdf",lam,PhiSign))
-# dev.off()
-
-
-#=================================================================================================================#
-
-# load all data
-# setwd("C:/Users/Stef/Desktop/countsFun/Sims/MixedPoissonAR1/IYW/RData")
-# load('MixedPois2-5AR1_IYW_N100_NS200_PhiPos.RData')
-# df13 = df
-# load('MixedPois2-5AR1_IYW_N200_NS200_PhiPos.RData')
-# df14 = df
-# load('MixedPois2-5AR1_IYW_N400_NS200_PhiPos.RData')
-# df15 = df
-# load('MixedPois2-10AR1_IYW_N100_NS200_PhiPos.RData')
-# df16 = df
-# load('MixedPois2-10AR1_IYW_N200_NS200_PhiPos.RData')
-# df17 = df
-# load('MixedPois2-10AR1_IYW_N400_NS200_PhiPos.RData')
-# df18 = df
-
-# d_IYW = rbind(df13,df14,df15,df16,df17,df18)
-# d_IYW_new = data.frame(d_IYW$prob.true, d_IYW$prob.est, d_IYW$prob.se, d_IYW$lam1.true, d_IYW$lam1.est, d_IYW$lam1.se,
-#                        d_IYW$lam2.true, d_IYW$lam2.est, d_IYW$lam2.se, d_IYW$phi.true, d_IYW$phi.est,
-#                        d_IYW$phi.se, d_IYW$estim.method, d_IYW$n)
-# names(d_IYW_new) = c("p.true" ,"p.est", "p.se", "lam1.true",
-#                      "lam1.est","lam1.se", "lam2.true",
-#                      "lam2.est","lam2.se", "phi.true",
-#                      "phi.est", "phi.se" , "estim.method", "n")
-#
-# d_GL = rbind(df7,df8,df9,df10,df11,df12)
-# d_PF = rbind(df1,df2,df3,df4,df5,df6)
-#
-# d = rbind(d_GL,d_IYW_new, d_PF)

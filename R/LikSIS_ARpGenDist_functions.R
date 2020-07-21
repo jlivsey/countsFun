@@ -25,18 +25,6 @@ sim_pois_ar = function(n, phi, lam){
 }
 
 
-# Generalized Poisson cdf, pdf
-pGenPoisson = function(q, theta, lam){ cdf.vec <- rep(-99,length(q))
-for (i in 1:length(q)) {
-  if (q[i]>=0){
-    cdf.vec[i] <- sum( exp(-(theta+(0:q[i])*lam))*theta*(theta+(0:q[i])*lam)^((0:q[i])-1)/factorial((0:q[i])))
-  }else{cdf.vec[i] <-0}
-}
-return(cdf.vec)}
-
-dGenPoisson = function(x, theta, lam){ exp(-(theta+x*lam))*theta*(theta+x*lam)^(x-1)/factorial(x) }
-
-
 #---------wrapper to fit PF likelihood---------#
 FitMultiplePF = function(initialParam, data, CountDist, nfit, ParticleSchemes){
   # Let nparts by the length of the vector ParticleSchemes.
@@ -81,197 +69,7 @@ FitMultiplePF = function(initialParam, data, CountDist, nfit, ParticleSchemes){
 }
 
 
-
 #---------------------------------------------------------------------------------------------#
-ParticleFilterARp = function(theta, data, ARMAorder, ParticleNumber, CountDist){
-  ##########################################################################
-  # PURPOSE:  Use particle filtering to approximate the likelihood of the
-  #           a specified count time series model with an underlying AR(p)
-  #           dependence structure.
-  #
-  # NOTES:    See "Latent Gaussian Count Time Series Modeling" for  more
-  #           details. A first version of the paer can be found at:
-  #           https://arxiv.org/abs/1811.00203
-  #
-  # INPUTS:
-  #    theta:            parameter vector
-  #    data:             data
-  #    ParticleNumber:   number of particles to be used.
-  #    CountDist:        count marginal distribution
-  #
-  # OUTPUT:
-  #    loglik:           approximate log-likelihood
-  #
-  #
-  # AUTHORS: James Livsey, Vladas Pipiras, Stefanos Kechagias,
-  # DATE:    November 2019
-  ##########################################################################
-
-  old_state <- get_rand_state()
-  on.exit(set_rand_state(old_state))
-
-  # FIX ME: When I add the function in LGC the following can happen in LGC and pass here as arguments
-
-  # retrieve indices of marginal distribution parameters
-  MargParmIndices = switch(CountDist,
-                           "Poisson"             = 1,
-                           "Negative Binomial"   = 1:2,
-                           "Mixed Poisson"       = 1:3,
-                           "Generalized Poisson" = 1:2,
-                           "Binomial"            = 1:2)
-
-  # retrieve marginal cdf
-  mycdf = switch(CountDist,
-                 "Poisson"             = ppois,
-                 "Negative Binomial"   = function(x, theta){ pnbinom (q = x, size = theta[1], prob = 1-theta[2])},
-                 "Mixed Poisson"       = function(x, theta){ pmixpois(x, p = theta[1], lam1 = theta[2], lam2 = theta[3])},
-                 "Generalized Poisson" = pGenPoisson,
-                 "Binomial"            = pbinom
-  )
-
-  # retrieve marginal pdf
-  mypdf = switch(CountDist,
-                 "Poisson"             = dpois,
-                 "Negative Binomial"   = function(x, theta){ dnbinom (x, size = theta[1], prob = 1-theta[2]) },
-                 "Mixed Poisson"       = function(x, theta){ dmixpois(x, p = theta[1], lam1 = theta[2], lam2 = theta[3])},
-                 "Generalized Poisson" = dGenPoisson,
-                 "Binomial"            = dbinom
-  )
-
-
-  # retrieve marginal distribution parameters
-  MargParms  = theta[MargParmIndices]
-  nMargParms = length(MargParms)
-  nparms     = length(theta)
-
-
-  # retrieve ARMA parameters
-  if(ARMAorder[1]>0){
-    AR = theta[(nparms-ARMAorder[1]+1):(nMargParms + ARMAorder[1])  ]
-  }else{
-    AR = NULL
-  }
-
-  if(ARMAorder[2]>0){
-    MA = theta[ (length(theta) - ARMAorder[2]) : length(theta)]
-  }else{
-    MA = NULL
-  }
-
-  # retrieve AR order
-  ARorder = ARMAorder[1]
-
-
-  if (prod(abs(polyroot(c(1,-AR))) > 1)){ # check if the ar model is causal
-
-    xt = data
-    T1 = length(xt)
-    N = ParticleNumber          # number of particles
-    prt = matrix(0,N,T1)        # to collect all particles
-    wgh = matrix(0,T1,N)        # to collect all particle weights
-
-    # allocate memory for zprev
-    ZprevAll = matrix(0,p,N)
-
-    # Compute integral limits
-    a = rep( qnorm(mycdf(xt[1]-1,t(MargParms)),0,1), N)
-    b = rep( qnorm(mycdf(xt[1],t(MargParms)),0,1), N)
-
-    # Generate N(0,1) variables restricted to (ai,bi),i=1,...n
-    zprev = qnorm(runif(length(a),0,1)*(pnorm(b,0,1)-pnorm(a,0,1))+pnorm(a,0,1),0,1)
-
-    # save the currrent normal variables
-    ZprevAll[1,] = zprev
-
-    # initial estimate of first AR coefficient as Gamma(1)/Gamma(0) and corresponding error
-    phit = TacvfAR(AR)[2]/TacvfAR(AR)[1]
-    rt = as.numeric(sqrt(1-phit^2))
-
-    # particle filter weights
-    wprev = rep(1,N)
-    wgh[1,] = wprev
-
-    #t0 = proc.time()
-    # First p steps:
-    if (p>=2){
-      for (t in 2:p){
-
-        # best linear predictor is just Phi1*lag(Z,1)+...+phiP*lag(Z,p)
-        if (t==2) {
-          ZpreviousTimesPhi = ZprevAll[1:(t-1),]*phit
-        } else{
-          ZpreviousTimesPhi = colSums(ZprevAll[1:(t-1),]*phit)
-        }
-
-        # Recompute integral limits
-        a = (qnorm(mycdf(xt[t]-1,MargParms),0,1) - ZpreviousTimesPhi)/rt
-        b = (qnorm(mycdf(xt[t],MargParms),0,1) - ZpreviousTimesPhi)/rt
-
-        # compute random errors from truncated normal
-        err = qnorm(runif(length(a),0,1)*(pnorm(b,0,1)-pnorm(a,0,1))+pnorm(a,0,1),0,1)
-
-        # compute the new Z and add it to the previous ones
-        znew = rbind(ZpreviousTimesPhi + rt*err, ZprevAll[1:(t-1),])
-        ZprevAll[1:t,] = znew
-
-        # recompute weights
-        wgh[t,] = wprev*(pnorm(b,0,1) - pnorm(a,0,1))
-        wprev = wgh[t,]
-
-        # use YW equation to compute estimates of phi and of the erros
-        Gt = toeplitz(TacvfAR(AR)[1:t])
-        gt = TacvfAR(AR)[2:(t+1)]
-        phit = as.numeric(solve(Gt) %*% gt)
-        rt =  as.numeric(sqrt(1 - gt %*% solve(Gt) %*% gt/TacvfAR(AR)[1]))
-
-      }
-    }
-
-    # From p to T1 I dont need to estimate phi anymore
-    for (t in (p+1):T1){
-      # compute phi_1*Z_{t-1} + phi_2*Z_{t-2} for all particles
-      if(p>1){# colsums doesnt work for 1-dimensional matrix
-        ZpreviousTimesPhi = colSums(ZprevAll*AR)
-      }else{
-        ZpreviousTimesPhi=ZprevAll*AR
-      }
-
-      # compute limits of truncated normal distribution
-      a = as.numeric(qnorm(mycdf(xt[t]-1,MargParms),0,1) - ZpreviousTimesPhi)/rt
-      b = as.numeric(qnorm(mycdf(xt[t],MargParms),0,1) -   ZpreviousTimesPhi)/rt
-
-      # draw errors from truncated normal
-      err = qnorm(runif(length(a),0,1)*(pnorm(b,0,1)-pnorm(a,0,1))+pnorm(a,0,1),0,1)
-
-      # Update the underlying Gaussian series (see step 3 in SIS section in the paper)
-      znew = ZpreviousTimesPhi + rt*err
-      if (p>1){
-        ZprevAll = rbind(znew, ZprevAll[1:(p-1),])
-      }else {
-        ZprevAll[1,]=znew
-      }
-
-      # update weights
-      wgh[t,] = wprev*(pnorm(b,0,1) - pnorm(a,0,1))
-      wprev = wgh[t,]
-    }
-
-    # likelihood approximation
-    lik = mypdf(xt[1],MargParms)*mean(na.omit(wgh[T1,]))
-
-    # for log-likelihood we use a bias correction--see par2.3 in Durbin Koopman, 1997
-    nloglik = -log(lik)
-    #- (1/(2*N))*(var(na.omit(wgh[T1,]))/mean(na.omit(wgh[T1,])))/mean(na.omit(wgh[T1,]))
-
-    out = (if (is.na(nloglik) | lik==0) 10^8 else nloglik)
-
-  }else{
-    out = 10^8 # for noncasusal AR
-  }
-
-  return(out)
-}
-
 # PF likelihood with resampling
 ParticleFilterRes = function(theta, data, ARMAorder, ParticleNumber, CountDist, epsilon){
   #--------------------------------------------------------------------------#
@@ -490,6 +288,277 @@ ParticleFilterRes = function(theta, data, ARMAorder, ParticleNumber, CountDist, 
 
   }else{
     nloglik = 10^8
+  }
+
+  return(out)
+}
+
+# PF likelihood with resampling and regrssor
+ParticleFilterRes_Reg = function(theta, data, Regressor, ARMAorder, ParticleNumber, CountDist, epsilon){
+  #--------------------------------------------------------------------------#
+  # PURPOSE:  Use particle filtering with resampling
+  #           to approximate the likelihood of the
+  #           a specified count time series model with an underlying AR(p)
+  #           dependence structure. A singloe dummy regression is added here.
+  #
+  # NOTES:    1. See "Latent Gaussian Count Time Series Modeling" for  more
+  #           details. A first version of the paer can be found at:
+  #           https://arxiv.org/abs/1811.00203
+  #           2. This function is very similar to LikSISGenDist_ARp but here
+  #           I have a resampling step.
+  #
+  # INPUTS:
+  #    theta:            parameter vector
+  #    data:             data
+  #    ParticleNumber:   number of particles to be used.
+  #    CountDist:        count marginal distribution
+  #    epsilon           resampling when ESS<epsilon*N
+  #
+  # OUTPUT:
+  #    loglik:           approximate log-likelihood
+  #
+  #
+  # AUTHORS: James Livsey, Vladas Pipiras, Stefanos Kechagias,
+  # DATE:    November 2019
+  #--------------------------------------------------------------------------#
+
+  old_state <- get_rand_state()
+  on.exit(set_rand_state(old_state))
+
+  # number of regressors assuming there is an intercept
+  nreg = dim(Regressor)[2]-1
+  # FIX ME: When I add the function in LGC the following can happen in LGC and pass here as arguments
+
+  # retrieve indices of marginal distribution parameters-the regressor is assumed to have an intercept
+  MargParmIndices = switch(CountDist,
+                           "Poisson"             = 1:(1+nreg),
+                           "Negative Binomial"   = 1:(2+nreg),
+                           "Mixed Poisson"       = 1:(3+nreg),
+                           "Generalized Poisson" = 1:(2+nreg),
+                           "Binomial"            = 1:(2+nreg))
+  if(nreg<1){
+    # retrieve marginal cdf
+    mycdf = switch(CountDist,
+                 "Poisson"             = ppois,
+                 "Negative Binomial"   = function(x, theta){ pnbinom (q = x, size = theta[1], prob = 1-theta[2])},
+                 "Mixed Poisson"       = function(x, theta){ pmixpois(x, p = theta[1], lam1 = theta[2], lam2 = theta[3])},
+                 "Generalized Poisson" = pGpois,
+                 "Binomial"            = pbinom
+    )
+
+    # retrieve marginal pdf
+    mypdf = switch(CountDist,
+                 "Poisson"             = dpois,
+                 "Negative Binomial"   = function(x, theta){ dnbinom (x, size = theta[1], prob = 1-theta[2]) },
+                 "Mixed Poisson"       = function(x, theta){ dmixpois(x, p = theta[1], lam1 = theta[2], lam2 = theta[3])},
+                 "Generalized Poisson" = dGpois,
+                 "Binomial"            = dbinom
+    )
+    }else{
+      # retrieve marginal cdf
+      mycdf = switch(CountDist,
+                     "Negative Binomial"   = function(x, ConstTheta, DynamTheta){ pnbinom (q = x, size = ConstTheta, prob = 1-DynamTheta)},
+                     "Generalized Poisson" = function(x, ConstTheta, DynamTheta){ pGpois(x, a = ConstTheta, m = DynamTheta)}
+      )
+      # retrieve marginal pdf
+      mypdf = switch(CountDist,
+                     "Negative Binomial"   = function(x, ConstTheta, DynamTheta){ dnbinom (x, size = ConstTheta, prob = 1-DynamTheta)},
+                     "Generalized Poisson" = function(x, ConstTheta, DynamTheta){ dGpois(x, a = ConstTheta, m = DynamTheta)}
+      )
+    }
+
+
+
+  # retrieve marginal distribution parameters
+  MargParms  = theta[MargParmIndices]
+  nMargParms = length(MargParms)
+  nparms     = length(theta)
+
+
+  # Add the regressor to the parameters--only works for Negative Binomial
+  if(CountDist == "Negative Binomial"){
+    beta = MargParms[1:(nreg+1)]
+    k = MargParms[nreg+2]
+    m = exp(Regressor%*%beta)
+    r = 1/k
+    p = k*m/(1+k*m)
+    ConstMargParm = r
+    DynamMargParm = p
+  }
+
+  if(CountDist == "Generalized Poisson"){
+    beta   = MargParms[1:(nreg+1)]
+    ConstMargParm  = MargParms[nreg+2]
+    DynamMargParm = exp(Regressor%*%beta)
+  }
+
+
+  # retrieve ARMA parameters
+  if(ARMAorder[1]>0){
+    AR = theta[(nparms-ARMAorder[1]+1):(nMargParms + ARMAorder[1])  ]
+  }else{
+    AR = NULL
+  }
+
+  if(ARMAorder[2]>0){
+    MA = theta[ (length(theta) - ARMAorder[2]) : length(theta)]
+  }else{
+    MA = NULL
+  }
+
+  # retrieve AR order
+  ARorder = ARMAorder[1]
+
+  if (prod(abs(polyroot(c(1,-AR))) > 1)){ # check if the ar model is causal
+
+    xt = data
+    T1 = length(xt)
+    N = ParticleNumber          # number of particles
+    prt = matrix(0,N,T1)        # to collect all particles
+    wgh = matrix(0,T1,N)        # to collect all particle weights
+
+    # allocate memory for zprev
+    ZprevAll = matrix(0,ARorder,N)
+
+    if(nreg==0){
+      # Compute integral limits
+      a = rep( qnorm(mycdf(xt[1]-1,t(MargParms)),0,1), N)
+      b = rep( qnorm(mycdf(xt[1],t(MargParms)),0,1), N)
+    }else{
+      a = rep( qnorm(mycdf(xt[1]-1, ConstMargParm, DynamMargParm[1]) ,0,1), N)
+      b = rep( qnorm(mycdf(xt[1], ConstMargParm, DynamMargParm[1]) ,0,1), N)
+    }
+    # Generate N(0,1) variables restricted to (ai,bi),i=1,...n
+    zprev = qnorm(runif(length(a),0,1)*(pnorm(b,0,1)-pnorm(a,0,1))+pnorm(a,0,1),0,1)
+
+    # save the currrent normal variables
+    ZprevAll[1,] = zprev
+
+    # initial estimate of first AR coefficient as Gamma(1)/Gamma(0) and corresponding error
+    phit = TacvfAR(AR)[2]/TacvfAR(AR)[1]
+    rt = as.numeric(sqrt(1-phit^2))
+
+    # particle filter weights
+    wprev = rep(1,N)
+    wgh[1,] = wprev
+    nloglik = 0 # initialize likelihood
+    #t0 = proc.time()
+    # First p steps:
+
+    if (ARorder>=2){
+      for (t in 2:ARorder){
+
+        # best linear predictor is just Phi1*lag(Z,1)+...+phiP*lag(Z,p)
+        if (t==2) {
+          ZpreviousTimesPhi = ZprevAll[1:(t-1),]*phit
+        } else{
+          ZpreviousTimesPhi = colSums(ZprevAll[1:(t-1),]*phit)
+        }
+
+        # Recompute integral limits
+        if(nreg==0){
+          a = (qnorm(mycdf(xt[t]-1,t(MargParms)),0,1) - ZpreviousTimesPhi)/rt
+          b = (qnorm(mycdf(xt[t],t(MargParms)),0,1) - ZpreviousTimesPhi)/rt
+        }else{
+          a = (qnorm(mycdf(xt[t]-1,ConstMargParm, DynamMargParm[t]),0,1) - ZpreviousTimesPhi)/rt
+          b = (qnorm(mycdf(xt[t],ConstMargParm, DynamMargParm[t]),0,1) - ZpreviousTimesPhi)/rt
+        }
+
+        # compute random errors from truncated normal
+        err = qnorm(runif(length(a),0,1)*(pnorm(b,0,1)-pnorm(a,0,1))+pnorm(a,0,1),0,1)
+
+        # compute the new Z and add it to the previous ones
+        znew = rbind(ZpreviousTimesPhi + rt*err, ZprevAll[1:(t-1),])
+        ZprevAll[1:t,] = znew
+
+        # recompute weights
+        wgh[t,] = wprev*(pnorm(b,0,1) - pnorm(a,0,1))
+        wprev = wgh[t,]
+
+        # use YW equation to compute estimates of phi and of the erros
+        Gt = toeplitz(TacvfAR(AR)[1:t])
+        gt = TacvfAR(AR)[2:(t+1)]
+        phit = as.numeric(solve(Gt) %*% gt)
+        rt =  as.numeric(sqrt(1 - gt %*% solve(Gt) %*% gt/TacvfAR(AR)[1]))
+
+      }
+    }
+
+
+    # From p to T1 I dont need to estimate phi anymore
+    for (t in (ARorder+1):T1){
+      # compute phi_1*Z_{t-1} + phi_2*Z_{t-2} for all particles
+      if(ARorder>1){# colsums doesnt work for 1-dimensional matrix
+        ZpreviousTimesPhi = colSums(ZprevAll*AR)
+      }else{
+        ZpreviousTimesPhi=ZprevAll*AR
+      }
+      # compute limits of truncated normal distribution
+
+      if(nreg==0){
+        a = as.numeric(qnorm(mycdf(xt[t]-1,MargParms),0,1) - ZpreviousTimesPhi)/rt
+        b = as.numeric(qnorm(mycdf(xt[t],MargParms),0,1) -   ZpreviousTimesPhi)/rt
+      }else{
+        a = as.numeric(qnorm(mycdf(xt[t]-1,ConstMargParm, DynamMargParm[t]),0,1) - ZpreviousTimesPhi)/rt
+        b = as.numeric(qnorm(mycdf(xt[t],ConstMargParm, DynamMargParm[t]),0,1) -   ZpreviousTimesPhi)/rt
+      }
+      # draw errors from truncated normal
+      err = qnorm(runif(length(a),0,1)*(pnorm(b,0,1)-pnorm(a,0,1))+pnorm(a,0,1),0,1)
+
+      # Update the underlying Gaussian series (see step 3 in SIS section in the paper)
+      znew = ZpreviousTimesPhi + rt*err
+
+      # Resampling Step--here the function differs from LikSISGenDist_ARp
+
+      # compute unnormalized weights
+      wgh[t,] = pnorm(b,0,1) - pnorm(a,0,1)
+
+      # break if I got NA weight
+      if (any(is.na(wgh[t,]))| sum(wgh[t,])==0 ){
+        nloglik = 10^8
+        break
+      }
+
+      # normalized weights
+      wghn = wgh[t,]/sum(wgh[t,])
+
+      old_state1 <- get_rand_state()
+
+      # sample indices from multinomial distribution-see Step 4 of SISR in paper
+      ESS = 1/sum(wghn^2)
+      if(ESS<epsilon*N){
+        ind = rmultinom(1,N,wghn)
+        # sample particles
+        znew = rep(znew,ind)
+
+        # use low variance resampling
+        #znew = lowVarianceRS(znew, wghn, N)
+      }
+      set_rand_state(old_state1)
+
+
+      # save particles
+      if (ARorder>1){
+        ZprevAll = rbind(znew, ZprevAll[1:(ARorder-1),])
+      }else {
+        ZprevAll[1,]=znew
+      }
+      # update likelihood
+      nloglik = nloglik - log(mean(wgh[t,]))
+    }
+
+    # likelihood approximation
+    nloglik = nloglik - log(mypdf(xt[1], ConstMargParm, DynamMargParm[1]))
+
+
+    # for log-likelihood we use a bias correction--see par2.3 in Durbin Koopman, 1997
+    nloglik = nloglik
+    #- (1/(2*N))*(var(na.omit(wgh[T1,]))/mean(na.omit(wgh[T1,])))/mean(na.omit(wgh[T1,]))
+
+    out =nloglik
+
+  }else{
+    nloglik = 10^9
   }
 
   return(out)
@@ -897,7 +966,6 @@ ParticleFilterMA1New = function(theta, data, ARMAorder, ParticleNumber, CountDis
   return(out)
 }
 
-
 #---------new wrapper to fit PF likelihood---------#
 FitMultiplePFMA1New = function(x0, X, CountDist, Particles, LB, UB, ARMAorder, epsilon, UseDEOptim){
   #====================================================================================#
@@ -964,7 +1032,7 @@ FitMultiplePFMA1New = function(x0, X, CountDist, Particles, LB, UB, ARMAorder, e
         }else{
           # run optimization for our model
           optim.output <- optim(par            = x0,
-                                fn             = ParticleFilterMA1_Res,
+                                fn             = likSISRMA1,
                                 data           = X,
                                 ARMAorder      = ARMAorder,
                                 ParticleNumber = ParticleNumber,
@@ -977,7 +1045,7 @@ FitMultiplePFMA1New = function(x0, X, CountDist, Particles, LB, UB, ARMAorder, e
           }
         }else{
           if(n<400){
-            optim.output<- DEoptim::DEoptim(fn             = ParticleFilterMA1,
+            optim.output<- DEoptim::DEoptim(fn             = likSISRMA1,
                                             lower          = LB,
                                             upper          = UB,
                                             data           = X,
@@ -998,13 +1066,17 @@ FitMultiplePFMA1New = function(x0, X, CountDist, Particles, LB, UB, ARMAorder, e
                                             epsilon        = epsilon,
                                             control        = DEoptim::DEoptim.control(trace = 10, itermax = 200, steptol = 50, reltol = 1e-5))
           }
-          }
-
-
-      # save estimates, loglik value and diagonal hessian
-      ParmEst[nfit*(k-1)+j,]  = optim.output$par
-      loglik[nfit*(k-1) +j]   = optim.output$value
-      se[nfit*(k-1)+j,]       = sqrt(abs(diag(solve(optim.output$hessian))))
+        }
+      if(UseDEOptim){
+        ParmEst[nfit*(k-1)+j,]  = optim.output$optim$bestmem
+        loglik[nfit*(k-1) +j]   = optim.output$optim$bestval
+      }
+      else{
+        # save estimates, loglik value and diagonal hessian
+        ParmEst[nfit*(k-1)+j,]  = optim.output$par
+        loglik[nfit*(k-1) +j]   = optim.output$value
+        se[nfit*(k-1)+j,]       = sqrt(abs(diag(solve(optim.output$hessian))))
+      }
     }
   }
 
@@ -1096,6 +1168,201 @@ FitMultiplePFRes = function(x0, X, CountDist, Particles, LB, UB, ARMAorder, epsi
 
       se[nfit*(k-1)+j,]   = ifelse(H$hessOK, sqrt(abs(diag(solve(H$Hn)))),NA)
 
+    }
+  }
+
+  All = cbind(ParmEst, se, loglik, convcode, kkt1, kkt2)
+  return(All)
+}
+
+
+#---------new wrapper to fit PF likelihood---------#
+FitMultiplePFResReg = function(x0, X,Regressor, CountDist, Particles, LB, UB, ARMAorder, epsilon){
+  #====================================================================================#
+  # PURPOSE       Fit the Particle Filter log-likelihood. This function maximizes
+  #               the PF likelihood, nfit manys times for nparts many choices of
+  #               particle numbers, thus yielding a total of nfit*nparts many estimates.
+  #               Here I am also considering a regressor
+  #
+  # INPUT
+  #   x0          initial parameters
+  #   X           count series
+  #   CountDist   prescribed count distribution
+  #   Particles   vector with different choices for number of particles
+  #   LB          parameter lower bounds
+  #   UB          parameter upper bounds
+  #   ARMAorder   order of the udnerlying ARMA model
+  #   epsilon     resampling when ESS<epsilon*N
+  #   UseDEOptim  flag, if=1 then use Deoptim for optimization
+  #
+  #   MaxCdf      cdf will be computed up to this number (for light tails cdf=1 fast)
+  #   nHC         number of HC to be computed
+  #
+  # OUTPUT
+  #   All         parameter estimates, standard errors, likelihood value
+  #
+  # NOTES         I may comment out se in cases where maximum is achieved at the boundary
+  #
+  # Authors       Stefanos Kechagias, James Livsey, Vladas Pipiras
+  # Date          April 2020
+  # Version       3.6.3
+  #====================================================================================#
+
+  # how many choices for the number of particles
+  nparts = length(Particles)
+  nparms = length(x0)
+  nfit = 1
+  # allocate memory to save parameter estimates, hessian values, and loglik values
+  ParmEst = matrix(0,nrow=nfit*nparts,ncol=nparms)
+  se =  matrix(NA,nrow=nfit*nparts,ncol=nparms)
+  loglik = rep(0,nfit*nparts)
+  convcode = rep(0,nfit*nparts)
+  kkt1 = rep(0,nfit*nparts)
+  kkt2 = rep(0,nfit*nparts)
+
+  n = length(X)
+
+  # Each realization will be fitted nfit*nparts many times
+  for (j in 1:nfit){
+    set.seed(j)
+    # for each fit repeat for different number of particles
+    for (k in 1:nparts){
+      # number of particles to be used
+      ParticleNumber = Particles[k]
+      # run optimization for our model
+      optim.output <- optimx(par           = x0,
+                             fn             = ParticleFilterRes_Reg,
+                             data           = X,
+                             Regressor      = Regressor,
+                             ARMAorder      = ARMAorder,
+                             ParticleNumber = ParticleNumber,
+                             CountDist      = CountDist,
+                             epsilon        = epsilon,
+                             lower          = LB,
+                             upper          = UB,
+                             hessian        = TRUE,
+                             method         = "bobyqa")
+
+      # save estimates, loglik value and diagonal hessian
+      ParmEst[nfit*(k-1)+j,]  = as.numeric(optim.output[1:nparms])
+      loglik[nfit*(k-1) +j]   = optim.output$value
+      convcode[nfit*(k-1) +j] = optim.output$convcode
+      kkt1[nfit*(k-1) +j]     = optim.output$kkt1
+      kkt2[nfit*(k-1) +j]     = optim.output$kkt2
+
+      # compute hessian
+      H = gHgen(par            = ParmEst[nfit*(k-1)+j,],
+                fn             = ParticleFilterRes_Reg,
+                data           = X,
+                Regressor      = Regressor,
+                ARMAorder      = ARMAorder,
+                CountDist      = CountDist,
+                ParticleNumber = ParticleNumber,
+                epsilon        = epsilon
+      )
+
+      if(H$hessOK){
+        se[nfit*(k-1)+j,]   = sqrt(abs(diag(solve(H$Hn))))
+      }else{
+        se[nfit*(k-1)+j,] = rep(NA, nparms)
+      }
+
+    }
+  }
+
+  All = cbind(ParmEst, se, loglik, convcode, kkt1, kkt2)
+  return(All)
+}
+
+
+
+
+#---------new wrapper to fit PF likelihood---------#
+FitMultiplePFMA1Res = function(x0, X, CountDist, Particles, LB, UB, ARMAorder, epsilon){
+  #====================================================================================#
+  # PURPOSE       Fit the Particle Filter log-likelihood. This function maximizes
+  #               the PF likelihood, nfit manys times for nparts many choices of
+  #               particle numbers, thus yielding a total of nfit*nparts many estimates
+  #
+  # INPUT
+  #   x0          initial parameters
+  #   X           count series
+  #   CountDist   prescribed count distribution
+  #   Particles   vector with different choices for number of particles
+  #   LB          parameter lower bounds
+  #   UB          parameter upper bounds
+  #   ARMAorder   order of the udnerlying ARMA model
+  #   epsilon     resampling when ESS<epsilon*N
+  #   UseDEOptim  flag, if=1 then use Deoptim for optimization
+  #
+  #   MaxCdf      cdf will be computed up to this number (for light tails cdf=1 fast)
+  #   nHC         number of HC to be computed
+  #
+  # OUTPUT
+  #   All         parameter estimates, standard errors, likelihood value
+  #
+  # NOTES         I may comment out se in cases where maximum is achieved at the boundary
+  #
+  # Authors       Stefanos Kechagias, James Livsey, Vladas Pipiras
+  # Date          April 2020
+  # Version       3.6.3
+  #====================================================================================#
+
+  # how many choices for the number of particles
+  nparts = length(Particles)
+  nparms = length(x0)
+  nfit = 1
+  # allocate memory to save parameter estimates, hessian values, and loglik values
+  ParmEst = matrix(0,nrow=nfit*nparts,ncol=nparms)
+  se =  matrix(NA,nrow=nfit*nparts,ncol=nparms)
+  loglik = rep(0,nfit*nparts)
+  convcode = rep(0,nfit*nparts)
+  kkt1 = rep(0,nfit*nparts)
+  kkt2 = rep(0,nfit*nparts)
+
+  n = length(X)
+
+  # Each realization will be fitted nfit*nparts many times
+  for (j in 1:nfit){
+    set.seed(j)
+    # for each fit repeat for different number of particles
+    for (k in 1:nparts){
+      # number of particles to be used
+      ParticleNumber = Particles[k]
+      # run optimization for our model
+
+      optim.output <- optimx(par           = x0,
+                             fn             = ParticleFilterMA1_Res,
+                             data           = X,
+                             ARMAorder      = ARMAorder,
+                             ParticleNumber = ParticleNumber,
+                             CountDist      = CountDist,
+                             epsilon        = epsilon,
+                             lower          = LB,
+                             upper          = UB,
+                             hessian        = TRUE,
+                             method         = "L-BFGS-B")
+
+      # save estimates, loglik value and diagonal hessian
+      ParmEst[nfit*(k-1)+j,]  = c(optim.output$p1,optim.output$p2,optim.output$p3)
+      loglik[nfit*(k-1) +j]   = optim.output$value
+      convcode[nfit*(k-1) +j] = optim.output$convcode
+      kkt1[nfit*(k-1) +j]     = optim.output$kkt1
+      kkt2[nfit*(k-1) +j]     = optim.output$kkt2
+
+      # compute hessian
+      H = gHgen(par            = ParmEst[nfit*(k-1)+j,],
+                fn             = ParticleFilterMA1_Res,
+                data           = X,
+                ARMAorder      = ARMAorder,
+                CountDist      = CountDist,
+                ParticleNumber = ParticleNumber,
+                epsilon        = epsilon
+      )
+
+      if(H$hessOK){
+        se[nfit*(k-1)+j,]   =  sqrt(abs(diag(solve(H$Hn))))
+        }
     }
   }
 

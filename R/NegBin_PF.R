@@ -49,7 +49,7 @@ NegBin_PF = function(trueParam, p, q, LB, UB, n, nsim, Particles, epsilon,  no_c
     set.seed(r)
     l[[r]] = sim_negbin(n, ARMAmodel, MargParm[1], MargParm[2] )
     if(!useTrueInit){
-      initParam[[r]] = ComputeInitNegBinMA(l[[r]],n,nHC)
+      initParam[[r]] = ComputeInitNegBinMA(l[[r]],n,nHC, LB, UB)
     }else{
       initParam[[r]] = trueParam
     }
@@ -99,3 +99,30 @@ NegBin_PF = function(trueParam, p, q, LB, UB, n, nsim, Particles, epsilon,  no_c
 
   return(df)
 }
+
+# X = l[[1]]
+# ParticleNumber = Particles
+#
+# optim.output<- DEoptim::DEoptim(fn             = likSISRMA1Old,
+#                                 lower          = LB,
+#                                 upper          = UB,
+#                                 data           = X,
+#                                 ARMAorder      = ARMAorder,
+#                                 ParticleNumber = ParticleNumber,
+#                                 CountDist      = CountDist,
+#                                 epsilon        = epsilon,
+#                                 control        = DEoptim::DEoptim.control(trace = 10, itermax = 200, steptol = 50, reltol = 1e-5))
+#
+#
+# optim.outpu2t<- DEoptim::DEoptim(fn             = likSISRMA1,
+#                                 lower          = LB,
+#                                 upper          = UB,
+#                                 data           = X,
+#                                 ARMAorder      = ARMAorder,
+#                                 ParticleNumber = ParticleNumber,
+#                                 CountDist      = CountDist,
+#                                 epsilon        = epsilon,
+#                                 control        = DEoptim::DEoptim.control(trace = 10, itermax = 200, steptol = 50, reltol = 1e-5))
+
+
+

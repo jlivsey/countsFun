@@ -480,7 +480,7 @@ LinkCoef_Reg2 = function(r, p, N, nHC){
 
   # compute Hermite coefficients from relation (21)
   g1 = HermCoefNegBin(unique(r)[1], p,N[1], nHC)
-  g2 = HermCoefNegBin(unique(r)[1], p,N[2], nHC)
+  g2 = HermCoefNegBin(unique(r)[2], p,N[2], nHC)
   HC = cbind(g1, g2)
 
   # Compute the products g1^2, g1*g2 and g2^2 of the HCs
@@ -681,7 +681,7 @@ if(Model){
   # save estimates, loglik and standard errors
   ParmEst[,1:nparms]   = optim.output$par
   loglik               = optim.output$value
-  #se[,1:nparms]        = sqrt(abs(diag(solve(optim.output$hessian))))
+  se[,1:nparms]        = sqrt(abs(diag(solve(optim.output$hessian))))
 
   All      = cbind(ParmEst, se, loglik)
   return(All)
@@ -691,7 +691,7 @@ if(Model){
 
 
 #---------initial estimates via method of moments and reversion
-ComputeInitNegBinMA = function(x,n,nHC){
+ComputeInitNegBinMA = function(x,n,nHC,LB,UB){
   #---------------------------------#
   # Purpose: Method of Moment Initial estimates for negbin MA(1)
   #
@@ -710,7 +710,7 @@ ComputeInitNegBinMA = function(x,n,nHC){
   pEst = 1 - xbar/sSquare
 
   # compute thetaEst using reversion as in IYW
-  initParms = ComputeInitNegBinMAterm(x, rEst, pEst, n, nHC)
+  initParms = ComputeInitNegBinMAterm(x, rEst, pEst, n, nHC,LB,UB)
 
   return(initParms)
 
@@ -724,7 +724,7 @@ link_coefs <- function(g_coefs, gamx0){
 }
 
 #--------obtain initial estimate for MA term using acf and reversion
-ComputeInitNegBinMAterm = function(x, rEst, pEst, N, nHC){
+ComputeInitNegBinMAterm = function(x, rEst, pEst, N, nHC, LB, UB){
 
   # compute Hermite coefficients
   g.coefs  = HermCoefNegBin(rEst, pEst, N, nHC)
@@ -743,10 +743,16 @@ ComputeInitNegBinMAterm = function(x, rEst, pEst, N, nHC){
 
   # compute gamma Z thru reversion
   gam.z <- power_series(gam.x[,,1], inv.link.coefs)
-  gam.z = gam.z/gam.z[1]
+  #gam.z = gam.z/gam.z[1]
 
   thetaEst = gam.z[2]
+
+  # correct if I am outside the boundaries
+  if(thetaEst<LB[3]){thetaEst = 1.1*LB[3]}
+  if(thetaEst>UB[3]){thetaEst = 0.9*UB[3]}
+
   InitEstimates = c(rEst,pEst,thetaEst)
   return(InitEstimates)
 }
+
 
