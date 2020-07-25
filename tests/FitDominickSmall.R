@@ -91,29 +91,26 @@ ARMAorder = c(3,0)
 CountDist = "Generalized Poisson"
 ParticleNumber  = 100
 epsilon = 0.5
+OptMethod = "bobyqa"
 
+#- fit via GL
 tic()
-GaussLogLikGP_Reg(theta, MOVE, Regressor, ARMAorder, 300, nHC)
+mod4 = FitGaussianLikGP_Reg(theta, MOVE, Regressor, LB, UB, ARMAorder, 400, nHC, OptMethod)
 toc()
 
-
-tic()
-mod4 = FitGaussianLikGP_Reg(theta, MOVE, Regressor, LB, UB, ARMAorder, 400, nHC)
-toc()
-
-
+#- fit via PF
 tic()
 mod5 = FitMultiplePFResReg(theta, MOVE, Regressor,CountDist, ParticleNumber, LB, UB, ARMAorder, epsilon)
 toc()
 
 
 
-optim.output4 <- optim(par       = theta,
+optim.output4 <- optimx(par       = theta,
                       fn        = GaussLogLikGP_Reg,
                       data      = MOVE,
                       Regressor = Regressor,
                       ARMAorder = ARMAorder,
-                      MaxCdf    = 100,
+                      MaxCdf    = 300,
                       nHC       = nHC,
                       hessian   = TRUE,
                       lower     = LB,
@@ -156,7 +153,7 @@ toc()
 CountDist = "Negative Binomial"
 theta = c(2, 1, 0.5, -0.3,0.2,0.1)
 tic()
-mod3 = FitMultiplePFResReg(theta, MOVE, Regressor,CountDist, ParticleNumber, LB, UB, ARMAorder, epsilon)
+mod3 = FitMultiplePFResReg(theta, MOVE, Regressor,CountDist, ParticleNumber, LB, UB, ARMAorder, 0.5)
 toc()
 #==========================================================================#
 
@@ -164,7 +161,7 @@ toc()
 
 
 
-optim.output2 <- optim(par       = theta,
+optim.output2 <- optimx(par       = theta,
                        fn        = GaussLogLikNB_Reg,
                        data      = MOVE,
                        Regressor = Regressor,
@@ -189,7 +186,7 @@ optim.output <- optimx(par            = theta,
                        ARMAorder      = ARMAorder,
                        ParticleNumber = ParticleNumber,
                        CountDist      = CountDist,
-                       epsilon        = 0.5,
+                       epsilon        = epsilon,
                        lower          = LB,
                        upper          = UB,
                        hessian        = TRUE,

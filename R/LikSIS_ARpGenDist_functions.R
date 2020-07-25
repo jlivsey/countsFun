@@ -161,7 +161,7 @@ ParticleFilterRes = function(theta, data, ARMAorder, ParticleNumber, CountDist, 
     wgh = matrix(0,T1,N)        # to collect all particle weights
 
     # allocate memory for zprev
-    ZprevAll = matrix(0,ARorder,N)
+    ZprevAll = matrix(0,ARMAorder[1],N)
 
     # Compute integral limits
     a = rep( qnorm(mycdf(xt[1]-1,t(MargParms)),0,1), N)
@@ -394,22 +394,14 @@ ParticleFilterRes_Reg = function(theta, data, Regressor, ARMAorder, ParticleNumb
 
 
   # retrieve ARMA parameters
-  if(ARMAorder[1]>0){
-    AR = theta[(nparms-ARMAorder[1]+1):(nMargParms + ARMAorder[1])  ]
-  }else{
-    AR = NULL
-  }
+  AR = NULL
+  if(ARMAorder[1]>0) AR = theta[(nMargParms+1):(nMargParms + ARMAorder[1])]
 
-  if(ARMAorder[2]>0){
-    MA = theta[ (length(theta) - ARMAorder[2]) : length(theta)]
-  }else{
-    MA = NULL
-  }
+  MA = NULL
+  if(ARMAorder[2]>0) MA = theta[ (nMargParms+ARMAorder[1]+1) : (nMargParms + ARMAorder[1] + ARMAorder[2]) ]
 
-  # retrieve AR order
-  ARorder = ARMAorder[1]
 
-  if (prod(abs(polyroot(c(1,-AR))) > 1)){ # check if the ar model is causal
+  if (checkPoly(AR,MA)[1]=="Causal" && checkPoly(AR,MA)[2]=="Invertible"){
 
     xt = data
     T1 = length(xt)
@@ -418,7 +410,7 @@ ParticleFilterRes_Reg = function(theta, data, Regressor, ARMAorder, ParticleNumb
     wgh = matrix(0,T1,N)        # to collect all particle weights
 
     # allocate memory for zprev
-    ZprevAll = matrix(0,ARorder,N)
+    ZprevAll = matrix(0,ARMAorder[1],N)
 
     if(nreg==0){
       # Compute integral limits
@@ -445,8 +437,8 @@ ParticleFilterRes_Reg = function(theta, data, Regressor, ARMAorder, ParticleNumb
     #t0 = proc.time()
     # First p steps:
 
-    if (ARorder>=2){
-      for (t in 2:ARorder){
+    if (ARMAorder[1]>=2){
+      for (t in 2:ARMAorder[1]){
 
         # best linear predictor is just Phi1*lag(Z,1)+...+phiP*lag(Z,p)
         if (t==2) {
@@ -486,9 +478,9 @@ ParticleFilterRes_Reg = function(theta, data, Regressor, ARMAorder, ParticleNumb
 
 
     # From p to T1 I dont need to estimate phi anymore
-    for (t in (ARorder+1):T1){
+    for (t in (ARMAorder[1]+1):T1){
       # compute phi_1*Z_{t-1} + phi_2*Z_{t-2} for all particles
-      if(ARorder>1){# colsums doesnt work for 1-dimensional matrix
+      if(ARMAorder[1]>1){# colsums doesnt work for 1-dimensional matrix
         ZpreviousTimesPhi = colSums(ZprevAll*AR)
       }else{
         ZpreviousTimesPhi=ZprevAll*AR
@@ -538,8 +530,8 @@ ParticleFilterRes_Reg = function(theta, data, Regressor, ARMAorder, ParticleNumb
 
 
       # save particles
-      if (ARorder>1){
-        ZprevAll = rbind(znew, ZprevAll[1:(ARorder-1),])
+      if (ARMAorder[1]>1){
+        ZprevAll = rbind(znew, ZprevAll[1:(ARMAorder[1]-1),])
       }else {
         ZprevAll[1,]=znew
       }
@@ -1177,7 +1169,7 @@ FitMultiplePFRes = function(x0, X, CountDist, Particles, LB, UB, ARMAorder, epsi
 
 
 #---------new wrapper to fit PF likelihood---------#
-FitMultiplePFResReg = function(x0, X,Regressor, CountDist, Particles, LB, UB, ARMAorder, epsilon){
+FitMultiplePFResReg = function(x0, X, Regressor, CountDist, Particles, LB, UB, ARMAorder, epsilon, MaxCdf, nHC, Model, OptMethod){
   #====================================================================================#
   # PURPOSE       Fit the Particle Filter log-likelihood. This function maximizes
   #               the PF likelihood, nfit manys times for nparts many choices of
@@ -1241,7 +1233,7 @@ FitMultiplePFResReg = function(x0, X,Regressor, CountDist, Particles, LB, UB, AR
                              lower          = LB,
                              upper          = UB,
                              hessian        = TRUE,
-                             method         = "bobyqa")
+                             method         = OptMethod)
 
       # save estimates, loglik value and diagonal hessian
       ParmEst[nfit*(k-1)+j,]  = as.numeric(optim.output[1:nparms])
@@ -1269,13 +1261,20 @@ FitMultiplePFResReg = function(x0, X,Regressor, CountDist, Particles, LB, UB, AR
 
     }
   }
+  # Compute model selection criteria
+  Criteria = ComputeCriteria(loglik, nparms, n, Particles)
 
-  All = cbind(ParmEst, se, loglik, convcode, kkt1, kkt2)
+
+  # get the names of the final output
+  parmnames = colnames(optim.output)
+  mynames = c(parmnames[1:nparms],paste("se", parmnames[1:nparms], sep="_"), "loglik", "AIC", "BIC","AICc", "status", "kkt1", "kkt2")
+
+
+  All = matrix(c(ParmEst, se, loglik, Criteria, convcode, kkt1, kkt2),nrow=1)
+  colnames(All) = mynames
+
   return(All)
 }
-
-
-
 
 #---------new wrapper to fit PF likelihood---------#
 FitMultiplePFMA1Res = function(x0, X, CountDist, Particles, LB, UB, ARMAorder, epsilon){
