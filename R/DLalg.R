@@ -11,7 +11,7 @@
 #' @export
 #'
 #' @examples
-DLalg <- function(x, g, lam){
+DLalg <- function(x, g, mean.x){
   # parameters known from inputs
   n <- length(x)
 
@@ -34,11 +34,11 @@ DLalg <- function(x, g, lam){
   xhat <- rep(NA, n+1) #storage
   xhat[1] <- 0
   for(m in 1:n){
-    xhat[m+1] <- sum(phi[m, 1:m] * (x[m:1] - lam))
+    xhat[m+1] <- sum(phi[m, 1:m] * (x[m:1] - mean.x))
   }
 
   # residuals
-  e <- (x - lam) - xhat[1:n]
+  e <- (x - mean.x) - xhat[1:n]
 
   return(list(
     phi  = phi,
