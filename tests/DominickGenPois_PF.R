@@ -11,7 +11,7 @@ library(countsFun)
 library(tictoc)
 library(optimx)
 library(FitAR)
-library(itsmr)
+
 
 # load the data
 mysales = read.csv("/Users/stef/Desktop/countsFun/data/MySelectedSeries.csv")
@@ -28,16 +28,13 @@ Regressor = cbind(rep(1,length(Buy)),Buy)
 
 #other parameters
 OptMethod = "bobyqa"
-CountDist = "Negative Binomial"
+CountDist = "Generalized Poisson"
 epsilon   = 0.5
 Particles = 400
 MaxCdf    = NULL
 nHC       = NULL
 Model     = NULL
-ARMAorder = c(0,1)
-theta     = c(2, 1, 0.5, -0.3)
-ParticleNumber = 10
-data = MOVE
+
 
 #===================================   AR(1)  ========================================================================================#
 ARMAorder = c(1,0)
@@ -123,17 +120,15 @@ mod0 = FitMultiplePFResReg(theta, MOVE, Regressor, CountDist, Particles, LB, UB,
 toc()
 #====================================================================================================================================#
 
-NegBinResultsPF = list(mod0,mod1,mod2,mod3,mod4,mod5,mod6)
+GenPoisResultsPF = list(mod0,mod1,mod2,mod3,mod4,mod5,mod6)
 
-
-
-Models = c("WN", "AR(1)","AR(2)","AR(3)","MA(1)","MA(2)","MA(3)")
+Models = c("WN","AR(1)","AR(2)","AR(3)","MA(1)","MA(2)","MA(3)")
 AIC = rbind(mod0[,"AIC"], mod1[,"AIC"],mod2[,"AIC"],mod3[,"AIC"],mod4[,"AIC"],mod5[,"AIC"],mod6[,"AIC"])
 BIC = rbind(mod0[,"BIC"], mod1[,"BIC"],mod2[,"BIC"],mod3[,"BIC"],mod4[,"BIC"],mod5[,"BIC"],mod6[,"BIC"])
 AICc = rbind(mod0[,"AICc"], mod1[,"AICc"],mod2[,"AICc"],mod3[,"AICc"],mod4[,"AICc"],mod5[,"AICc"],mod6[,"AICc"])
 All = data.frame(Models, AIC, BIC, AICc)
 
-save.image(file = "C:/Users/Stef/Desktop/countsFun/tests/NegBin_PF.RData")
+save.image(file = "C:/Users/Stef/Desktop/countsFun/tests/GenPois_PF.RData")
 
 
 # Neg Binomial exact GLM

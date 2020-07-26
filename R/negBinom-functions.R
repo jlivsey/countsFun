@@ -795,7 +795,7 @@ ComputeCriteria = function(loglik, nparms, n, Particles){
 
 
 #---------initial estimates via method of moments and reversion
-ComputeInitNegBinMA = function(x,n,nHC,LB,UB){
+ComputeInitNegBinMA = function(x,n,nHC,LB,UB, mycdf){
   #---------------------------------#
   # Purpose: Method of Moment Initial estimates for negbin MA(1)
   #
@@ -814,7 +814,7 @@ ComputeInitNegBinMA = function(x,n,nHC,LB,UB){
   pEst = 1 - xbar/sSquare
 
   # compute thetaEst using reversion as in IYW
-  initParms = ComputeInitNegBinMAterm(x, rEst, pEst, n, nHC,LB,UB)
+  initParms = ComputeInitNegBinMAterm(x, rEst, pEst, n, nHC,LB,UB, mycdf)
 
   return(initParms)
 
@@ -828,10 +828,10 @@ link_coefs <- function(g_coefs, gamx0){
 }
 
 #--------obtain initial estimate for MA term using acf and reversion
-ComputeInitNegBinMAterm = function(x, rEst, pEst, N, nHC, LB, UB){
+ComputeInitNegBinMAterm = function(x, rEst, pEst, N, nHC, LB, UB, mycdf){
 
   # compute Hermite coefficients
-  g.coefs  = HermCoefNegBin(rEst, pEst, N, nHC)
+  g.coefs  = HermCoefNegBin(rEst, pEst, N, nHC, mycdf)
 
   # Compute acf of count series at lag 0
   NegBinVar = rEst*pEst/(1-pEst)^2

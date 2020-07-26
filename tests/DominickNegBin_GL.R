@@ -165,7 +165,7 @@ AIC = rbind(mod0[,"AIC"],mod1[,"AIC"],mod2[,"AIC"],mod3[,"AIC"],mod4[,"AIC"],mod
 BIC = rbind(mod0[,"BIC"],mod1[,"BIC"],mod2[,"BIC"],mod3[,"BIC"],mod4[,"BIC"],mod5[,"BIC"],mod6[,"BIC"],mod7[,"BIC"])
 AICc = rbind(mod0[,"AICc"],mod1[,"AICc"],mod2[,"AICc"],mod3[,"AICc"],mod4[,"AICc"],mod5[,"AICc"],mod6[,"AICc"],mod7[,"AICc"])
 All = data.frame(Models, AIC, BIC, AICc)
-save.image(file = "C:/Users/Stef/Desktop/countsFun/data/NegBin_GL.RData")
+save.image(file = "C:/Users/Stef/Desktop/countsFun/tests/NegBin_GL.RData")
 
 # optim.output4 <- optimx(par       = theta,
 #                         fn        = GaussLogLikNB_Reg,

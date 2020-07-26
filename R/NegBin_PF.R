@@ -37,6 +37,15 @@ NegBin_PF = function(trueParam, p, q, LB, UB, n, nsim, Particles, epsilon,  no_c
   CountDist = "Negative Binomial"
   ARMAorder = c(p,q)
 
+  # retrieve marginal cdf
+  mycdf = switch(CountDist,
+                 "Poisson"             = ppois,
+                 "Negative Binomial"   = function(x, theta1 ,theta2){ pnbinom (x, theta1, 1-theta2)},
+                 "Mixed Poisson"       = function(x, theta){ pmixpois(x, p = theta[1], lam1 = theta[2], lam2 = theta[3])},
+                 "Generalized Poisson" = pGenPoisson,
+                 "Binomial"            = pbinom
+  )
+
     # list with true ARMA parameters
   ARMAmodel = list(NULL,NULL)
   if(p>0){ARMAmodel[[1]] = trueParam[3:(2+p)]}
@@ -49,7 +58,7 @@ NegBin_PF = function(trueParam, p, q, LB, UB, n, nsim, Particles, epsilon,  no_c
     set.seed(r)
     l[[r]] = sim_negbin(n, ARMAmodel, MargParm[1], MargParm[2] )
     if(!useTrueInit){
-      initParam[[r]] = ComputeInitNegBinMA(l[[r]],n,nHC, LB, UB)
+      initParam[[r]] = ComputeInitNegBinMA(l[[r]],n,nHC, LB, UB, mycdf)
     }else{
       initParam[[r]] = trueParam
     }
