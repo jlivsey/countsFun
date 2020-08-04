@@ -474,3 +474,124 @@ EvalInvQuadForm = function(A, v, DataMean ){
   return(logLikComponents)
 }
 
+
+#---------wrapper to fit Guassian Likelihood function with a dummy Regressor---------#
+FitGaussianLogLik = function(theta, xt, Regressor, mod, LB, UB, OptMethod){
+  #====================================================================================#
+  # PURPOSE       Fit the Gaussian log-likelihood for NegBin series
+  #
+  # INPUT
+  #   x0          initial parameters
+  #   X           count series
+  #   LB          parameter lower bounds
+  #   UB          parameter upper bounds
+  #   ARMAorder   order of the udnerlying ARMA model
+  #   MaxCdf      cdf will be computed up to this number (for light tails cdf=1 fast)
+  #   nHC         number of HC to be computed
+  #   Model       =1 then r depends on t, p fixed, =0 p depends on t, r is fixed
+
+  #
+  # OUTPUT
+  #   All         parameter estimates, standard errors, likelihood value
+  #
+  # NOTES         I may comment out se in cases where maximum is achieved at the boundary
+  #
+  # Authors       Stefanos Kechagias, James Livsey, Vladas Pipiras
+  # Date          April 2020
+  # Version       3.6.3
+  #====================================================================================#
+  nparms  = length(theta)
+  n = length(xt)
+  # allocate memory to save parameter estimates, hessian values, and loglik values
+  ParmEst = matrix(0,nrow=1,ncol=nparms)
+  se =  matrix(NA,nrow=1,ncol=nparms)
+  loglik = rep(0,1)
+  convcode = rep(0,1)
+  kkt1 = rep(0,1)
+  kkt2 = rep(0,1)
+
+
+  optim.output <- optimx(par            = theta,
+                         fn             = GaussianLogLik,
+                         data           = xt,
+                         Regressor      = Regressor,
+                         mod            = mod,
+                         lower          = LB,
+                         upper          = UB,
+                         method         = OptMethod,
+                         hessian        = TRUE)
+
+  # save estimates, loglik value and diagonal hessian
+  ParmEst  = as.numeric(optim.output[1:nparms])
+  loglik   = optim.output$value
+  convcode = optim.output$convcode
+  kkt1     = optim.output$kkt1
+  kkt2     = optim.output$kkt2
+
+  # compute hessian
+  H = gHgen(par            = ParmEst,
+            fn             = GaussianLogLik,
+            data           = xt,
+            Regressor      = Regressor,
+            mod            = mod)
+
+  # get standard errors
+  if(H$hessOK){
+    se = sqrt(abs(diag(solve(H$Hn))))
+  }else{
+    se = rep(NA, nparms)
+  }
+
+
+  # Compute model selection criteria
+  Criteria = ComputeCriteria(loglik, nparms, n, mod$ParticleNumber)
+
+
+  # get the names of the final output
+  parmnames = colnames(optim.output)
+  mynames = c(parmnames[1:nparms],paste("se", parmnames[1:nparms], sep="_"), "loglik", "AIC", "BIC","AICc", "status", "kkt1", "kkt2")
+
+
+
+  All = matrix(c(ParmEst, se, loglik, Criteria, convcode, kkt1, kkt2),nrow=1)
+  colnames(All) = mynames
+  return(All)
+
+}
+
+
+
+#---------Compute AIC, BIC, AICc
+ComputeCriteria = function(loglik, nparms, n, Particles){
+  #---------------------------------#
+  # Purpose:     Compute AIC, BIC, AICc for our models
+  #
+  # Inputs:
+  #  loglik      log likelihood value at optimum
+  #  nparms      number of parametersin the model
+  #       n      sample size
+  #
+  # NOTES:       The Gaussian likelihood we are minimizing has the form:
+  #              l0 = 0.5*logdet(G) + 0.5*X'*inv(G)*X. We will need to
+  #              bring this tothe classic form before we compute the
+  #              criteria (see log of lrealtion (8.6.1) in Brockwell and Davis)
+  #
+  #              No correction is necessary in the PF case
+  #
+  # Authors      Stefanos Kechagias, James Livsey, Vladas Pipiras
+  # Date         July 2020
+  # Version      3.6.3
+  #---------------------------------#
+
+  if(!is.null(Particles)){
+    l1 = -loglik
+  }else{
+    l1 = -loglik  - n/2*log(2*pi)
+  }
+
+  AIC = 2*nparms - 2*l1
+  BIC = log(n)*nparms - 2*l1
+  AICc = AIC + (2*nparms^2 + 2*nparms)/(n-nparms-1)
+
+  AllCriteria = c(AIC, BIC, AICc)
+}

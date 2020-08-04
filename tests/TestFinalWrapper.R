@@ -61,10 +61,13 @@ ParticleFilter_Res(theta, data, Regressor, mod)
 ARMAorder = c(2,0)
 Regressor = NULL
 CountDist = "Generalized Poisson"
-mod = ModelScheme(data, Regressor, ARMAorder, CountDist, MaxCdf, nHC,ParticleNumber, epsilon )
+mod = ModelScheme(data, Regressor, ARMAorder, CountDist, MaxCdf, nHC, ParticleNumber, epsilon )
 theta     = c(2,0.5, 0.5, -0.3)
+LB = c(-100, -100, 0.001, -Inf, -Inf)
+UB = c(100, 100, Inf, Inf, Inf)
 GaussianLogLik(theta, data, Regressor, mod)
-
+OptMethod = "bobyqa"
+FitGaussianLogLik(theta, data, Regressor, mod, LB, UB, OptMethod)
 
 
 # test GL with regressor + MA

@@ -207,56 +207,6 @@ CovarPoissonAR = function(n,lam,phi){
   return(GAMMA)
 }
 
-# # count acvf for each h
-# CountACVF_h = function(h, myacf, g){
-#   #=======================================================================#
-#   # PURPOSE    Compute the autocovariance matrix of the count series.
-#   #            See relation (9) in https://arxiv.org/pdf/1811.00203.pdf
-#   # INPUT
-#   #   h        acvf lag
-#   #   myacf    autocorrelation of Gaussian series: rho_z
-#   #   g        Hermitte Coefficients
-#   # Output
-#   #   gamma_x  count acvf
-#   #
-#   # Notes:     See also CountACVF function--vectorized version of CountACVF_h
-#   #
-#   # Authors    Stefanos Kechagias, James Livsey
-#   # Date       January 2020
-#   # Version    3.6.1
-#   #=======================================================================#
-#
-#   k = length(g) #check me
-#   gamma_x = sum(g^2 *  factorial(1:k) * (myacf[h+1])^(1:k))
-#   return(gamma_x)
-#
-#   }
-#
-# # vectorized count acvf
-# CountACVF <- Vectorize(CountACVF_h, vectorize.args = "h")
-#
-# # fnc to evaluate Gaussial lik components
-# EvalInvQuadForm = function(A, v, DataMean ){
-#   #=======================================================================#
-#   # Evaluate quadrative form v`*inv(A)*v where
-#   # A is symmetric positive definite
-#   # Want   QuadForm = v` * inv(A) * v = v` * w  where A*w = v
-#   # ==> (U`U)*w = v             Cholesky decomp of A
-#   # ==>  First solve U` z = v   for z,
-#   # then solve   U w = z   for w */
-#   #=======================================================================#
-#
-#   U = chol(A)
-#   z  =  forwardsolve(t(U), v - DataMean)
-#   w  = backsolve(U,z)
-#   QuadForm = t(v-DataMean)%*%w
-#
-#   logdetA = 2*sum(log(diag(U)))
-#
-#   logLikComponents = c(logdetA, QuadForm)
-#   return(logLikComponents)
-# }
-
 # Poisson AR(1) Gaussian Lik
 GaussLogLik = function(theta, data){
   #-------------------------------------------------------------------------#
@@ -379,4 +329,58 @@ GaussLogLik_fixedPhi = function(lam, phi_fixed, data){
   return(out)
 }
 
+
+
+
+
+
+# # count acvf for each h
+# CountACVF_h = function(h, myacf, g){
+#   #=======================================================================#
+#   # PURPOSE    Compute the autocovariance matrix of the count series.
+#   #            See relation (9) in https://arxiv.org/pdf/1811.00203.pdf
+#   # INPUT
+#   #   h        acvf lag
+#   #   myacf    autocorrelation of Gaussian series: rho_z
+#   #   g        Hermitte Coefficients
+#   # Output
+#   #   gamma_x  count acvf
+#   #
+#   # Notes:     See also CountACVF function--vectorized version of CountACVF_h
+#   #
+#   # Authors    Stefanos Kechagias, James Livsey
+#   # Date       January 2020
+#   # Version    3.6.1
+#   #=======================================================================#
+#
+#   k = length(g) #check me
+#   gamma_x = sum(g^2 *  factorial(1:k) * (myacf[h+1])^(1:k))
+#   return(gamma_x)
+#
+#   }
+#
+# # vectorized count acvf
+# CountACVF <- Vectorize(CountACVF_h, vectorize.args = "h")
+#
+# # fnc to evaluate Gaussial lik components
+# EvalInvQuadForm = function(A, v, DataMean ){
+#   #=======================================================================#
+#   # Evaluate quadrative form v`*inv(A)*v where
+#   # A is symmetric positive definite
+#   # Want   QuadForm = v` * inv(A) * v = v` * w  where A*w = v
+#   # ==> (U`U)*w = v             Cholesky decomp of A
+#   # ==>  First solve U` z = v   for z,
+#   # then solve   U w = z   for w */
+#   #=======================================================================#
+#
+#   U = chol(A)
+#   z  =  forwardsolve(t(U), v - DataMean)
+#   w  = backsolve(U,z)
+#   QuadForm = t(v-DataMean)%*%w
+#
+#   logdetA = 2*sum(log(diag(U)))
+#
+#   logLikComponents = c(logdetA, QuadForm)
+#   return(logLikComponents)
+# }
 
