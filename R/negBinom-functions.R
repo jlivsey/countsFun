@@ -25,7 +25,7 @@ sim_negbin = function(n, ARMAmodel, r,p){
 
 
 #---------Hermitte Coefficients for all k---------#
-HermCoefNegBin <- function(r, p, N, nHC, mycdf){
+HermCoefNegBin_Reg <- function(MargParms, ConstMargParm, DynamMargParm, N, nHC, mycdf, nreg){
   #====================================================================================#
   # PURPOSE    Compute all Hermite Coefficients. See relation (21) in
   #            https://arxiv.org/pdf/1811.00203.pdf
@@ -47,7 +47,7 @@ HermCoefNegBin <- function(r, p, N, nHC, mycdf){
   h = 1:nHC #check me
   HC = rep(NA, length(h)) # storage
   for(i in h) {
-    HC[i] <- HermCoefNegBin_k(r, p , k = i, N, mycdf)
+    HC[i] <- HermCoefNegBin_Reg_k(MargParms, ConstMargParm, DynamMargParm , k = i, N, mycdf, nreg)
   }
 
   return(HC)
@@ -56,7 +56,7 @@ HermCoefNegBin <- function(r, p, N, nHC, mycdf){
 
 
 #---------Hermitte Coefficients for one k---------#
-HermCoefNegBin_k <- function(r, p, k, N, mycdf){
+HermCoefNegBin_Reg_k <- function(MargParms, ConstMargParm, DynamMargParm, k, N, mycdf, nreg){
   #====================================================================================#
   # PURPOSE    Compute kth Hermite Coefficient. See relation (21) in
   #            https://arxiv.org/pdf/1811.00203.pdf
@@ -86,9 +86,11 @@ HermCoefNegBin_k <- function(r, p, k, N, mycdf){
   # N = max(sapply(unique(p),function(x)which(round(pnbinom(1:1000, r,x), 7) == 1)[1]))
 
   # compute terms in the sum of relation (21) in
-  terms <- exp((-qnorm(mycdf(0:max(N), r,p))^2)/2) *
-    her(qnorm(mycdf(0:max(N), r,p)))
-
+  if(nreg>0){
+    terms <- exp((-qnorm(mycdf(0:max(N), ConstMargParm,DynamMargParm))^2)/2) * her(qnorm(mycdf(0:max(N), ConstMargParm,DynamMargParm)))
+  }else{
+    terms <- exp((-qnorm(mycdf(0:max(N), MargParms))^2)/2) * her(qnorm(mycdf(0:max(N), MargParms)))
+  }
   terms[is.nan(terms)]=0
 
   # take the sum of all terms
@@ -127,163 +129,8 @@ CountACVF_t1t2 = function(t1,t2, myacf, g){
 CountACVF_2 <- Vectorize(CountACVF_t1t2, vectorize.args = c("t1", "t2"))
 
 
-#---------Covariance matrix---------#
-CovarNegBin = function(n, r, p, AR, MA, N, nHC){
-  #====================================================================================#
-  # PURPOSE     Compute the covariance matrix of a NegBin series.
-  #
-  # INPUT
-  #   r,p       Marginal parameters
-  #   AR,MA     ARMA parameters
-  #   n         size of the matrix
-  #   N         truncation for relation (21)
-  #   nHC       number of Hermitte coefficents to be computed
-  #
-  # Output
-  #   GAMMA     covariance matrix ofcount series
-  #
-  # Authors     Stefanos Kechagias, James Livsey, Vladas Pipiras
-  # Date        April 2020
-  # Version     3.6.3
-  #====================================================================================#
-
-  # Hermite coeficients--relation (21) in https://arxiv.org/pdf/1811.00203.pdf
-  HC = HermCoefNegBin(r,p,N, nHC)
-
-  # ARMA autocorrelation function
-  if(!length(AR)){arma.acf <- ARMAacf(ma = MA, lag.max = n)}
-  if(!length(MA)){arma.acf <- ARMAacf(ar = AR, lag.max = n)}
-  if(length(AR) & length(MA)){arma.acf <- ARMAacf(ar = AR, ma = MA, lag.max = n)}
-
-  # Autocovariance of count series--relation (9) in https://arxiv.org/pdf/1811.00203.pdf
-  gamma_x = CountACVF(h = 0:(n-1), myacf = arma.acf, g = HC)
-
-  # Final toeplitz covariance matrix--relation (56) in https://arxiv.org/pdf/1811.00203.pdf
-  GAMMA = toeplitz(gamma_x)
-  return(GAMMA)
-}
-
-
-#---------Gaussian Likelihood function---------#
-GaussLogLikNB = function(theta, data, ARMAorder, MaxCdf, nHC){
-  #====================================================================================#
-  # PURPOSE      Compute Gaussian log-likelihood for NegBin series
-  #
-  # INPUT
-  #   theta      parameter vector containing the marginal and ARMA parameters
-  #   data       count series
-  #   ARMAorder  ordeer of ARMA model
-  #   MaxCdf     cdf will be computed up to this number (for light tails cdf=1 fast)
-  #   nHC        number of HC to be computed
-  #
-  #
-  # Output
-  #   loglik     Gaussian log-likelihood
-  #
-  # Authors      Stefanos Kechagias, James Livsey, Vladas Pipiras
-  # Date         April 2020
-  # Version      3.6.3
-  #====================================================================================#
-
-  # retrieve parameters and sample size
-  r = theta[1]
-  p = theta[2]
-  nparms  = length(theta)
-  nMargParms = nparms - sum(ARMAorder)
-  if(ARMAorder[1]>0){
-    AR = theta[(nparms-ARMAorder[1]+1):(nMargParms + ARMAorder[1])  ]
-  }else{
-    AR = NULL
-  }
-
-  if(ARMAorder[2]>0){
-    MA = theta[ (nMargParms+ARMAorder[1]+1) : length(theta)]
-  }else{
-    MA = NULL
-  }
-  n = length(data)
-
-  # compute truncation of relation (21)
-  N <- which(round(pnbinom(1:MaxCdf, r,1-p), 7) == 1)[1]
-  # if(length(N)==0 |is.na(N) ){
-  #   cat(sprintf("The max cdf value is %f and N=%f", max(round(pnbinom(1:MaxCdf, r,1-p), 7)),N))
-  #   stop("Haven't reached upper limit for cdf")
-  # }
-  if(length(N)==0 |is.na(N) ){
-    N =MaxCdf
-  }
-
-  #Select the mean value used to demean--sample or true?
-  MeanValue = r*p/(1-p)
-
-  # Compute the covariance matrix--relation (56) in https://arxiv.org/pdf/1811.00203.pdf
-  GAMMA = CovarNegBin(n, r, p, AR, MA, N, nHC)
-
-  # Compute the logdet and the quadratic part
-  logLikComponents = EvalInvQuadForm(GAMMA, as.numeric(data), MeanValue)
-
-  # final loglikelihood value
-  out = 0.5*logLikComponents[1] + 0.5*logLikComponents[2]
-
-  # the following will match the above if you subtract N/2*log(2*pi) and don't multiply with 2
-  # out = -2*dmvnorm(as.numeric(data), rep(lam, n), GAMMA, log = TRUE)
-  return(out)
-}
-
-
-#---------wrapper to fit Gaussian Likelihood function---------#
-FitGaussianLikNB = function(x0, X, LB, UB, ARMAorder, MaxCdf, nHC){
-  #====================================================================================#
-  # PURPOSE       Fit the Gaussian log-likelihood for NegBin series
-  #
-  # INPUT
-  #   x0          initial parameters
-  #   X           count series
-  #   LB          parameter lower bounds
-  #   UB          parameter upper bounds
-  #   ARMAorder   order of the udnerlying ARMA model
-  #   MaxCdf      cdf will be computed up to this number (for light tails cdf=1 fast)
-  #   nHC         number of HC to be computed
-  #
-  # OUTPUT
-  #   All         parameter estimates, standard errors, likelihood value
-  #
-  # NOTES         I may comment out se in cases where maximum is achieved at the boundary
-  #
-  # Authors       Stefanos Kechagias, James Livsey, Vladas Pipiras
-  # Date          April 2020
-  # Version       3.6.3
-  #====================================================================================#
-  optim.output <- optim(par       = x0,
-                        fn        = GaussLogLikNB,
-                        data      = X,
-                        ARMAorder = ARMAorder,
-                        MaxCdf    = MaxCdf,
-                        nHC       = nHC,
-                        method    = "L-BFGS-B",
-                        hessian   = TRUE,
-                        lower     = LB,
-                        upper     = UB
-                        )
-
-  nparms  = length(x0)
-  ParmEst = matrix(0,nrow=1,ncol=nparms)
-  se      = matrix(NA,nrow=1,ncol=nparms)
-  loglik  = rep(0,1)
-
-  # save estimates, loglik and standard errors
-  ParmEst[,1:nparms]   = optim.output$par
-  loglik               = optim.output$value
-  #se[,1:nparms]        = sqrt(abs(diag(solve(optim.output$hessian))))
-
-  All      = cbind(ParmEst, se, loglik)
-  return(All)
-
-}
-
-
 #----------Link coefficients with one dummy Regressor---------#
-LinkCoef_Reg = function(r, p, N, nHC, mycdf){
+LinkCoef_Reg = function(ConstMargParm, DynamMargParm, N, nHC, mycdf,nreg){
   #====================================================================================#
   # PURPOSE    Compute the product  factorial(k)*g_{t1,k}*g_{t2,k} in relation (67) in
   #            https://arxiv.org/pdf/1811.00203.pdf when the regressor variable is only
@@ -305,14 +152,14 @@ LinkCoef_Reg = function(r, p, N, nHC, mycdf){
 
 
   # compute Hermite coefficients from relation (21)
-  g1 = HermCoefNegBin(r, unique(p)[1],N[1], nHC, mycdf)
-  g2 = HermCoefNegBin(r, unique(p)[2],N[2], nHC, mycdf)
+  g1 = HermCoefNegBin_Reg(MargParms = NULL, ConstMargParm, unique(DynamMargParm)[1],N[1], nHC, mycdf, nreg)
+  g2 = HermCoefNegBin_Reg(MargParms = NULL, ConstMargParm, unique(DynamMargParm)[2],N[2], nHC, mycdf, nreg)
   HC = cbind(g1, g2)
 
   # Compute the products g1^2, g1*g2 and g2^2 of the HCs
   HCprod = matrix(NA, nHC, 3)
-  for(i in 0:(length(unique(p))-1) ){
-    for(j in i: (length(unique(p))-1) ){
+  for(i in 0:(length(unique(DynamMargParm))-1) ){
+    for(j in i: (length(unique(DynamMargParm))-1) ){
       HCprod[,i+j+1] = HC[,i+1]*HC[,j+1]
     }
   }
@@ -322,7 +169,7 @@ LinkCoef_Reg = function(r, p, N, nHC, mycdf){
 
 
 #---------Covariance matrix with one dummy Regressor---------#
-CovarNegBin_Reg = function(n, r, p, AR, MA, N, nHC,mycdf){
+CovarNegBin_Reg = function(n, ConstMargParm, DynamMargParm, AR, MA, N, nHC,mycdf, nreg){
   #====================================================================================#
   # PURPOSE    Compute the covariance matrix of a NegBin series that
   #            includes one dummy variable as a regressor. Here p depends on each
@@ -348,8 +195,8 @@ CovarNegBin_Reg = function(n, r, p, AR, MA, N, nHC,mycdf){
 
 
   if(!length(AR) && !length(MA)){
-      All.arma = apply(as.matrix( c(1,rep(0,n-1))), 1, function(x)x^(1:nHC))
-    }
+    All.arma = apply(as.matrix( c(1,rep(0,n-1))), 1, function(x)x^(1:nHC))
+  }
   # Compute ARMA autocorrelation function
   if(!length(AR) && length(MA)){
     All.arma = apply(as.matrix(ARMAacf(ma = MA, lag.max = n)), 1,function(x)x^(1:nHC))
@@ -363,10 +210,10 @@ CovarNegBin_Reg = function(n, r, p, AR, MA, N, nHC,mycdf){
 
 
   # Compute the link coefficients l_k = factorial(k)*g_{t1,k}*g_{t2,k}
-  linkCoef = LinkCoef_Reg(r, p, N, nHC,mycdf)
+  linkCoef = LinkCoef_Reg(ConstMargParm, DynamMargParm, N, nHC,mycdf,nreg)
 
   # keep track of which indices each unique HC is located at
-  index = cbind(unique(p)[1]==p, unique(p)[2]==p)
+  index = cbind(unique(DynamMargParm)[1]==DynamMargParm, unique(DynamMargParm)[2]==DynamMargParm)
 
   # STEP 3: Implement relation 67
   k = 1:nHC
@@ -415,28 +262,98 @@ GaussLogLikNB_Reg = function(theta, data, Regressor, ARMAorder, MaxCdf, nHC, Cou
   # Version      3.6.3
   #====================================================================================#
 
-  # retrieve marginal cdf
-  mycdf = switch(CountDist,
-                 "Negative Binomial"   = function(x, ConstTheta, DynamTheta){ pnbinom (x, ConstTheta, 1-DynamTheta)},
-                 "Generalized Poisson" = function(x, ConstTheta, DynamTheta){ pGpois  (x, ConstTheta, DynamTheta)}
-  )
 
-  # retrieve parameters and sample size
+
+  # number of regressors assuming there is an intercept
+  nreg = ifelse(is.null(Regressor), 0,dim(Regressor)[2]-1)
+
+  # retrieve sample size
+  n = length(data)
+
+  # FIX ME: When I add the function in LGC the following can happen in LGC and pass here as arguments
+
+  # retrieve indices of marginal distribution parameters-the regressor is assumed to have an intercept
+  MargParmIndices = switch(CountDist,
+                           "Poisson"             = 1:(1+nreg),
+                           "Negative Binomial"   = 1:(2+nreg),
+                           "Mixed Poisson"       = 1:(3+nreg),
+                           "Generalized Poisson" = 1:(2+nreg),
+                           "Binomial"            = 1:(2+nreg))
+  if(nreg<1){
+    # retrieve marginal cdf
+    mycdf = switch(CountDist,
+                   "Poisson"             = ppois,
+                   "Negative Binomial"   = function(x, theta){ pnbinom (x, theta[1], 1-theta[2])},
+                   "Mixed Poisson"       = function(x, theta){ pmixpois(x, theta[1], theta[2], theta[3])},
+                   "Generalized Poisson" = pGpois,
+                   "Binomial"            = pbinom
+    )
+
+    # retrieve marginal pdf
+    mypdf = switch(CountDist,
+                   "Poisson"             = dpois,
+                   "Negative Binomial"   = function(x, theta){ dnbinom (x, theta[1], 1-theta[2]) },
+                   "Mixed Poisson"       = function(x, theta){ dmixpois(x, theta[1], theta[2], theta[3])},
+                   "Generalized Poisson" = dGpois,
+                   "Binomial"            = dbinom
+    )
+  }else{
+    # retrieve marginal cdf
+    mycdf = switch(CountDist,
+                   "Poisson"             = function(x, ConstMargParm, DynamMargParm){             ppois   (x, DynamMargParm)},
+                   "Negative Binomial"   = function(x, ConstMargParm, DynamMargParm){ pnbinom (x, ConstMargParm, 1-DynamMargParm)},
+                   "Generalized Poisson" = function(x, ConstMargParm, DynamMargParm){ pGpois  (x, ConstMargParm, DynamMargParm)}
+    )
+    # retrieve marginal pdf
+    mypdf = switch(CountDist,
+                   "Poisson"             = function(x, ConstMargParm, DynamMargParm){             dpois   (x, DynamMargParm)},
+                   "Negative Binomial"   = function(x, ConstMargParm, DynamMargParm){ dnbinom (x, ConstMargParm, 1-DynamMargParm)},
+                   "Generalized Poisson" = function(x, ConstMargParm, DynamMargParm){ dGpois  (x, ConstMargParm, DynamMargParm)}
+    )
+  }
+
+
+
+  # retrieve marginal distribution parameters
+  MargParms  = theta[MargParmIndices]
+  nMargParms = length(MargParms)
   nparms     = length(theta)
-  nreg       = dim(Regressor)[2]-1
-  nMargParms = nparms - sum(ARMAorder)
-  beta       = theta[1:(nreg+1)]
-  k          = theta[nparms-sum(ARMAorder)]
-  n          = length(data)
+
+  # check if the number of parameters matches the model setting
+  if(nMargParms + sum(ARMAorder)!=nparms) stop('The length of theta does not match the model specification.')
 
 
+  # Add the regressor to the parameters--only works for Negative Binomial
+  if(CountDist == "Negative Binomial" && nreg>0){
+    beta = MargParms[1:(nreg+1)]
+    k = MargParms[nreg+2]
+    m = exp(Regressor%*%beta)
+    r = 1/k
+    p = k*m/(1+k*m)
+    ConstMargParm = r
+    DynamMargParm = p
+  }
+
+  if(CountDist == "Generalized Poisson" && nreg>0){
+    beta   = MargParms[1:(nreg+1)]
+    ConstMargParm  = MargParms[nreg+2]
+    DynamMargParm = exp(Regressor%*%beta)
+  }
+
+  if(CountDist == "Poisson" && nreg>0){
+    beta           = MargParms[1:(nreg+1)]
+    ConstMargParm  = NULL
+    DynamMargParm  = exp(Regressor%*%beta)
+  }
+
+
+  # retrieve ARMA parameters
   AR = NULL
   if(ARMAorder[1]>0) AR = theta[(nMargParms+1):(nMargParms + ARMAorder[1])]
 
   MA = NULL
-  if(ARMAorder[2]>0){
-    MA = theta[ (nMargParms+ARMAorder[1]+1) : (nMargParms + ARMAorder[1] + ARMAorder[2]) ]
-  }
+  if(ARMAorder[2]>0) MA = theta[ (nMargParms+ARMAorder[1]+1) : (nMargParms + ARMAorder[1] + ARMAorder[2]) ]
+
 
   if(!is.null(AR) && is.null(MA)){
     if(any(abs( polyroot(c(1, -AR))  ) < 1)){
@@ -458,22 +375,35 @@ GaussLogLikNB_Reg = function(theta, data, Regressor, ARMAorder, MaxCdf, nHC, Cou
 
 
   # retrieve mean
-  m = exp(Regressor%*%beta)
+  if(nreg>0){
+    MeanValue = exp(Regressor%*%beta)
+  }else{
+    MeanValue = switch(CountDist,
+                       "Poisson"             = MargParms[1],
+                       "Negative Binomial"   = MargParms[1]*MargParms[2]/(1-MargParms[2]),
+                       "Generalized Poisson" = MargParms[2])
+  }
 
-  # retrieve neg binomial parameters
-  r = 1/k
-  p = k*m/(1+k*m)
+  # Compute truncation of relation (21)
+  if(nreg>0){
+    N = sapply(unique(DynamMargParm),function(x)which(mycdf(1:MaxCdf, ConstMargParm, x)>=1-1e-7)[1])-1
+    N[is.na(N)] = MaxCdf
+  }else{
+    N <- which(round(mycdf(1:MaxCdf, MargParms), 7) == 1)[1]
+    if(length(N)==0 |is.na(N) ){
+      N =MaxCdf
+    }
+  }
 
-  # Compute truncation of relation (21) in arxiv
-  N = sapply(unique(p),function(x)which(mycdf(1:MaxCdf, r, x)>=1-1e-7)[1])-1
-  N[is.na(N)] = MaxCdf
-
-  #Select the mean value used to demean--sample or true?
-  MeanValue = r*p/(1-p)
 
   # Compute the covariance matrix--relation (56) in https://arxiv.org/pdf/1811.00203.pdf
   # GAMMA = CovarNegBin(n, r, p, AR, MA, N, nHC)
-  GAMMA = CovarNegBin_Reg(n, r, p, AR, MA, N, nHC, mycdf)
+  if (nreg>0){
+    GAMMA = CovarNegBin_Reg(n, ConstMargParm, DynamMargParm, AR, MA, N, nHC, mycdf, nreg)
+  }else{
+    GAMMA = CovarNegBin(n, MargParms, AR, MA, N, nHC, mycdf, nreg)
+  }
+
 
   # Compute the logdet and the quadratic part
   logLikComponents = EvalInvQuadForm(GAMMA, as.numeric(data), MeanValue)
@@ -488,7 +418,7 @@ GaussLogLikNB_Reg = function(theta, data, Regressor, ARMAorder, MaxCdf, nHC, Cou
 
 
 #----------Link coefficients with one dummy Regressor---------#
-LinkCoef_Reg2 = function(r, p, N, nHC, mycdf){
+LinkCoef_Reg2 = function(ConstMargParm, DynamMargParm, N, nHC, mycdf){
   #====================================================================================#
   # PURPOSE    Compute the product  factorial(k)*g_{t1,k}*g_{t2,k} in relation (67) in
   #            https://arxiv.org/pdf/1811.00203.pdf when the regressor variable is only
@@ -510,14 +440,14 @@ LinkCoef_Reg2 = function(r, p, N, nHC, mycdf){
 
 
   # compute Hermite coefficients from relation (21)
-  g1 = HermCoefNegBin(unique(r)[1], p,N[1], nHC, mycdf)
-  g2 = HermCoefNegBin(unique(r)[2], p,N[2], nHC, mycdf)
+  g1 = HermCoefNegBin_Reg(MargParms = NULL, unique(DynamMargParm)[1], ConstMargParm,N[1], nHC, mycdf, nreg)
+  g2 = HermCoefNegBin_Reg(MargParms = NULL, unique(DynamMargParm)[2], ConstMargParm,N[2], nHC, mycdf, nreg)
   HC = cbind(g1, g2)
 
   # Compute the products g1^2, g1*g2 and g2^2 of the HCs
   HCprod = matrix(NA, nHC, 3)
-  for(i in 0:(length(unique(r))-1) ){
-    for(j in i: (length(unique(r))-1) ){
+  for(i in 0:(length(unique(DynamMargParm))-1) ){
+    for(j in i: (length(unique(DynamMargParm))-1) ){
       HCprod[,i+j+1] = HC[,i+1]*HC[,j+1]
     }
   }
@@ -527,7 +457,7 @@ LinkCoef_Reg2 = function(r, p, N, nHC, mycdf){
 
 
 #---------Covariance matrix with one dummy Regressor---------#
-CovarNegBinAR_Reg2 = function(n, r, p, phi, N, nHC,mycdf){
+CovarNegBinAR_Reg2 = function(n, ConstMargParm, DynamMargParm, phi, N, nHC,mycdf){
   #====================================================================================#
   # PURPOSE    Compute the covariance matrix of a NegBin AR series that
   #            includes one dummy variable as a regressor. Here p depends on each
@@ -566,10 +496,10 @@ CovarNegBinAR_Reg2 = function(n, r, p, phi, N, nHC,mycdf){
   }
 
   # Compute the link coefficients l_k = factorial(k)*g_{t1,k}*g_{t2,k}
-  linkCoef = LinkCoef_Reg2(r, p, N, nHC, mycdf)
+  linkCoef = LinkCoef_Reg2(ConstMargParm, DynamMargParm, N, nHC, mycdf)
 
   # keep track of which indices each unique HC is located at
-  index = cbind(unique(r)[1]==r, unique(r)[2]==r)
+  index = cbind(unique(DynamMargParm)[1]==DynamMargParm, unique(DynamMargParm)[2]==DynamMargParm)
 
   # STEP 3: Implement relation 67
   k = 1:nHC
@@ -613,8 +543,8 @@ GaussLogLikNB_Reg2 = function(theta, data, Regressor, ARMAorder, MaxCdf, nHC, Co
 
   # retrieve marginal cdf
   mycdf = switch(CountDist,
-                 "Negative Binomial"   = function(x, ConstTheta, DynamTheta){ pnbinom (x, ConstTheta, 1-DynamTheta)},
-                 "Generalized Poisson" = function(x, ConstTheta, DynamTheta){ pGpois  (x, ConstTheta, DynamTheta)}
+                 "Negative Binomial"   = function(x, ConstMargParm, DynamMargParm){ pnbinom (x, ConstMargParm, 1-DynamMargParm)},
+                 "Generalized Poisson" = function(x, ConstMargParm, DynamMargParm){ pGpois  (x, ConstMargParm, DynamMargParm)}
   )
 
   # retrieve parameters and sample size
@@ -708,96 +638,96 @@ FitGaussianLikNB_Reg= function(x0, X, Regressor, CountDist, Particles, LB, UB,
   # Version       3.6.3
   #====================================================================================#
 
-nparms  = length(x0)
-n = length(X)
-# allocate memory to save parameter estimates, hessian values, and loglik values
-ParmEst = matrix(0,nrow=1,ncol=nparms)
-se =  matrix(NA,nrow=1,ncol=nparms)
-loglik = rep(0,1)
-convcode = rep(0,1)
-kkt1 = rep(0,1)
-kkt2 = rep(0,1)
+  nparms  = length(x0)
+  n = length(X)
+  # allocate memory to save parameter estimates, hessian values, and loglik values
+  ParmEst = matrix(0,nrow=1,ncol=nparms)
+  se =  matrix(NA,nrow=1,ncol=nparms)
+  loglik = rep(0,1)
+  convcode = rep(0,1)
+  kkt1 = rep(0,1)
+  kkt2 = rep(0,1)
 
-if(Model){
-  optim.output <- optimx(par      = x0,
-                        fn        = GaussLogLikNB_Reg2,
-                        data      = X,
-                        Regressor = Regressor,
-                        ARMAorder = ARMAorder,
-                        CountDist = CountDist,
-                        MaxCdf    = MaxCdf,
-                        nHC       = nHC,
-                        hessian   = TRUE,
-                        lower     = LB,
-                        upper     = UB,
-                        method    = OptMethod
-  )
-}else{
-  optim.output <- optimx(par       = x0,
-                        fn        = GaussLogLikNB_Reg,
-                        data      = X,
-                        Regressor = Regressor,
-                        ARMAorder = ARMAorder,
-                        CountDist = CountDist,
-                        MaxCdf    = MaxCdf,
-                        nHC       = nHC,
-                        hessian   = TRUE,
-                        lower     = LB,
-                        upper     = UB,
-                        method    = OptMethod
-  )
-}
+  if(Model){
+    optim.output <- optimx(par      = x0,
+                           fn        = GaussLogLikNB_Reg2,
+                           data      = X,
+                           Regressor = Regressor,
+                           ARMAorder = ARMAorder,
+                           CountDist = CountDist,
+                           MaxCdf    = MaxCdf,
+                           nHC       = nHC,
+                           hessian   = TRUE,
+                           lower     = LB,
+                           upper     = UB,
+                           method    = OptMethod
+    )
+  }else{
+    optim.output <- optimx(par       = x0,
+                           fn        = GaussLogLikNB_Reg,
+                           data      = X,
+                           Regressor = Regressor,
+                           ARMAorder = ARMAorder,
+                           CountDist = CountDist,
+                           MaxCdf    = MaxCdf,
+                           nHC       = nHC,
+                           hessian   = TRUE,
+                           lower     = LB,
+                           upper     = UB,
+                           method    = OptMethod
+    )
+  }
 
-# save estimates, loglik value and diagonal hessian
-ParmEst  = as.numeric(optim.output[1:nparms])
-loglik   = optim.output$value
-convcode = optim.output$convcode
-kkt1     = optim.output$kkt1
-kkt2     = optim.output$kkt2
+  # save estimates, loglik value and diagonal hessian
+  ParmEst  = as.numeric(optim.output[1:nparms])
+  loglik   = optim.output$value
+  convcode = optim.output$convcode
+  kkt1     = optim.output$kkt1
+  kkt2     = optim.output$kkt2
 
-if(Model){
-  # compute hessian
-  H = gHgen(par            = ParmEst,
-            fn             = GaussLogLikNB_Reg2,
-            data           = X,
-            CountDist      = CountDist,
-            Regressor      = Regressor,
-            ARMAorder      = ARMAorder,
-            MaxCdf         = MaxCdf,
-            nHC            = nHC
-  )
-}else{
-  # compute hessian
-  H = gHgen(par            = ParmEst,
-            fn             = GaussLogLikNB_Reg,
-            data           = X,
-            CountDist      = CountDist,
-            Regressor      = Regressor,
-            ARMAorder      = ARMAorder,
-            MaxCdf         = MaxCdf,
-            nHC            = nHC
-  )
-}
+  if(Model){
+    # compute hessian
+    H = gHgen(par            = ParmEst,
+              fn             = GaussLogLikNB_Reg2,
+              data           = X,
+              CountDist      = CountDist,
+              Regressor      = Regressor,
+              ARMAorder      = ARMAorder,
+              MaxCdf         = MaxCdf,
+              nHC            = nHC
+    )
+  }else{
+    # compute hessian
+    H = gHgen(par            = ParmEst,
+              fn             = GaussLogLikNB_Reg,
+              data           = X,
+              CountDist      = CountDist,
+              Regressor      = Regressor,
+              ARMAorder      = ARMAorder,
+              MaxCdf         = MaxCdf,
+              nHC            = nHC
+    )
+  }
 
-if(H$hessOK && det(H$Hn)>10^(-12)){
-  se = sqrt(abs(diag(solve(H$Hn))))
-}else{
-  se = rep(NA, nparms)
-}
+  if(H$hessOK && det(H$Hn)>10^(-12)){
+    se = sqrt(abs(diag(solve(H$Hn))))
+  }else{
+    se = rep(NA, nparms)
+  }
 
-# Compute model selection criteria
-Criteria = ComputeCriteria(loglik, nparms, n, Particles)
-
-
-# get the names of the final output
-parmnames = colnames(optim.output)
-mynames = c(parmnames[1:nparms],paste("se", parmnames[1:nparms], sep="_"), "loglik", "AIC", "BIC","AICc", "status", "kkt1", "kkt2")
+  # Compute model selection criteria
+  Criteria = ComputeCriteria(loglik, nparms, n, Particles)
 
 
+  # get the names of the final output
+  parmnames = colnames(optim.output)
+  mynames = c(parmnames[1:nparms],paste("se", parmnames[1:nparms], sep="_"), "loglik", "AIC", "BIC","AICc", "status", "kkt1", "kkt2")
 
-All = matrix(c(ParmEst, se, loglik, Criteria, convcode, kkt1, kkt2),nrow=1)
-colnames(All) = mynames
-return(All)
+
+
+  All = matrix(c(ParmEst, se, loglik, Criteria, convcode, kkt1, kkt2),nrow=1)
+  colnames(All) = mynames
+  return(All)
 
 }
 
@@ -838,7 +768,7 @@ ComputeCriteria = function(loglik, nparms, n, Particles){
 
 
 #---------initial estimates via method of moments and reversion
-ComputeInitNegBinMA = function(x,n,nHC,LB,UB, mycdf){
+ComputeInitNegBinMA = function(x,n,nHC,LB,UB, mycdf, nreg){
   #---------------------------------#
   # Purpose: Method of Moment Initial estimates for negbin MA(1)
   #
@@ -857,11 +787,11 @@ ComputeInitNegBinMA = function(x,n,nHC,LB,UB, mycdf){
   pEst = 1 - xbar/sSquare
 
   # compute thetaEst using reversion as in IYW
-  initParms = ComputeInitNegBinMAterm(x, rEst, pEst, n, nHC,LB,UB, mycdf)
+  initParms = ComputeInitNegBinMAterm(x, MargParms, ConstMargParm, DynamMargParm, n, nHC,LB,UB, mycdf, nreg)
 
   return(initParms)
 
-  }
+}
 
 
 #---------link coefficients
@@ -871,13 +801,13 @@ link_coefs <- function(g_coefs, gamx0){
 }
 
 #--------obtain initial estimate for MA term using acf and reversion
-ComputeInitNegBinMAterm = function(x, rEst, pEst, N, nHC, LB, UB, mycdf){
+ComputeInitNegBinMAterm = function(x, MargParms, ConstMargParm, DynamMargParm, N, nHC, LB, UB, mycdf, nreg){
 
   # compute Hermite coefficients
-  g.coefs  = HermCoefNegBin(rEst, pEst, N, nHC, mycdf)
+  g.coefs  = HermCoefNegBin_Reg(MargParms, ConstMargParm=NULL, DynamMargParm=NULL, N, nHC, mycdf, nreg)
 
   # Compute acf of count series at lag 0
-  NegBinVar = rEst*pEst/(1-pEst)^2
+  NegBinVar = MargParms[1]*MargParms[2]/(1-MargParms[2])^2
 
   # compute link coeffcients
   link.coefs <- link_coefs(g.coefs, NegBinVar)
@@ -923,3 +853,163 @@ checkPoly = function(AR, MA) {
   return(c(c1,c2))
 }
 
+
+
+#---------Covariance matrix---------#
+CovarNegBin = function(n, MargParms, AR, MA, N, nHC,mycdf,nreg){
+  #====================================================================================#
+  # PURPOSE     Compute the covariance matrix of a NegBin series.
+  #
+  # INPUT
+  #   r,p       Marginal parameters
+  #   AR,MA     ARMA parameters
+  #   n         size of the matrix
+  #   N         truncation for relation (21)
+  #   nHC       number of Hermitte coefficents to be computed
+  #
+  # Output
+  #   GAMMA     covariance matrix ofcount series
+  #
+  # Authors     Stefanos Kechagias, James Livsey, Vladas Pipiras
+  # Date        April 2020
+  # Version     3.6.3
+  #====================================================================================#
+
+  # Hermite coeficients--relation (21) in https://arxiv.org/pdf/1811.00203.pdf
+  HC = HermCoefNegBin_Reg(MargParms, ConstMargParm=NULL, DynamMargParm=NULL, N, nHC, mycdf, nreg)
+
+  # ARMA autocorrelation function
+  if(!length(AR) && length(MA)  ){arma.acf <- ARMAacf(ma = MA, lag.max = n)}
+  if(!length(MA) && length(AR)){arma.acf <- ARMAacf(ar = AR, lag.max = n)}
+  if(length(AR)  && length(MA)){arma.acf <- ARMAacf(ar = AR, ma = MA, lag.max = n)}
+
+
+  # Autocovariance of count series--relation (9) in https://arxiv.org/pdf/1811.00203.pdf
+  if(is.null(AR) && is.null(MA)){
+    gamma_x = c(as.numeric(HC^2%*%factorial(1:nHC)), rep(0,n-1))
+  }
+  else{
+    gamma_x = CountACVF(h = 0:(n-1), myacf = arma.acf, g = HC)
+  }
+  # Final toeplitz covariance matrix--relation (56) in https://arxiv.org/pdf/1811.00203.pdf
+  GAMMA = toeplitz(gamma_x)
+  return(GAMMA)
+}
+
+
+#---------Gaussian Likelihood function---------#
+# GaussLogLikNB = function(theta, data, ARMAorder, MaxCdf, nHC){
+#   #====================================================================================#
+#   # PURPOSE      Compute Gaussian log-likelihood for NegBin series
+#   #
+#   # INPUT
+#   #   theta      parameter vector containing the marginal and ARMA parameters
+#   #   data       count series
+#   #   ARMAorder  ordeer of ARMA model
+#   #   MaxCdf     cdf will be computed up to this number (for light tails cdf=1 fast)
+#   #   nHC        number of HC to be computed
+#   #
+#   #
+#   # Output
+#   #   loglik     Gaussian log-likelihood
+#   #
+#   # Authors      Stefanos Kechagias, James Livsey, Vladas Pipiras
+#   # Date         April 2020
+#   # Version      3.6.3
+#   #====================================================================================#
+#
+#   # retrieve parameters and sample size
+#   r = theta[1]
+#   p = theta[2]
+#   nparms  = length(theta)
+#   nMargParms = nparms - sum(ARMAorder)
+#   if(ARMAorder[1]>0){
+#     AR = theta[(nparms-ARMAorder[1]+1):(nMargParms + ARMAorder[1])  ]
+#   }else{
+#     AR = NULL
+#   }
+#
+#   if(ARMAorder[2]>0){
+#     MA = theta[ (nMargParms+ARMAorder[1]+1) : length(theta)]
+#   }else{
+#     MA = NULL
+#   }
+#   n = length(data)
+#
+#   # compute truncation of relation (21)
+#   N <- which(round(pnbinom(1:MaxCdf, r,1-p), 7) == 1)[1]
+#   # if(length(N)==0 |is.na(N) ){
+#   #   cat(sprintf("The max cdf value is %f and N=%f", max(round(pnbinom(1:MaxCdf, r,1-p), 7)),N))
+#   #   stop("Haven't reached upper limit for cdf")
+#   # }
+#   if(length(N)==0 |is.na(N) ){
+#     N =MaxCdf
+#   }
+#
+#   #Select the mean value used to demean--sample or true?
+#   MeanValue = r*p/(1-p)
+#
+#   # Compute the covariance matrix--relation (56) in https://arxiv.org/pdf/1811.00203.pdf
+#   GAMMA = CovarNegBin(n, MargParms, AR, MA, N, nHC, mycdf)
+#
+#   # Compute the logdet and the quadratic part
+#   logLikComponents = EvalInvQuadForm(GAMMA, as.numeric(data), MeanValue)
+#
+#   # final loglikelihood value
+#   out = 0.5*logLikComponents[1] + 0.5*logLikComponents[2]
+#
+#   # the following will match the above if you subtract N/2*log(2*pi) and don't multiply with 2
+#   # out = -2*dmvnorm(as.numeric(data), rep(lam, n), GAMMA, log = TRUE)
+#   return(out)
+# }
+#
+
+#---------wrapper to fit Gaussian Likelihood function---------#
+# FitGaussianLikNB = function(x0, X, LB, UB, ARMAorder, MaxCdf, nHC){
+#   #====================================================================================#
+#   # PURPOSE       Fit the Gaussian log-likelihood for NegBin series
+#   #
+#   # INPUT
+#   #   x0          initial parameters
+#   #   X           count series
+#   #   LB          parameter lower bounds
+#   #   UB          parameter upper bounds
+#   #   ARMAorder   order of the udnerlying ARMA model
+#   #   MaxCdf      cdf will be computed up to this number (for light tails cdf=1 fast)
+#   #   nHC         number of HC to be computed
+#   #
+#   # OUTPUT
+#   #   All         parameter estimates, standard errors, likelihood value
+#   #
+#   # NOTES         I may comment out se in cases where maximum is achieved at the boundary
+#   #
+#   # Authors       Stefanos Kechagias, James Livsey, Vladas Pipiras
+#   # Date          April 2020
+#   # Version       3.6.3
+#   #====================================================================================#
+#   optim.output <- optim(par       = x0,
+#                         fn        = GaussLogLikNB,
+#                         data      = X,
+#                         ARMAorder = ARMAorder,
+#                         MaxCdf    = MaxCdf,
+#                         nHC       = nHC,
+#                         method    = "L-BFGS-B",
+#                         hessian   = TRUE,
+#                         lower     = LB,
+#                         upper     = UB
+#                         )
+#
+#   nparms  = length(x0)
+#   ParmEst = matrix(0,nrow=1,ncol=nparms)
+#   se      = matrix(NA,nrow=1,ncol=nparms)
+#   loglik  = rep(0,1)
+#
+#   # save estimates, loglik and standard errors
+#   ParmEst[,1:nparms]   = optim.output$par
+#   loglik               = optim.output$value
+#   #se[,1:nparms]        = sqrt(abs(diag(solve(optim.output$hessian))))
+#
+#   All      = cbind(ParmEst, se, loglik)
+#   return(All)
+#
+# }
