@@ -617,3 +617,5 @@ FitMultiplePF_Res = function(theta, data, Regressor, mod, LB, UB, OptMethod){
 
   return(All)
 }
+
+
