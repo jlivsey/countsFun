@@ -903,124 +903,6 @@ nboot <- function(x, R) {
 
 
 
-
-
-
-
-
-# Optimization wrapper to fit PF likelihood with resamplinbg
-FitMultiplePF_Res = function(theta, data, Regressor, ARMAorder, Particles, CountDist, epsilon, LB, UB, OptMethod){
-  #====================================================================================#
-  # PURPOSE       Fit the Particle Filter log-likelihood with resampling.
-  #               This function maximizes the PF likelihood, nfit manys times for nparts
-  #               many choices of particle numbers, thus yielding a total of nfit*nparts
-  #               many estimates.
-  #
-  # INPUT
-  #   theta       initial parameters
-  #   data        count series
-  #   CountDist   prescribed count distribution
-  #   Particles   vector with different choices for number of particles
-  #   ARMAorder   order of the udnerlying ARMA model
-  #   epsilon     resampling when ESS<epsilon*N
-  #   LB          parameter lower bounds
-  #   UB          parameter upper bounds
-  #   OptMethod
-  #
-  #
-  # OUTPUT
-  #   All         parameter estimates, standard errors, likelihood value, AIC, etc
-  #
-  # Authors       Stefanos Kechagias, James Livsey, Vladas Pipiras
-  # Date          April 2020
-  # Version       3.6.3
-  #====================================================================================#
-
-  # retrieve parameter, sample size etc
-  nparts = length(Particles)
-  nparms = length(theta)
-  nfit   = 1
-  n      = length(data)
-
-  # allocate memory to save parameter estimates, hessian values, and loglik values
-  ParmEst  = matrix(0,nrow=nfit*nparts,ncol=nparms)
-  se       =  matrix(NA,nrow=nfit*nparts,ncol=nparms)
-  loglik   = rep(0,nfit*nparts)
-  convcode = rep(0,nfit*nparts)
-  kkt1     = rep(0,nfit*nparts)
-  kkt2     = rep(0,nfit*nparts)
-
-
-  # Each realization will be fitted nfit*nparts many times
-  for (j in 1:nfit){
-    set.seed(j)
-    # for each fit repeat for different number of particles
-    for (k in 1:nparts){
-      # number of particles to be used
-      ParticleNumber = Particles[k]
-
-      # run optimization for our model --no ARMA model allowed
-      optim.output <- optimx(par            = theta,
-                             fn             = ParticleFilter_Res,
-                             data           = data,
-                             Regressor      = Regressor,
-                             ARMAorder      = ARMAorder,
-                             ParticleNumber = ParticleNumber,
-                             CountDist      = CountDist,
-                             epsilon        = epsilon,
-                             lower          = LB,
-                             upper          = UB,
-                             hessian        = TRUE,
-                             method         = OptMethod)
-
-
-
-      # save estimates, loglik value and diagonal hessian
-      ParmEst[nfit*(k-1)+j,]  = as.numeric(optim.output[1:nparms])
-      loglik[nfit*(k-1) +j]   = optim.output$value
-      convcode[nfit*(k-1) +j] = optim.output$convcode
-      kkt1[nfit*(k-1) +j]     = optim.output$kkt1
-      kkt2[nfit*(k-1) +j]     = optim.output$kkt2
-
-
-      # compute Hessian
-      H = gHgen(par            = ParmEst[nfit*(k-1)+j,],
-                fn             = ParticleFilter_Res,
-                data           = data,
-                Regressor      = Regressor,
-                ARMAorder      = ARMAorder,
-                CountDist      = CountDist,
-                ParticleNumber = ParticleNumber,
-                epsilon        = epsilon)
-
-      # save standard errors from Hessian
-      if(H$hessOK && det(H$Hn)>10^(-8)){
-        se[nfit*(k-1)+j,]   = sqrt(abs(diag(solve(H$Hn))))
-      }else{
-        se[nfit*(k-1)+j,] = rep(NA, nparms)
-      }
-
-    }
-  }
-
-  # Compute model selection criteria (assuming one fit)
-  Criteria = ComputeCriteria(loglik, nparms, n, Particles)
-
-
-  # get the names of the final output
-  parmnames = colnames(optim.output)
-  mynames = c(parmnames[1:nparms],paste("se", parmnames[1:nparms], sep="_"), "loglik", "AIC", "BIC","AICc", "status", "kkt1", "kkt2")
-
-
-  All = matrix(c(ParmEst, se, loglik, Criteria, convcode, kkt1, kkt2),nrow=1)
-  colnames(All) = mynames
-
-  return(All)
-}
-
-
-
-
 #---------NON RESAMPLING FUNCTIONS need to be updated---------#
 FitMultiplePF = function(initialParam, data, CountDist, nfit, ParticleSchemes){
   # Let nparts by the length of the vector ParticleSchemes.
@@ -3109,6 +2991,116 @@ FitMultiplePFMA1New = function(x0, X, CountDist, Particles, LB, UB, ARMAorder, e
 # }
 
 
+
+# # Optimization wrapper to fit PF likelihood with resamplinbg
+# FitMultiplePF_Res = function(theta, data, Regressor, ARMAorder, Particles, CountDist, epsilon, LB, UB, OptMethod){
+#   #====================================================================================#
+#   # PURPOSE       Fit the Particle Filter log-likelihood with resampling.
+#   #               This function maximizes the PF likelihood, nfit manys times for nparts
+#   #               many choices of particle numbers, thus yielding a total of nfit*nparts
+#   #               many estimates.
+#   #
+#   # INPUT
+#   #   theta       initial parameters
+#   #   data        count series
+#   #   CountDist   prescribed count distribution
+#   #   Particles   vector with different choices for number of particles
+#   #   ARMAorder   order of the udnerlying ARMA model
+#   #   epsilon     resampling when ESS<epsilon*N
+#   #   LB          parameter lower bounds
+#   #   UB          parameter upper bounds
+#   #   OptMethod
+#   #
+#   #
+#   # OUTPUT
+#   #   All         parameter estimates, standard errors, likelihood value, AIC, etc
+#   #
+#   # Authors       Stefanos Kechagias, James Livsey, Vladas Pipiras
+#   # Date          April 2020
+#   # Version       3.6.3
+#   #====================================================================================#
+#
+#   # retrieve parameter, sample size etc
+#   nparts = length(Particles)
+#   nparms = length(theta)
+#   nfit   = 1
+#   n      = length(data)
+#
+#   # allocate memory to save parameter estimates, hessian values, and loglik values
+#   ParmEst  = matrix(0,nrow=nfit*nparts,ncol=nparms)
+#   se       =  matrix(NA,nrow=nfit*nparts,ncol=nparms)
+#   loglik   = rep(0,nfit*nparts)
+#   convcode = rep(0,nfit*nparts)
+#   kkt1     = rep(0,nfit*nparts)
+#   kkt2     = rep(0,nfit*nparts)
+#
+#
+#   # Each realization will be fitted nfit*nparts many times
+#   for (j in 1:nfit){
+#     set.seed(j)
+#     # for each fit repeat for different number of particles
+#     for (k in 1:nparts){
+#       # number of particles to be used
+#       ParticleNumber = Particles[k]
+#
+#       # run optimization for our model --no ARMA model allowed
+#       optim.output <- optimx(par            = theta,
+#                              fn             = ParticleFilter_Res,
+#                              data           = data,
+#                              Regressor      = Regressor,
+#                              ARMAorder      = ARMAorder,
+#                              ParticleNumber = ParticleNumber,
+#                              CountDist      = CountDist,
+#                              epsilon        = epsilon,
+#                              lower          = LB,
+#                              upper          = UB,
+#                              hessian        = TRUE,
+#                              method         = OptMethod)
+#
+#
+#
+#       # save estimates, loglik value and diagonal hessian
+#       ParmEst[nfit*(k-1)+j,]  = as.numeric(optim.output[1:nparms])
+#       loglik[nfit*(k-1) +j]   = optim.output$value
+#       convcode[nfit*(k-1) +j] = optim.output$convcode
+#       kkt1[nfit*(k-1) +j]     = optim.output$kkt1
+#       kkt2[nfit*(k-1) +j]     = optim.output$kkt2
+#
+#
+#       # compute Hessian
+#       H = gHgen(par            = ParmEst[nfit*(k-1)+j,],
+#                 fn             = ParticleFilter_Res,
+#                 data           = data,
+#                 Regressor      = Regressor,
+#                 ARMAorder      = ARMAorder,
+#                 CountDist      = CountDist,
+#                 ParticleNumber = ParticleNumber,
+#                 epsilon        = epsilon)
+#
+#       # save standard errors from Hessian
+#       if(H$hessOK && det(H$Hn)>10^(-8)){
+#         se[nfit*(k-1)+j,]   = sqrt(abs(diag(solve(H$Hn))))
+#       }else{
+#         se[nfit*(k-1)+j,] = rep(NA, nparms)
+#       }
+#
+#     }
+#   }
+#
+#   # Compute model selection criteria (assuming one fit)
+#   Criteria = ComputeCriteria(loglik, nparms, n, Particles)
+#
+#
+#   # get the names of the final output
+#   parmnames = colnames(optim.output)
+#   mynames = c(parmnames[1:nparms],paste("se", parmnames[1:nparms], sep="_"), "loglik", "AIC", "BIC","AICc", "status", "kkt1", "kkt2")
+#
+#
+#   All = matrix(c(ParmEst, se, loglik, Criteria, convcode, kkt1, kkt2),nrow=1)
+#   colnames(All) = mynames
+#
+#   return(All)
+# }
 
 
 

@@ -265,7 +265,7 @@ CovarGenPois_Reg = function(n, a,m, AR, MA, N, nHC, mycdf){
 
 
 #---------Covariance matrix---------#
-CovarGenPois = function(n,a,m, AR, MA, N, nHC){
+CovarGenPois = function(n,a,m, AR, MA, N, nHC, mycdf){
   #====================================================================================#
   # PURPOSE     Compute the covariance matrix of a GenPois series.
   #
@@ -285,7 +285,7 @@ CovarGenPois = function(n,a,m, AR, MA, N, nHC){
   #====================================================================================#
 
   # Hermite coeficients--relation (21) in https://arxiv.org/pdf/1811.00203.pdf
-  HC = HermCoefGenPois(a,m,N, nHC)
+  HC = HermCoefGenPois(a,m,N, nHC, mycdf)
 
   # ARMA autocorrelation function
   if(!length(AR)){arma.acf <- ARMAacf(ma = MA, lag.max = n)}
@@ -322,6 +322,15 @@ GaussLogLikGP = function(theta, data, ARMAorder, MaxCdf, nHC){
   # Version      3.6.3
   #====================================================================================#
 
+
+  # retrieve marginal cdf
+  mycdf = switch(CountDist,
+                 "Negative Binomial"   = function(x, ConstTheta, DynamTheta){ pnbinom (x, ConstTheta, 1-DynamTheta)},
+                 "Generalized Poisson" = function(x, ConstTheta, DynamTheta){ pGpois  (x, ConstTheta, DynamTheta)}
+  )
+
+
+
   # retrieve parameters and sample size
   a   = theta[1]
   m  = theta[2]
@@ -354,7 +363,7 @@ GaussLogLikGP = function(theta, data, ARMAorder, MaxCdf, nHC){
   MeanValue = m
 
   # Compute the covariance matrix--relation (56) in https://arxiv.org/pdf/1811.00203.pdf
-  GAMMA = CovarGenPois(n, a,m, AR, MA, N, nHC)
+  GAMMA = CovarGenPois(n, a,m, AR, MA, N, nHC, mycdf)
 
   # Compute the logdet and the quadratic part
   logLikComponents = EvalInvQuadForm(GAMMA, as.numeric(data), MeanValue)

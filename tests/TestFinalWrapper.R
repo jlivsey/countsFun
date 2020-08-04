@@ -30,6 +30,20 @@ data = MOVE
 #====================================== PF =============================================#
 
 
+# test PF without regressor + AR
+ARMAorder = c(2,0)
+Regressor = NULL
+CountDist = "Generalized Poisson"
+mod = ModelScheme(data, Regressor, ARMAorder, CountDist, MaxCdf, nHC,ParticleNumber, epsilon )
+theta     = c(2,0.5, 0.5, -0.3)
+ParticleFilter_Res(theta, data, Regressor, mod)
+LB = c(0.01, 0.01, -Inf, -Inf)
+UB = c(Inf, Inf, Inf, Inf)
+FitMultiplePF_Res(theta, data, Regressor, mod, LB, UB, OptMethod)
+
+
+
+
 # test PF with regressor + MA
 ARMAorder = c(0,1)
 Regressor = cbind(rep(1,length(Buy)),Buy)
@@ -40,26 +54,9 @@ ParticleFilter_Res(theta, data, Regressor, mod)
 
 
 
-
-
-# test GL without regressor + AR
-ARMAorder = c(2,0)
-Regressor = NULL
-CountDist = "Generalized Poisson"
-mod = ModelScheme(data, Regressor, ARMAorder, CountDist, MaxCdf, nHC,ParticleNumber, epsilon )
-theta     = c(2,0.5, 0.5, -0.3)
-ParticleFilter_Res(theta, data, Regressor, mod)
-
-
-
-
-
-
-
 #====================================== GL =============================================#
-# test GL without regressor + AR
+# test GL with regressor + AR
 ARMAorder = c(2,0)
-Regressor = NULL
 Regressor = cbind(rep(1,length(Buy)),Buy)
 CountDist = "Generalized Poisson"
 mod = ModelScheme(data, Regressor, ARMAorder, CountDist, MaxCdf, nHC, ParticleNumber, epsilon )
@@ -69,7 +66,19 @@ OptMethod = "bobyqa"
 LB = c(-100, -100, 0.001, -Inf, -Inf)
 UB = c(100, 100, Inf, Inf, Inf)
 GaussLogLikGP_Reg(theta, data, Regressor, ARMAorder, MaxCdf, nHC, CountDist)
-FitGaussianLogLik(theta, data, Regressor, mod, LB, UB, OptMethod)
+# FitGaussianLogLik(theta, data, Regressor, mod, LB, UB, OptMethod)
+
+
+# test GL without regressor + AR
+ARMAorder = c(2,0)
+Regressor = NULL
+CountDist = "Generalized Poisson"
+mod = ModelScheme(data, Regressor, ARMAorder, CountDist, MaxCdf, nHC, ParticleNumber, epsilon )
+theta     = c(2, 0.5,0.5, -0.3)
+GaussianLogLik(theta, data, Regressor, mod)
+OptMethod = "bobyqa"
+GaussLogLikGP(theta, data, ARMAorder, MaxCdf, nHC)
+
 
 
 # test GL with regressor + MA
