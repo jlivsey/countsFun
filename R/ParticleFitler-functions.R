@@ -494,6 +494,42 @@ innovations.algorithm <- function(acvf,n.max=length(acvf)-1){
 }
 
 
+# Nonstationary innovations algorithm
+Innalg <- function(x, autocov)
+{
+  N <- length(x)
+  x.hat <- numeric(N+1)
+  v <- numeric(N+1)
+  e <- numeric(N+1)
+  theta <- matrix(0, N, N)
+
+  x.hat[1] <- 0
+  v[1] <- autocov[1, 1]
+  e[1] <- x[1]
+
+  for (n in 1:N)
+  {
+    for (k in 0:(n-1))
+    {
+      a <- 0
+      if (k > 0) {
+        a <- sum(theta[k, 1:k] * theta[n, 1:k] * v[1:k])
+      }
+
+      theta[n, k+1] <- (1/v[k+1]) * (autocov[n+1, k+1] - a)
+    }
+
+    x.hat[n+1] <- sum(theta[n, 1:n] * (x[1:n] - x.hat[1:n]))
+    v[n+1] <- autocov[n+1, n+1] - sum(theta[n, 1:n]^2 * v[1:n])
+    e[n+1] <- x[n+1] - x.hat[n+1]
+  }
+
+  return(list(x.hat = x.hat,
+              theta = theta,
+              v     = v    ,
+              e     = e     ))
+}
+
 
 # Optimization wrapper to fit PF likelihood with resamplinbg
 FitMultiplePF_Res = function(theta, data, Regressor, mod, OptMethod){

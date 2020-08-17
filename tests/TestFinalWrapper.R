@@ -11,7 +11,7 @@ library(sandwich)
 symmetrize <- lavaSearch2:::symmetrize
 
 # load the data
-mysales = read.csv("/Users/stef/Desktop/countsFun/data/MySelectedSeries.csv")
+mysales = read.csv("data/MySelectedSeries.csv")
 
 # attach the datafrmae
 n = 104
