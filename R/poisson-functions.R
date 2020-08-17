@@ -113,71 +113,70 @@ sim_pois_ar = function(n, phi, lam){
 # evalPolynomial <- Vectorize(evalPolynomial_scalarX, vectorize.args = "x")
 
 # # kth hermitte coefficient
-# HermCoef_k <- function(lam, k){
-#   #######################################################################
-#   # PURPOSE    Compute kth Hermite Coefficient. See relation (21) in
-#   #            https://arxiv.org/pdf/1811.00203.pdf
-#   #
-#   # INPUT
-#   #   lam      Marginal parameter
-#   #   k        index of Hermite coefficient
-#   #
-#   # Output
-#   #   HC_k     kth hermite coeficient
-#   #
-#   # Authors    Stefanos Kechagias, James Livsey
-#   # Date       January 2020
-#   # Version    3.6.1
-#   #######################################################################
-#
-#   # function for (k-1)st Hermite Polynomial
-#   her <- function(x){
-#     evalHermPolynomial(k-1, x)
-#   }
-#
-#   # truncation numbe: check me
-#   N <- which(round(ppois(1:1000, lam), 7) == 1)[1]
-#
-#   # compute terms in the sum of relation (21) in
-#   terms <- exp((-qnorm(ppois(0:N, lam, lower.tail= TRUE))^2)/2) *
-#     her(qnorm(ppois(0:N, lam, lower.tail = TRUE)))
-#
-#   # take the sum of all terms
-#   HC_k <- sum(terms) / (sqrt(2*pi) *  factorial(k))
-#   return(HC_k)
-# }
-#
+HermCoefP_k <- function(lam, k){
+  #========================================================================#
+  # PURPOSE    Compute kth Hermite Coefficient. See relation (21) in
+  #            https://arxiv.org/pdf/1811.00203.pdf
+  #
+  # INPUT
+  #   lam      Marginal parameter
+  #   k        index of Hermite coefficient
+  #
+  # Output
+  #   HC_k     kth hermite coeficient
+  #
+  # Authors    Stefanos Kechagias, James Livsey
+  # Date       January 2020
+  # Version    3.6.1
+  #========================================================================#
+
+  # function for (k-1)st Hermite Polynomial
+  her <- function(x){
+    evalHermPolynomial(k-1, x)
+  }
+
+  # truncation numbe: check me
+  N <- which(round(ppois(1:1000, lam), 7) == 1)[1]
+
+  # compute terms in the sum of relation (21) in
+  terms <- exp((-qnorm(ppois(0:N, lam, lower.tail= TRUE))^2)/2) *
+    her(qnorm(ppois(0:N, lam, lower.tail = TRUE)))
+
+  # take the sum of all terms
+  HC_k <- sum(terms) / (sqrt(2*pi) *  factorial(k))
+  return(HC_k)
+}
+
 # # all hermitte coefficients
-# HermCoef <- function(lam){
-#   #######################################################################
-#   # PURPOSE    Compute all Hermite Coefficients. See relation (21) in
-#   #            https://arxiv.org/pdf/1811.00203.pdf
-#   #
-#   # INPUT
-#   #   lam      Marginal parameter
-#   #   maxCoef  number of coefficients to return. Default = 20
-#   #
-#   # Output
-#   #   HC       All Hermite coeficients
-#   #
-#   # Authors    Stefanos Kechagias, James Livsey
-#   # Date       January 2020
-#   # Version    3.6.1
-#   #######################################################################
-#
-#   h = 1:20 #check me
-#   HC = rep(NA, length(h)) # storage
-#   for(i in h) {
-#     HC[i] <- HermCoef_k(lam = lam, k = i)
-#   }
-#
-#   return(HC)
-#
-# }
+HermCoefP <- function(lam){
+  #========================================================================#
+  # PURPOSE    Compute all Hermite Coefficients. See relation (21) in
+  #            https://arxiv.org/pdf/1811.00203.pdf
+  #
+  # INPUT
+  #   lam      Marginal parameter
+  #   maxCoef  number of coefficients to return. Default = 20
+  #
+  # Output
+  #   HC       All Hermite coeficients
+  #
+  # Authors    Stefanos Kechagias, James Livsey
+  # Date       January 2020
+  # Version    3.6.1
+  #========================================================================#
+  h = 1:20 #check me
+  HC = rep(NA, length(h)) # storage
+  for(i in h) {
+    HC[i] <- HermCoefP_k(lam = lam, k = i)
+  }
+
+  return(HC)
+
+}
 
 # Poisson AR(1) covariance matrix
 CovarPoissonAR = function(n,lam,phi){
-  #######################################################################
+  #========================================================================#
   # PURPOSE    Compute the covariance matrix of a Poisson AR series.
   #
   # INPUT
@@ -191,10 +190,10 @@ CovarPoissonAR = function(n,lam,phi){
   # Authors    Stefanos Kechagias, James Livsey
   # Date       January 2020
   # Version    3.6.1
-  #######################################################################
+  #=========================================================================#
 
   # Hermite coeficients--relation (21) in https://arxiv.org/pdf/1811.00203.pdf
-  HC = HermCoef(lam)
+  HC = HermCoefP(lam)
 
   # ARMA autocorrelation function
   ar.acf <- ARMAacf(ar = phi, lag.max = n)

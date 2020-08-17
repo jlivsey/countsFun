@@ -447,22 +447,6 @@ ParticleFilter_Res = function(theta, data, Regressor, mod){
   # DATE:    July 2020
   #--------------------------------------------------------------------------#
 
-  # check Particle number
-  if(mod$epsilon > 1 || mod$epsilon<0) stop('Please select a value between 0 and 1 for epsilon.')
-
-  # check Particle number
-  if(mod$ParticleNumber<1) stop('Please select a nonegative value for the argument ParticleNumber.')
-
-  # check distributions
-  if ( !(mod$CountDist %in%  c("Poisson", "Negative Binomial", "Mixed Poisson", "Generalized Poisson", "Binomial" )))
-    stop('The argument CountDist must take one of the following values:
-         "Poisson", "Negative Binomial", "Mixed Poisson", "Generalized Poisson", "Binomial".')
-
-  # check ARMAorder
-  if(prod(mod$ARMAorder)<0 || length(mod$ARMAorder)!= 2) stop('The argument ARMAorder must have length 2 and can not take negative values.')
-
-  # Mixed ARMA model
-  if(mod$ARMAorder[1]>0 && mod$ARMAorder[2]>0) stop('Please specify a pure AR or a pure MA model. ARMA(p,q) models with p>0 and q>0 have not yet been implemented.')
 
   # Pure AR model
   if(mod$ARMAorder[1]>0 && mod$ARMAorder[2]==0) loglik = ParticleFilter_Res_AR(theta, data, Regressor, mod)
@@ -494,14 +478,11 @@ innovations.algorithm <- function(acvf,n.max=length(acvf)-1){
   # http://faculty.washington.edu/dbp/s519/R-code/innovations-algorithm.R
   thetas <- vector(mode="list",length=n.max)
   vs <- rep(acvf[1],n.max+1)
-  for(n in 1:n.max)
-  {
+  for(n in 1:n.max){
     thetas[[n]] <- rep(0,n)
     thetas[[n]][n] <- acvf[n+1]/vs[1]
-    if(n>1)
-    {
-      for(k in 1:(n-1))
-      {
+    if(n>1){
+      for(k in 1:(n-1)){
         js <- 0:(k-1)
         thetas[[n]][n-k] <- (acvf[n-k+1] - sum(thetas[[k]][k-js]*thetas[[n]][n-js]*vs[js+1]))/vs[k+1]
       }
@@ -509,13 +490,13 @@ innovations.algorithm <- function(acvf,n.max=length(acvf)-1){
     js <- 0:(n-1)
     vs[n+1] <- vs[n+1] - sum(thetas[[n]][n-js]^2*vs[js+1])
   }
-  structure(list(vs=vs,thetas=thetas))
+  return(structure(list(vs=vs,thetas=thetas)))
 }
 
 
 
 # Optimization wrapper to fit PF likelihood with resamplinbg
-FitMultiplePF_Res = function(theta, data, Regressor, mod, LB, UB, OptMethod){
+FitMultiplePF_Res = function(theta, data, Regressor, mod, OptMethod){
   #====================================================================================#
   # PURPOSE       Fit the Particle Filter log-likelihood with resampling.
   #               This function maximizes the PF likelihood, nfit manys times for nparts
@@ -571,8 +552,8 @@ FitMultiplePF_Res = function(theta, data, Regressor, mod, LB, UB, OptMethod){
                              data           = data,
                              Regressor      = Regressor,
                              mod            = mod,
-                             lower          = LB,
-                             upper          = UB,
+                             lower          = mod$LB,
+                             upper          = mod$UB,
                              hessian        = TRUE,
                              method         = OptMethod)
 
