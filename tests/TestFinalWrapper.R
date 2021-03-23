@@ -25,29 +25,144 @@ epsilon   = 0.5
 MaxCdf    = 1000
 nHC       = 30
 ParticleNumber = 10
-epsilon = 0.5
 data = MOVE
 
 
 # test sand
-ARMAorder = c(1,0)
+ARMAorder = c(3,0)
 Regressor = NULL
-CountDist = "Poisson"
-EstMethod="GL"
-initialParam = NULL
+CountDist = "Negative Binomial"
+EstMethod="PFR"
 OptMethod = "bobyqa"
 #Regressor = cbind(rep(1,length(Buy)),Buy)
-theta     = c(2, 0.5)
-initialParam = theta
-mod = ModelScheme(data, Regressor, ARMAorder, CountDist, MaxCdf, nHC,ParticleNumber, epsilon, initialParam)
-
-sand(theta, data, Regressor, mod)
-
+#theta     = c(2, 0.5, 0.8, -0.5, 0.14, 0.2)
+maxit = 0
+theta = c(0.5,0.5,-0.5,0,0)
+initialParam = NULL
 
 
 
+countC(data, Regressor, CountDist, EstMethod, ARMAorder,nHC, MaxCdf,ParticleNumber, epsilon, initialParam, OptMethod, maxit)
 
-#countC(data, Regressor, CountDist, EstMethod, ARMAorder,nHC, MaxCdf,ParticleNumber, epsilon, initialParam, OptMethod)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+mod = ModelScheme(data, Regressor, ARMAorder, CountDist, MaxCdf, nHC,ParticleNumber, epsilon, initialParam, EstMethod)
+
+
+theta = c(2.264, 1.01, 1.21, -0.341, 0.223, 0.291)
+optim.output <- optimx(par            = theta,
+                       fn             = GaussianLogLik,
+                       data           = data,
+                       Regressor      = Regressor,
+                       mod            = mod,
+                       lower          = mod$LB,
+                       upper          = mod$UB,
+                       method         = OptMethod,
+                       hessian        = TRUE)
+
+
+ParmEst  = as.numeric(optim.output[1:mod$nparms])
+loglik   = optim.output$value
+
+
+# optim.output <- optimx(par            = theta,
+#                        fn             = GaussianLogLik,
+#                        data           = data,
+#                        Regressor      = Regressor,
+#                        mod            = mod,
+#                        lower          = mod$LB,
+#                        upper          = mod$UB,
+#                        control=list(all.methods=TRUE),
+#                        hessian        = TRUE)
+
+# optim.output <- optimx(par            = theta,
+#                        fn             = GaussianLogLik,
+#                        data           = data,
+#                        Regressor      = Regressor,
+#                        mod            = mod,
+#                        lower          = mod$LB,
+#                        upper          = mod$UB,
+#                        method         = "Rvmmin",
+#                        hessian        = TRUE)
+
+
+# save estimates, loglik value and diagonal hessian
+ParmEst  = as.numeric(optim.output[5,1:mod$nparms])
+loglik   = optim.output$value
+convcode = optim.output$convcode
+kkt1     = optim.output$kkt1
+kkt2     = optim.output$kkt2
+
+
+# compute sandwich standard errors
+se = sand(ParmEst, data, Regressor, mod)
+
+
+
+h <- gHgen(fn        = GaussianLogLik,
+           par       = theta,
+           data      = data,           # additional arg for GaussLogLik
+           Regressor = Regressor,      # additional arg for GaussLogLik
+           mod       = mod)            # additional arg for GaussLogLik
+SE.hess <- sqrt(diag(solve(h$Hn)))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#sand(theta, data, Regressor, mod)
+
+
+countC(data, Regressor, CountDist, EstMethod, ARMAorder,nHC, MaxCdf,ParticleNumber, epsilon, initialParam, OptMethod, maxit)
 
 
 

@@ -1,5 +1,5 @@
 #---------retrieve the model scheme
-ModelScheme = function(data, Regressor, ARMAorder, CountDist, MaxCdf, nHC,ParticleNumber, epsilon, initialParam ){
+ModelScheme = function(data, Regressor, ARMAorder, CountDist, MaxCdf, nHC,ParticleNumber, epsilon, initialParam, EstMethod ){
 
   error = 0
   errorMsg = NULL
@@ -80,7 +80,7 @@ ModelScheme = function(data, Regressor, ARMAorder, CountDist, MaxCdf, nHC,Partic
       UB = c(Inf, 0.99,   rep( Inf, sum(ARMAorder)))
     }else{
       LB = c(rep(-Inf, nreg+1), 0.001, rep(-Inf, sum(ARMAorder)))
-      UB = c(rep(IInf, nreg+1), Inf, rep(Inf, sum(ARMAorder)))
+      UB = c(rep(Inf, nreg+1), Inf, rep(Inf, sum(ARMAorder)))
     }
   }
 
@@ -91,7 +91,7 @@ ModelScheme = function(data, Regressor, ARMAorder, CountDist, MaxCdf, nHC,Partic
       UB = c(Inf, Inf,     rep( Inf, sum(ARMAorder)))
     }else{
       LB = c(rep(-Inf, nreg+1), 0.001, rep(-Inf, sum(ARMAorder)))
-      UB = c(rep(IInf, nreg+1), Inf, rep(Inf, sum(ARMAorder)))
+      UB = c(rep(Inf, nreg+1), Inf, rep(Inf, sum(ARMAorder)))
     }
   }
 
@@ -112,7 +112,8 @@ ModelScheme = function(data, Regressor, ARMAorder, CountDist, MaxCdf, nHC,Partic
        UB              = UB,
        LB              = LB,
        error           = error,
-       errorMsg        = errorMsg
+       errorMsg        = errorMsg,
+       EstMethod       = EstMethod
        )
   return(out)
 
@@ -540,7 +541,7 @@ EvalInvQuadForm = function(A, v, DataMean ){
 
 
 #---------wrapper to fit Guassian Likelihood function with a dummy Regressor---------#
-FitGaussianLogLik = function(theta, xt, Regressor, mod, OptMethod){
+FitGaussianLogLik = function(theta, xt, Regressor, mod, OptMethod, maxit){
   #====================================================================================#
   # PURPOSE       Fit the Gaussian log-likelihood for NegBin series
   #
@@ -596,7 +597,7 @@ FitGaussianLogLik = function(theta, xt, Regressor, mod, OptMethod){
   se = sand(ParmEst, data, Regressor, mod)
 
   # Compute model selection criteria
-  Criteria = ComputeCriteria(loglik, nparms, n, mod$ParticleNumber)
+  Criteria = ComputeCriteria(loglik, mod)
 
 
   # get the names of the final output
@@ -613,7 +614,7 @@ FitGaussianLogLik = function(theta, xt, Regressor, mod, OptMethod){
 
 
 #---------Compute AIC, BIC, AICc
-ComputeCriteria = function(loglik, nparms, n, Particles){
+ComputeCriteria = function(loglik, mod){
   #---------------------------------#
   # Purpose:     Compute AIC, BIC, AICc for our models
   #
@@ -634,15 +635,15 @@ ComputeCriteria = function(loglik, nparms, n, Particles){
   # Version      3.6.3
   #---------------------------------#
 
-  if(!is.null(Particles)){
+  if(mod$EstMethod!="GL"){
     l1 = -loglik
   }else{
-    l1 = -loglik  - n/2*log(2*pi)
+    l1 = -loglik  - mod$n/2*log(2*pi)
   }
 
-  AIC = 2*nparms - 2*l1
-  BIC = log(n)*nparms - 2*l1
-  AICc = AIC + (2*nparms^2 + 2*nparms)/(n-nparms-1)
+  AIC = 2*mod$nparms - 2*l1
+  BIC = log(mod$n)*mod$nparms - 2*l1
+  AICc = AIC + (2*mod$nparms^2 + 2*mod$nparms)/(mod$n-mod$nparms-1)
 
   AllCriteria = c(AIC, BIC, AICc)
 }
@@ -751,7 +752,7 @@ logf_i <- function(theta, mod, i){
     ei <- DLout$e[i]
     vi <- DLout$v[i]
   }else{
-    IAout <- Innalg(data, GAMMA, MeanValue)
+    IAout <- Innalg(data, GAMMA)
     ei <- IAout$e[i]
     vi <- IAout$v[i]
   }

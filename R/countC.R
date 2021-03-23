@@ -2,7 +2,7 @@
 # Final wrapper function
 countC = function(data, Regressor=NULL, CountDist=NULL, EstMethod="PFR", ARMAorder=c(0,0),
                   nHC=30, MaxCdf=500, ParticleNumber=400, epsilon = 0.5, initialParam = NULL,
-                  OptMethod = "bobyqa"){
+                  OptMethod = "bobyqa", maxit=100){
 
   # check validity of arguments
   # rc = CheckInputSpecs(data, Regressor, CountDist, EstMethod, ARMAorder,
@@ -11,7 +11,7 @@ countC = function(data, Regressor=NULL, CountDist=NULL, EstMethod="PFR", ARMAord
   # if(rc[[1]]) stop(rc[[2]])
 
   # retrieve model specifications
-  mod = ModelScheme(data, Regressor, ARMAorder, CountDist, MaxCdf, nHC,ParticleNumber, epsilon, initialParam)
+  mod = ModelScheme(data, Regressor, ARMAorder, CountDist, MaxCdf, nHC,ParticleNumber, epsilon, initialParam, EstMethod)
 
   # stop if there was an error in model specification
   if(mod$error) stop(mod$errorMsg)
@@ -25,18 +25,18 @@ countC = function(data, Regressor=NULL, CountDist=NULL, EstMethod="PFR", ARMAord
 
   # fit the model using GL
   if(EstMethod=="GL"){
-    out = FitGaussianLogLik(theta, data, Regressor, mod, OptMethod)
+    out = FitGaussianLogLik(theta, data, Regressor, mod, OptMethod, maxit)
   }
 
   # fit the model using PF
   if(EstMethod=="PFR"){
-    out = FitMultiplePF_Res(theta, data, Regressor, mod, OptMethod)
+    out = FitMultiplePF_Res(theta, data, Regressor, mod, OptMethod, maxit)
   }
 
 
   # fit the model using PF
   if(EstMethod=="IYW"){
-    out = FitMultiplePF_Res(theta, data, Regressor, mod, OptMethod)
+    out = FitMultiplePF_Res(theta, data, Regressor, mod, OptMethod, maxit)
   }
 
 

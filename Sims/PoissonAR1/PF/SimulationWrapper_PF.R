@@ -13,8 +13,8 @@ setwd("C:/Users/Stef/Desktop/countsFun/Sims/PoissonAR1/PF/RData")
 # fixed parameters across all simulation schemes
 CountDist       = "Poisson"
 MargParm        = 10
-nsim            = 200
-ParticleSchemes = 1000
+nsim            = 2
+ParticleSchemes = 10
 
 #-----------------------------------------------Positive AR parameter--------------------------------------------------#
 ARParm = 0.75
@@ -22,6 +22,7 @@ PhiSign = ifelse(ARParm > 0, 'Pos', 'Neg')   # SIGN OF ar(1) param
 
 n=100
 df1 = PoisAR1_PF(CountDist, MargParm, ARParm, n, nsim, ParticleSchemes)
+
 save(df1, file = sprintf("Pois%sAR%s_PF_N%s_NS%s_Part%s_Phi%s.RData",MargParm, 1, n, nsim, ParticleSchemes, PhiSign))
 
 n=200

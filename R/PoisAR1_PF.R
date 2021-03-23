@@ -14,8 +14,8 @@ PoisAR1_PF = function(CountDist,MargParm,ARParm,
 
   # load PF likelihood function and other necessary functions from UNC cluster directory
 
-  source('C:/Users/Stef/Desktop/countsFun/R/LikSISGenDist_ARp_Res.R')
-  source('C:/Users/Stef/Desktop/countsFun/R/LikSIS_ARpGenDist_functions.R')
+  #source('C:/Users/Stef/Desktop/countsFun/R/LikSISGenDist_ARp_Res.R')
+  #source('C:/Users/Stef/Desktop/countsFun/R/LikSIS_ARpGenDist_functions.R')
 
   # load necessary libraries.
   library(itsmr)
@@ -58,7 +58,7 @@ PoisAR1_PF = function(CountDist,MargParm,ARParm,
 
 
   # Prepare results for the plot.
-  df = data.frame(matrix(ncol = 8, nrow = 200))
+  df = data.frame(matrix(ncol = 8, nrow = nsim))
 
   #Create columns lam.est, phi.est, estim.method, n, phi, phi.se, lam, lam.se
   names(df) = c(

@@ -106,5 +106,5 @@ p2 + geom_boxplot(outlier.size = 1/2, fatten = 1) +
   theme(text=element_text(size=16),legend.position="bottom",
         legend.text=element_text(size=rel(1)))
 
-ggsave(sprintf("C:/Users/Stef/Desktop/countsFun/Sims/PoissonAR1/PaperPlot/Pois%sAR1phi%s75.pdf",lam, PhiSign))
+#ggsave(sprintf("C:/Users/Stef/Desktop/countsFun/Sims/PoissonAR1/PaperPlot/Pois%sAR1phi%s75.pdf",lam, PhiSign))
 # dev.off()

@@ -31,6 +31,36 @@ sim_poisson = function(n, ARMAmodel, lam){
   return(x)
 }
 
+
+sim_poisson_2 = function(n, ARMAmodel, lam){
+  #====================================================================================#
+  # PURPOSE       Simulate Poisson with ARMA structure. See relation (1)
+  #               in https://arxiv.org/pdf/1811.00203.pdf Same as sim_poisson but also returns
+  #               the z
+  #
+  # INPUT
+  #   n           series length
+  #   ARMAmodel   list with ARMA parameters
+  #   lam         marginal param
+  # Output
+  #   X           Poisson series
+  #
+  # Authors       Stefanos Kechagias, James Livsey, Vladas Pipiras
+  # Date          July 2020
+  # Version       3.6.3
+  #====================================================================================#
+  l = list()
+  z = arima.sim(model = list(ar=ARMAmodel[[1]], ma=ARMAmodel[[2]]), n = n); z = z/sd(z)
+  # The third argument of qnbinom is the prob of failure
+  x = qpois(pnorm(z), lam)
+
+  l[[1]] = z
+  l[[2]] = x
+  return(l)
+}
+
+
+
 # Generate AR series
 sim_pois_ar = function(n, phi, lam){
   #------------------------------------------------------------------------#
@@ -54,6 +84,11 @@ sim_pois_ar = function(n, phi, lam){
   x = qpois(pnorm(z), lam)
   return(x)
 }
+
+
+
+
+
 
 # # compute arbitrary polynomial
 # evalPolynomial_scalarX <- function(coefs, x){

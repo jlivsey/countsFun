@@ -51,21 +51,26 @@ ggplot(mysales, aes(x=week, y=MOVE)) +
   labs(x = "Date", y="Soft drink sales")+
   # theme(text=element_text(size=11), axis.text.x=element_text(hjust=1))
 theme(axis.title.x = element_text(size=fontsize1),axis.title.y = element_text(size=fontsize1),
-      axis.text.x = element_text(size=fontsize1-2),axis.text.y = element_text(size=fontsize1-2),
+      axis.text.x = element_text(size=fontsize1-1),axis.text.y = element_text(size=fontsize1-1),
       axis.ticks = element_line(size = 0.2),legend.position = "none")
-ggsave("C:/Users/Stef/Dropbox/latentGaussCounts/paper_new_rev1/figs/SoftDrinkSales.pdf",width=5.5,heigh=2 )
+ggsave("C:/Users/Stef/Dropbox/latentGaussCounts/submission_Oct2020/figs/SoftDrinkSales.pdf",width=3.5,heigh=2 )
 
 
 
 # boxplots of sales according to Buy variable
 ggplot(mysales, aes(x = factor(Buy), y = MOVE, fill=factor(Buy)))+
-  geom_boxplot(outlier.size = 1/2, fatten = 1)+
+  geom_boxplot(outlier.size = 1/2, lwd=0.4, fatten=0.8)+
   scale_fill_manual(values=c("#F8F8FF", '#4169E1')) +
-  labs(x = "Bogo sale event", y="Sales")+
-  theme(axis.title.x = element_text(size=fontsize+1),axis.title.y = element_text(size=fontsize+1),
-        axis.text.x = element_text(size=fontsize),axis.text.y = element_text(size=fontsize),
+  labs(x = "BOGO event", y="Soft drink sales")+
+  theme(axis.title.x = element_text(size=fontsize1),axis.title.y = element_text(size=fontsize1),
+        axis.text.x = element_text(size=fontsize1-1),axis.text.y = element_text(size=fontsize1-1),
         axis.ticks = element_line(size = 0.2),legend.position = "none")
-ggsave("C:/Users/Stef/Dropbox/latentGaussCounts/paper_new_rev1/figs/DataBoxPlots.pdf",width=3,heigh=2.6)
+  # theme(axis.title.x = element_text(size=fontsize+1),axis.title.y = element_text(size=fontsize+1),
+  #       axis.text.x = element_text(size=fontsize),axis.text.y = element_text(size=fontsize),
+  #       axis.ticks = element_line(size = 0.2),legend.position = "none")
+#ggsave("C:/Users/Stef/Dropbox/latentGaussCounts/paper_new_rev1/figs/DataBoxPlots.pdf",width=2,heigh=2)
+ggsave("C:/Users/Stef/Dropbox/latentGaussCounts/submission_Oct2020-3/figs/DataBoxPlots.pdf",width=2.3,heigh=2)
+
 
 
 
@@ -76,13 +81,16 @@ significance_level <- qnorm((1 + 0.95)/2)/sqrt(sum(!is.na(mysales$MOVE)))
 ggplot(data = bacfdf, mapping = aes(x = lag, y = acf)) +
   scale_y_continuous(limits = c(-0.5,1), breaks = c(-0.5,0,0.5,1), labels = c("-.5", "0",".5","1"))+
   geom_hline(aes(yintercept = 0),size=0.25)+
-  xlab("Lag") + ylab("Sample acf")+
+  xlab("Lag") + ylab("Sample ACF")+
   geom_segment(mapping = aes(xend = lag, yend = 0),size=0.25)+
   geom_hline(yintercept=c(significance_level,-significance_level), lty=2,color="#4169E1",size = 0.25)+
-  theme(axis.title.x = element_text(size=fontsize+1),axis.title.y = element_text(size=fontsize+1),
-        axis.text.x = element_text(size=fontsize),axis.text.y = element_text(size=fontsize),
+  theme(axis.title.x = element_text(size=fontsize1),axis.title.y = element_text(size=fontsize1),
+        axis.text.x = element_text(size=fontsize1-1),axis.text.y = element_text(size=fontsize1-1),
         axis.ticks = element_line(size = 0.2),legend.position = "none")
-ggsave("C:/Users/Stef/Dropbox/latentGaussCounts/paper_new_rev1/figs/SalesAcf.pdf",width=3,heigh=2.6)
+    # theme(axis.title.x = element_text(size=fontsize+1),axis.title.y = element_text(size=fontsize+1),
+  #       axis.text.x = element_text(size=fontsize),axis.text.y = element_text(size=fontsize),
+  #       axis.ticks = element_line(size = 0.2),legend.position = "none")
+ggsave("C:/Users/Stef/Dropbox/latentGaussCounts/submission_Oct2020-3/figs/SalesAcf.pdf",width=2.3,heigh=2)
 
 
 # pacf plot

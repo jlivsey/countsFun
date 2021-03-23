@@ -879,10 +879,10 @@ PDvaluesMA2OldReg = function(theta, tht, data, Regressor, ARMAorder, ParticleNum
 
 
 # two functions to help me plot the qqplot
-nsim <- function(n, m = 0, s = 1) {
-  z <- rnorm(n)
-  m + s * ((z - mean(z)) / sd(z))
-}
+# nsim <- function(n, m = 0, s = 1) {
+#   z <- rnorm(n)
+#   m + s * ((z - mean(z)) / sd(z))
+# }
 
 nboot <- function(x, R) {
   n <- length(x)

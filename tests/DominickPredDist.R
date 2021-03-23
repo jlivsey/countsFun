@@ -75,7 +75,7 @@ ggplot(df) +
   geom_hline(yintercept=1/H, col="black", lty="dashed",size=0.25,) +
   scale_y_continuous(breaks = c(0, 0.05, 0.1,  0.15, 0.2),
                      limits = c(0,0.17),
-                     labels = c("0", "0.5", "0.1",  "0.15", "0.2"))+
+                     labels = c("0", "0.05", "0.1",  "0.15", "0.2"))+
   scale_x_continuous(breaks = c(-0.05, 0.5, 1.05),
                      labels = c("0", "0.5", "1"))+
   theme(axis.title.x = element_text(size=fontsize-1),axis.title.y = element_text(size=fontsize-1),
@@ -113,7 +113,7 @@ ggplot(df) +
   geom_hline(yintercept=1/H, col="black", lty="dashed",size=0.25,) +
   scale_y_continuous(breaks = c(0, 0.05, 0.1,  0.15, 0.2),
                      limits = c(0,0.17),
-                     labels = c("0", "0.5", "0.1",  "0.15", "0.2"))+
+                     labels = c("0", "0.05", "0.1",  "0.15", "0.2"))+
   scale_x_continuous(breaks = c(-0.05, 0.5, 1.05),
                      labels = c("0", "0.5", "1"))+
   theme(axis.title.x = element_text(size=fontsize-1),axis.title.y = element_text(size=fontsize-1),

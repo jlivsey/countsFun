@@ -495,33 +495,31 @@ innovations.algorithm <- function(acvf,n.max=length(acvf)-1){
 
 
 # Nonstationary innovations algorithm
-Innalg <- function(x, autocov)
-{
-  N <- length(x)
-  x.hat <- numeric(N+1)
-  v <- numeric(N+1)
-  e <- numeric(N+1)
+Innalg <- function(data, GAMMA){
+  N <- length(data)
+  x.hat <- numeric(N)
+  v <- numeric(N)
+  e <- numeric(N)
   theta <- matrix(0, N, N)
 
   x.hat[1] <- 0
-  v[1] <- autocov[1, 1]
-  e[1] <- x[1]
+  v[1] <- GAMMA[1, 1]
+  e[1] <- data[1]
 
-  for (n in 1:N)
-  {
-    for (k in 0:(n-1))
-    {
+  for (n in 1:(N-1)){
+    for (k in 0:(n-1)){
       a <- 0
       if (k > 0) {
         a <- sum(theta[k, 1:k] * theta[n, 1:k] * v[1:k])
       }
 
-      theta[n, k+1] <- (1/v[k+1]) * (autocov[n+1, k+1] - a)
+      theta[n, k+1] <- (1/v[k+1]) * (GAMMA[n+1, k+1] - a)
     }
-
-    x.hat[n+1] <- sum(theta[n, 1:n] * (x[1:n] - x.hat[1:n]))
-    v[n+1] <- autocov[n+1, n+1] - sum(theta[n, 1:n]^2 * v[1:n])
-    e[n+1] <- x[n+1] - x.hat[n+1]
+    if(n<N){
+      x.hat[n+1] <- sum(theta[n, 1:n] * (data[1:n] - x.hat[1:n]))
+      v[n+1] <- GAMMA[n+1, n+1] - sum(theta[n, 1:n]^2 * v[1:n])
+      e[n+1] <- data[n+1] - x.hat[n+1]
+    }
   }
 
   return(list(x.hat = x.hat,
@@ -532,7 +530,7 @@ Innalg <- function(x, autocov)
 
 
 # Optimization wrapper to fit PF likelihood with resamplinbg
-FitMultiplePF_Res = function(theta, data, Regressor, mod, OptMethod){
+FitMultiplePF_Res = function(theta, data, Regressor, mod, OptMethod, maxit){
   #====================================================================================#
   # PURPOSE       Fit the Particle Filter log-likelihood with resampling.
   #               This function maximizes the PF likelihood, nfit manys times for nparts
@@ -610,18 +608,39 @@ FitMultiplePF_Res = function(theta, data, Regressor, mod, OptMethod){
                 Regressor      = Regressor,
                 mod            = mod)
 
-      # save standard errors from Hessian
-      if(H$hessOK && det(H$Hn)>10^(-8)){
-        se[nfit*(k-1)+j,]   = sqrt(abs(diag(solve(H$Hn))))
+      # if I get all na for one row and one col of H remove it
+      # H$Hn[rowSums(is.na(H$Hn)) != ncol(H$Hn), colSums(is.na(H$Hn)) != nrow(H$Hn)]
+
+      if (!is.na(rowSums(H$Hn))){
+        # save standard errors from Hessian
+        if(H$hessOK && det(H$Hn)>10^(-8)){
+          se[nfit*(k-1)+j,]   = sqrt(abs(diag(solve(H$Hn))))
+        }else{
+          se[nfit*(k-1)+j,] = rep(NA, nparms)
+        }
       }else{
-        se[nfit*(k-1)+j,] = rep(NA, nparms)
+        # remove the NA rows and columns from H
+        Hnew = H$Hn[rowSums(is.na(H$Hn)) != ncol(H$Hn), colSums(is.na(H$Hn)) != nrow(H$Hn)]
+
+        # find which rows are missing and which are not
+        NAIndex = which(colSums(is.na(H$Hn))==nparms)
+        NonNAIndex = which(colSums(is.na(H$Hn))==1)
+
+        #repeat the previous ifelse for the reduced H matrix
+        if(det(Hnew)>10^(-8)){
+          se[nfit*(k-1)+j,NonNAIndex]   = sqrt(abs(diag(solve(Hnew))))
+        }else{
+          se[nfit*(k-1)+j,NAIndex] = rep(NA, length(NAindex))
+        }
+
       }
+
 
     }
   }
 
   # Compute model selection criteria (assuming one fit)
-  Criteria = ComputeCriteria(loglik, nparms, n, mod$ParticleNumber)
+  Criteria = ComputeCriteria(loglik, mod)
 
 
   # get the names of the final output
@@ -636,3 +655,8 @@ FitMultiplePF_Res = function(theta, data, Regressor, mod, OptMethod){
 }
 
 
+
+
+# ia1 = innovations.algorithm(GAMMA[1,],n.max=length(GAMMA[1,])-1)
+#
+# ia2 = Innalg(data, GAMMA)
