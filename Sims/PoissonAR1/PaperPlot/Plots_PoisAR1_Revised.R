@@ -116,8 +116,9 @@ p2 + geom_boxplot(outlier.size = 1/2, fatten = 1) +
   #theme_bw()+
   theme(text=element_text(size=24),legend.position="bottom",
         legend.text=element_text(size=rel(1)),legend.key.size = unit(2,"line"),
-        strip.text.x = element_text(size = 18, margin = margin( b = 7, t =7) ))
+        strip.text.x = element_text(size = 22, margin = margin( b = 7, t =7) ))
 
-
-ggsave(sprintf("C:/Users/Stef/Dropbox/latentGaussCounts/paper_new_rev1/figs/Pois%sAR1phi%s75.pdf",lam,PhiSign))
+ggsave(sprintf("C:/Users/Stef/Dropbox/latentGaussCounts/submission_May2021/figs/Pois%sAR1phi%s75.pdf",lam,PhiSign))
 dev.off()
+#ggsave(sprintf("C:/Users/Stef/Dropbox/latentGaussCounts/paper_new_rev1/figs/Pois%sAR1phi%s75.pdf",lam,PhiSign))
+#dev.off()

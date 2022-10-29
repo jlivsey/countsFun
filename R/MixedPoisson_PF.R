@@ -69,9 +69,6 @@ MixedPoisson_PF = function(trueParam, p, q, LB, UB, n, nsim, Particles, epsilon,
     FitMultiplePFRes(initParam[[index]], l[[index]], CountDist, Particles, LB, UB, ARMAorder, epsilon)
 
 
-  stopCluster(cl)
-
-
   # Prepare results for the plot.
   df = data.frame(matrix(ncol = 18, nrow = nsim))
 

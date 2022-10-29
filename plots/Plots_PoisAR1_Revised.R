@@ -10,8 +10,8 @@
 
 ### load all data
 # GL sims
-setwd("~/github/countsFun/Sims/PoissonAR1/GL")
-# setwd("C:/Users/Stef/Desktop/countsFun/Sims/PoissonAR1/GL")
+# setwd("~/github/countsFun/Sims/PoissonAR1/GL/RData")
+setwd("C:/Users/Stef/Desktop/countsFun/Sims/PoissonAR1/GL/RData")
 load('PoisAR1_GL_N100_NS200_PhiNeg.Rdata')
 load('PoisAR1_GL_N200_NS200_PhiNeg.Rdata')
 load('PoisAR1_GL_N400_NS200_PhiNeg.Rdata')
@@ -20,8 +20,8 @@ load('PoisAR1_GL_N200_NS200_PhiPos.Rdata')
 load('PoisAR1_GL_N400_NS200_PhiPos.Rdata')
 
 # PF sims
-setwd("~/github/countsFun/Sims/PoissonAR1/PF")
-# setwd("C:/Users/Stef/Desktop/countsFun/Sims/PoissonAR1/PF")
+#setwd("~/github/countsFun/Sims/PoissonAR1/PF/RData")
+setwd("C:\Users\Stef\Desktop\countsFun\Sims\PoissonAR1\PF\RData")
 load('PoisAR1_PF_N100_NS200_Part100_PhiNeg.Rdata')
 load('PoisAR1_PF_N200_NS200_Part100_PhiNeg.Rdata')
 load('PoisAR1_PF_N400_NS200_Part100_PhiNeg.Rdata')
@@ -30,7 +30,7 @@ load('PoisAR1_PF_N200_NS200_Part100_PhiPos.Rdata')
 load('PoisAR1_PF_N400_NS200_Part100_PhiPos.Rdata')
 
 # IYW sims
-setwd("~/github/countsFun/Sims/PoissonAR1/IYW")
+setwd("C:/Users/Stef/Desktop/countsFun/Sims/PoissonAR1/IYW/RData")
 load("PoisAR1_IWY_N100_NS200_PhiNeg.RData")
 load("PoisAR1_IWY_N100_NS200_PhiPos.RData")
 load("PoisAR1_IWY_N200_NS200_PhiNeg.RData")

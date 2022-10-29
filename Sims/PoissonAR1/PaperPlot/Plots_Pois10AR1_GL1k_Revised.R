@@ -34,7 +34,7 @@ d$n = as.factor(d$n)
 
 # What param config do we want to look at?
 lam = unique(d$lam.true)
-phi = -.75
+phi = .75
 PhiSign = ifelse(phi > 0, 'Pos', 'Neg')  # SIGN OF ar(1) param
 
 # subset data.frame by param config
