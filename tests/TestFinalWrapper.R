@@ -34,16 +34,36 @@ data           = mysales$MOVE[1:n]
 ARMAorder      = c(3,0)
 Regressor      = cbind(rep(1,length(mysales$Buy[1:n] )),mysales$Buy[1:n] )
 CountDist      = "Negative Binomial"
+# CountDist      = "Poisson"
 EstMethod      = "PFR"
 OptMethod      = "bobyqa"
 maxit          = 0
 # initialParam   = c(2.597666, 1.15373, 1.197833, -0.3748205, 0.226, 0.227)
 initialParam   = NULL
 
+#initialParam   = c(2.13258844,  1.16177357, -0.39141331,  0.08239859,  0.05745040)
+
+
+# mod = ModelScheme(data, Regressor, ARMAorder, CountDist, MaxCdf, nHC,ParticleNumber, epsilon, initialParam, EstMethod, maxit)
+#
+# # stop if there was an error in model specification
+# if(mod$error) stop(mod$errorMsg)
+#
+# # fix me: I need a function that computes initial parameters
+# if (is.null(initialParam)){
+#   theta  = InitialEstimates(mod)
+# }else{
+#   theta  = mod$initialParam
+# }
+#
+# ParticleFilter_Res_AR(theta, mod)
+
 # call the wrapper
 countC(data, Regressor, CountDist, EstMethod, ARMAorder,
                   nHC, MaxCdf, ParticleNumber, epsilon, initialParam ,
                   OptMethod, maxit)
+
+
 
 
 

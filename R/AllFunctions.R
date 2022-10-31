@@ -965,8 +965,15 @@ ParticleFilter_Res_AR = function(theta, mod){
 
     # break if I got NA weight
     if (any(is.na(wgh[t,]))| sum(wgh[t,])==0 ){
+      # print(theta)
+      # print(t)
       nloglik = 10^8
+      # FIX ME: Do I need break here or return?
       break
+      # I am fitting a poisson with initialParam= NULL in the Sales data and the initial estimated
+      # mean form GLM, returns parameters that yield a, and b above that lead to Zprev = -Inf. I will comment
+      # out the break and return, also change the value from 10^8 to 10^18.
+      # return(nloglik)
     }
 
     # normalized weights
@@ -1001,7 +1008,15 @@ ParticleFilter_Res_AR = function(theta, mod){
   if(mod$nreg==0){
     nloglik = nloglik - log(mod$mypdf(mod$data[1],MargParms))
   }else{
+    # FIX ME: check this. what happens if the pdf is zero at a given point? Perhaps it is numerical zero
+    # for now I ll ignore it but this is wrong!!
+    # if (mod$mypdf(mod$data[1], ConstMargParm, DynamMargParm[1])<10^(-12)){
+    #   nloglik = nloglik
+    # }else{
+    #   nloglik = nloglik - log(mod$mypdf(mod$data[1], ConstMargParm, DynamMargParm[1]))
+    # }
     nloglik = nloglik - log(mod$mypdf(mod$data[1], ConstMargParm, DynamMargParm[1]))
+
   }
 
   # for log-likelihood we use a bias correction--see par2.3 in Durbin Koopman, 1997
@@ -1373,7 +1388,7 @@ FitMultiplePF_Res = function(theta, mod){
     set.seed(j)
     # for each fit repeat for different number of particles
     for (k in 1:nparts){
-      # number of particles to be used
+      # FIX ME: I need to somehow update this in mod. (number of particles to be used). I t now works only for 1 choice of ParticleNumber
       ParticleNumber = mod$ParticleNumber[k]
 
       # run optimization for our model --no ARMA model allowed
@@ -1450,75 +1465,6 @@ FitMultiplePF_Res = function(theta, mod){
 
 
 
-# ia1 = innovations.algorithm(GAMMA[1,],n.max=length(GAMMA[1,])-1)
-#
-# ia2 = Innalg(data, GAMMA)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# check validity of input arguments
-CheckInputSpecs = function(data, Regressor, CountDist, EstMethod, ARMAorder,
-                           nHC, MaxCdf, ParticleNumber, epsilon, initialParam,OptMethod ){
-
-  rc = 0
-
-  # Truncation of cdf
-  if (MaxCdf<0) rc = 1
-
-  # check distributions
-  if ( !(EstMethod %in%  c("PFR", "GL", "IYW")))  rc = 2
-
-  # check Particle number
-  if (EstMethod=="PFR" && (epsilon > 1 || epsilon<0)) rc = 3
-
-  # check Particle number
-  if (EstMethod=="PFR" && ParticleNumber<1) rc = 4
-
-  # check distributions
-  if ( !(CountDist %in%  c("Poisson", "Negative Binomial", "Mixed Poisson", "Generalized Poisson", "Binomial" ))) rc = 5
-
-  # check ARMAorder
-  if (prod(ARMAorder)<0 || length(ARMAorder)!= 2) rc = 6
-
-  # Mixed ARMA model
-  if (mod$ARMAorder[1]>0 && mod$ARMAorder[2]>0) rc = 7
-
-  # check data
-  if (is.null(data) ||  length(data)<3) rc = 8
-
-  errors = list(
-    e1 = 'Please specify a nonnegative MaxCdf.',
-    e2 = 'The argument EstMethod must take one of the following values: "GL", IYW","PFR".',
-    e3 = 'Please select a value between 0 and 1 for epsilon.',
-    e4 = 'Please select a nonegative value for the argument ParticleNumber.',
-    e5 = 'The argument CountDist must take one of the following values:
-         "Poisson", "Negative Binomial", "Mixed Poisson", "Generalized Poisson", "Binomial".',
-    e6 = 'The argument ARMAorder must have length 2 and can not take negative values.',
-    e7 = 'Please specify a pure AR or a pure MA model. ARMA(p,q) models with p>0 and q>0 have not yet been implemented.',
-    e8 = 'Data must be non null with sample size greater than 3.'
-  )
-
-
-  out = list(
-    rc  = rc,
-    e   = errors[[rc]]
-  )
-  return(out)
-
-}
-
-
 # compute initial estimates
 InitialEstimates = function(mod){
 
@@ -1531,31 +1477,36 @@ InitialEstimates = function(mod){
       if(mod$ARMAorder[1]) est[(mod$nMargParms+1):(mod$nMargParms+mod$ARMAorder[1])] = itsmr::arma(mod$data,mod$ARMAorder[1],mod$ARMAorder[2])$phi
       if(mod$ARMAorder[2]) est[(1+mod$nMargParms+mod$ARMAorder[1]):(1+mod$nMargParms+sum(mod$ARMAorder))] = itsmr::arma(mod$data,mod$ARMAorder[1],mod$ARMAorder[2])$theta
     }else{
-      est[1:mod$nMargParms] = as.numeric(glm(mod$data~mod$Regressor, family = poisson)[1]$coef)
-      if(mod$ARMAorder[1]) est[(mod$nMargParms+1):(1+mod$nMargParms+mod$ARMAorder[1])] = itsmr::arma(mod$data,mod$ARMAorder[1],mod$ARMAorder[2])$phi
-      if(mod$ARMAorder[2]) est[(1+mod$ARMAorder[1]+mod$nMargParms):(1+mod$nMargParms+sum(mod$ARMAorder))] = itsmr::arma(mod$data,mod$ARMAorder[1],mod$ARMAorder[2])$theta
+      # GLM for the mean that depends on time
+      # CHECK ME: If I fit a Poisson AR(3) in the the data example of the JASA paper, but the code below doesn't specify poisson family (it would pick up the default distribution that glm function has) then there will be a numerical error in the likelihood. Check it!
+      glmPoisson            = glm(mod$data~mod$Regressor[,2:(mod$nreg+1)], family = "poisson")
+      est[1:mod$nMargParms] = as.numeric(glmPoisson[1]$coef)
+
+      if(mod$ARMAorder[1]) est[(mod$nMargParms+1):(mod$nMargParms+mod$ARMAorder[1])] = itsmr::arma(mod$data,mod$ARMAorder[1],mod$ARMAorder[2])$phi
+      if(mod$ARMAorder[2]) est[(1+mod$ARMAorder[1]+mod$nMargParms):(mod$nMargParms+sum(mod$ARMAorder))] = itsmr::arma(mod$data,mod$ARMAorder[1],mod$ARMAorder[2])$theta
     }
   }
 
-
+  #-----Neg Binomial case
   if(mod$CountDist=="Negative Binomial"){
     if(mod$nreg==0){
-      xbar = mean(data)
-      sSquare = var(data)
+      xbar = mean(mod$data)
+      sSquare = var(mod$data)
 
       # Method of Moments for negBin
       rEst = xbar^2/(sSquare - xbar)
       pEst = 1 - xbar/sSquare
       est[1:2] = c(rEst, pEst)
-      if(mod$ARMAorder[1]) est[(mod$nMargParms+1):(mod$nMargParms+mod$ARMAorder[1])] = itsmr::arma(data,mod$ARMAorder[1],mod$ARMAorder[2])$phi
-      if(mod$ARMAorder[2]) est[(1+mod$nMargParms+mod$ARMAorder[1]):(1+mod$nMargParms+sum(mod$ARMAorder))] = itsmr::arma(data,mod$ARMAorder[1],mod$ARMAorder[2])$theta
+      if(mod$ARMAorder[1]) est[(mod$nMargParms+1):(mod$nMargParms+mod$ARMAorder[1])] = itsmr::arma(mod$data,mod$ARMAorder[1],mod$ARMAorder[2])$phi
+      if(mod$ARMAorder[2]) est[(1+mod$nMargParms+mod$ARMAorder[1]):(1+mod$nMargParms+sum(mod$ARMAorder))] = itsmr::arma(mod$data,mod$ARMAorder[1],mod$ARMAorder[2])$theta
     }else{
-      # GLM for the mean that depends on time and Mom on constant variannce
+      # GLM for the mean that depends on time
       glmNegBin                 = glm.nb(mod$data~mod$Regressor[,2:(mod$nreg+1)])
       est[1:(mod$nMargParms-1)] = as.numeric(glmNegBin[1]$coef)
+      # Mom on constant variance
       est[mod$nMargParms]       = NegBinMoM(mod$data,glmNegBin$fitted.values)
-      if(mod$ARMAorder[1]) est[(mod$nMargParms+1):(mod$nMargParms+mod$ARMAorder[1])] = itsmr::arma(data,mod$ARMAorder[1],mod$ARMAorder[2])$phi
-      if(mod$ARMAorder[2]) est[(1+mod$ARMAorder[1]+mod$nMargParms):(1+mod$nMargParms+sum(mod$ARMAorder))] = itsmr::arma(data,mod$ARMAorder[1],mod$ARMAorder[2])$theta
+      if(mod$ARMAorder[1]) est[(mod$nMargParms+1):(mod$nMargParms+mod$ARMAorder[1])] = itsmr::arma(mod$data,mod$ARMAorder[1],mod$ARMAorder[2])$phi
+      if(mod$ARMAorder[2]) est[(1+mod$ARMAorder[1]+mod$nMargParms):(mod$nMargParms+sum(mod$ARMAorder))] = itsmr::arma(mod$data,mod$ARMAorder[1],mod$ARMAorder[2])$theta
     }
   }
 
@@ -1580,12 +1531,12 @@ InitialEstimates = function(mod){
 
       est[1:3] = c(l1Est, l1Est, pEst)
 
-      if(mod$ARMAorder[1]) est[(mod$nMargParms+1):(mod$nMargParms+mod$ARMAorder[1])] = itsmr::arma(data,mod$ARMAorder[1],mod$ARMAorder[2])$phi
-      if(mod$ARMAorder[2]) est[(1+mod$nMargParms+mod$ARMAorder[1]):(1+mod$nMargParms+sum(mod$ARMAorder))] = itsmr::arma(data,mod$ARMAorder[1],mod$ARMAorder[2])$theta
+      if(mod$ARMAorder[1]) est[(mod$nMargParms+1):(mod$nMargParms+mod$ARMAorder[1])] = itsmr::arma(mod$data,mod$ARMAorder[1],mod$ARMAorder[2])$phi
+      if(mod$ARMAorder[2]) est[(1+mod$nMargParms+mod$ARMAorder[1]):(1+mod$nMargParms+sum(mod$ARMAorder))] = itsmr::arma(mod$data,mod$ARMAorder[1],mod$ARMAorder[2])$theta
     }else{
       est[1:mod$nMargParms] = as.numeric(glm.nb(mod$data~mod$Regressor)[1]$coef)
-      if(mod$ARMAorder[1]) est[(mod$nMargParms+1):(1+mod$nMargParms+mod$ARMAorder[1])] = itsmr::arma(data,mod$ARMAorder[1],mod$ARMAorder[2])$phi
-      if(mod$ARMAorder[2]) est[(1+mod$ARMAorder[1]+mod$nMargParms):(1+mod$nMargParms+sum(mod$ARMAorder))] = itsmr::arma(data,mod$ARMAorder[1],mod$ARMAorder[2])$theta
+      if(mod$ARMAorder[1]) est[(mod$nMargParms+1):(1+mod$nMargParms+mod$ARMAorder[1])] = itsmr::arma(mod$data,mod$ARMAorder[1],mod$ARMAorder[2])$phi
+      if(mod$ARMAorder[2]) est[(1+mod$ARMAorder[1]+mod$nMargParms):(1+mod$nMargParms+sum(mod$ARMAorder))] = itsmr::arma(mod$data,mod$ARMAorder[1],mod$ARMAorder[2])$theta
     }
   }
 
@@ -1594,19 +1545,19 @@ InitialEstimates = function(mod){
   #-----Generalized Poisson case
   if(mod$CountDist=="Generalized Poisson"){
     if(mod$nreg==0){
-      xbar = mean(data)
-      sSquare = var(data)
+      xbar = mean(mod$data)
+      sSquare = var(mod$data)
 
       # Method of Moments for negBin
       rEst = xbar^2/(sSquare - xbar)
       pEst = 1 - xbar/sSquare
       est[1:2] = c(rEst, pEst)
-      if(mod$ARMAorder[1]) est[(mod$nMargParms+1):(mod$nMargParms+mod$ARMAorder[1])] = itsmr::arma(data,mod$ARMAorder[1],mod$ARMAorder[2])$phi
-      if(mod$ARMAorder[2]) est[(1+mod$nMargParms+mod$ARMAorder[1]):(1+mod$nMargParms+sum(mod$ARMAorder))] = itsmr::arma(data,mod$ARMAorder[1],mod$ARMAorder[2])$theta
+      if(mod$ARMAorder[1]) est[(mod$nMargParms+1):(mod$nMargParms+mod$ARMAorder[1])] = itsmr::arma(mod$data,mod$ARMAorder[1],mod$ARMAorder[2])$phi
+      if(mod$ARMAorder[2]) est[(1+mod$nMargParms+mod$ARMAorder[1]):(1+mod$nMargParms+sum(mod$ARMAorder))] = itsmr::arma(mod$data,mod$ARMAorder[1],mod$ARMAorder[2])$theta
     }else{
       est[1:mod$nMargParms] = as.numeric(glm.nb(mod$data~mod$Regressor)[1]$coef)
-      if(mod$ARMAorder[1]) est[(mod$nMargParms+1):(1+mod$nMargParms+mod$ARMAorder[1])] = itsmr::arma(data,mod$ARMAorder[1],mod$ARMAorder[2])$phi
-      if(mod$ARMAorder[2]) est[(1+mod$ARMAorder[1]+mod$nMargParms):(1+mod$nMargParms+sum(mod$ARMAorder))] = itsmr::arma(data,mod$ARMAorder[1],mod$ARMAorder[2])$theta
+      if(mod$ARMAorder[1]) est[(mod$nMargParms+1):(1+mod$nMargParms+mod$ARMAorder[1])] = itsmr::arma(mod$data,mod$ARMAorder[1],mod$ARMAorder[2])$phi
+      if(mod$ARMAorder[2]) est[(1+mod$ARMAorder[1]+mod$nMargParms):(1+mod$nMargParms+sum(mod$ARMAorder))] = itsmr::arma(mod$data,mod$ARMAorder[1],mod$ARMAorder[2])$theta
     }
   }
 
@@ -1623,5 +1574,64 @@ NegBinMoM = function(data, GLMMeanEst){
   PhiMomEst = sum(GLMMeanEst^2)/(sum((data-GLMMeanEst)^2-GLMMeanEst))
   return(PhiMomEst)
 }
+
+
+
+
+
+
+
+# # check validity of input arguments
+# CheckInputSpecs = function(data, Regressor, CountDist, EstMethod, ARMAorder,
+#                            nHC, MaxCdf, ParticleNumber, epsilon, initialParam,OptMethod ){
+#
+#   rc = 0
+#
+#   # Truncation of cdf
+#   if (MaxCdf<0) rc = 1
+#
+#   # check distributions
+#   if ( !(EstMethod %in%  c("PFR", "GL", "IYW")))  rc = 2
+#
+#   # check Particle number
+#   if (EstMethod=="PFR" && (epsilon > 1 || epsilon<0)) rc = 3
+#
+#   # check Particle number
+#   if (EstMethod=="PFR" && ParticleNumber<1) rc = 4
+#
+#   # check distributions
+#   if ( !(CountDist %in%  c("Poisson", "Negative Binomial", "Mixed Poisson", "Generalized Poisson", "Binomial" ))) rc = 5
+#
+#   # check ARMAorder
+#   if (prod(ARMAorder)<0 || length(ARMAorder)!= 2) rc = 6
+#
+#   # Mixed ARMA model
+#   if (mod$ARMAorder[1]>0 && mod$ARMAorder[2]>0) rc = 7
+#
+#   # check data
+#   if (is.null(data) ||  length(data)<3) rc = 8
+#
+#   errors = list(
+#     e1 = 'Please specify a nonnegative MaxCdf.',
+#     e2 = 'The argument EstMethod must take one of the following values: "GL", IYW","PFR".',
+#     e3 = 'Please select a value between 0 and 1 for epsilon.',
+#     e4 = 'Please select a nonegative value for the argument ParticleNumber.',
+#     e5 = 'The argument CountDist must take one of the following values:
+#          "Poisson", "Negative Binomial", "Mixed Poisson", "Generalized Poisson", "Binomial".',
+#     e6 = 'The argument ARMAorder must have length 2 and can not take negative values.',
+#     e7 = 'Please specify a pure AR or a pure MA model. ARMA(p,q) models with p>0 and q>0 have not yet been implemented.',
+#     e8 = 'Data must be non null with sample size greater than 3.'
+#   )
+#
+#
+#   out = list(
+#     rc  = rc,
+#     e   = errors[[rc]]
+#   )
+#   return(out)
+#
+# }
+#
+
 
 
