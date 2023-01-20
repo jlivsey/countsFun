@@ -13,13 +13,13 @@ library(tictoc)
 library(optimx)
 library(ltsa)
 library(itsmr)
-# library(lavaSearch2)
+library(lavaSearch2)
 library(numDeriv)
-# library(sandwich)
+library(sandwich)
 library(MASS)
 
-# # FIX ME: Check Where is this used?
-# symmetrize     = lavaSearch2:::symmetrize
+# FIX ME: Check Where is this used?
+symmetrize     = lavaSearch2:::symmetrize
 
 # load the data
 mysales        = read.csv("data/MySelectedSeries.csv")
@@ -58,7 +58,7 @@ initialParam   = NULL
 # ParticleFilter_Res_AR(theta, mod)
 
 # call the wrapper
-a = countC(data, Regressor=NULL, CountDist, EstMethod, ARMAorder,
+a = countC(data, Regressor, CountDist, EstMethod, ARMAorder,
                    nHC, MaxCdf, ParticleNumber, epsilon, initialParam ,
                    OptMethod, maxit)
 
