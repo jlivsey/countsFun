@@ -1,15 +1,17 @@
-LGCSimulation = function(nsim           = nsim,
+LGCSimulation = function(nsim           = NULL,
                          SampleSize     = NULL,
                          Regressor      = NULL,
-                         EstMethod      = "PFR",
+                         EstMethod      = NULL,
                          CountDist      = NULL,
                          MargParm       = NULL,
                          ARParm         = NULL,
                          MAParm         = NULL,
-                         ParticleNumber = 10,
-                         epsilon        = 0.5,
+                         ParticleNumber = NULL,
+                         epsilon        = NULL,
                          initialParam   = NULL,
-                         OptMethod      = "bobyqa",
+                         OptMethod      = NULL,
+                         Optimization   = NULL,
+                         OutputType     = NULL,
                          ParamScheme    = NULL)
   {
 
@@ -29,6 +31,7 @@ LGCSimulation = function(nsim           = nsim,
     l[[i]] = sim_lgc(SampleSize, CountDist, MargParm, ARParm, MAParm)
   }
 
+  TrueParam = c(MargParm, ARParm, MAParm)
   ARMAorder = c(length(ARParm), length(MAParm))
 
   # initiate and register the cluster
@@ -40,7 +43,7 @@ LGCSimulation = function(nsim           = nsim,
   # run foreach
   all = foreach(index = 1:nsim,
              .combine = rbind,
-            .packages = c("ltsa", "optimx"))  %dopar%  {
+            .packages = c("ltsa", "optimx", 'tictoc', 'countsFun'))  %dopar%  {
                   lgc(DependentVar   = l[[index]],
                       Regressor      = Regressor,
                       EstMethod      = EstMethod,
@@ -49,35 +52,33 @@ LGCSimulation = function(nsim           = nsim,
                       ParticleNumber = ParticleNumber,
                       epsilon        = epsilon,
                       initialParam   = initialParam,
-                      OptMethod      = OptMethod
+                      TrueParam      = TrueParam,
+                      Optimization   = Optimization,
+                      OptMethod      = OptMethod,
+                      OutputType     = OutputType,
+                      ParamScheme    = ParamScheme
                   )
                 }
 
   stopCluster(cl)
 
-
-  # # Prepare results for the plot.
-  # df = data.frame(matrix(ncol = 8, nrow = nsim))
-  #
-  # #Create columns lam.est, phi.est, estim.method, n, phi, phi.se, lam, lam.se
-  # names(df) = c(
-  #   'lam.est',
-  #   'phi.est',
-  #   'estim.method',
-  #   'n',
-  #   'phi.true',
-  #   'phi.se',
-  #   'lam.true',
-  #   'lam.se'
-  # )
-  #
-  # df[, 1:2] = all[, 1:2]
-  # df[, 3] = 'particle'
-  # df[, 4] = n
-  # df[, 5] = ARParm
-  # df[, 6] = all[, 4]
-  # df[, 7] = MargParm
-  # df[, 8] = all[, 3]
-
   return(all)
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

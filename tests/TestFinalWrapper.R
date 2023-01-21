@@ -1,6 +1,6 @@
 #====================================================================================#
 # PURPOSE      Test of calling the main wrapper function of the timecounts package.
-#
+#              thi
 #
 # Authors      Stefanos Kechagias, James Livsey, Vladas Pipiras, Jiajie Kong
 # Date         Fall 2022

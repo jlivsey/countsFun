@@ -25,7 +25,8 @@ initialParam   = c(MargParm*0.5, 0*ARParm, 0.5*MAParm)
 initialParam   = NULL
 theta          = initialParam
 OptMethod      = NULL
-
+Optimization   = 0
+OutputType     = "matrix"
 
 # simulate data
 DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm,MAParm)
@@ -39,7 +40,9 @@ mylgc = lgc(DependentVar   = DependentVar,
             ParticleNumber = ParticleNumber,
             epsilon        = epsilon,
             initialParam   = initialParam,
-            OptMethod      = OptMethod
+            Optimization   = Optimization,
+            OptMethod      = OptMethod,
+            OutputType     = OutputType
 )
 
 

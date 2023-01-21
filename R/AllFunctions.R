@@ -1,6 +1,6 @@
 #---------retrieve the model scheme
 ModelScheme = function(DependentVar, Regressor, EstMethod, ARMAorder, CountDist, ParticleNumber, epsilon,
-                       initialParam){
+                       initialParam, TrueParam, Optimization, OptMethod, OutputType, ParamScheme){
 
   error = 0
   errorMsg = NULL
@@ -75,11 +75,11 @@ ModelScheme = function(DependentVar, Regressor, EstMethod, ARMAorder, CountDist,
 
   }
 
-
-
   # retrieve marginal distribution parameters
   nMargParms = length(MargParmIndices)
   nparms     = nMargParms + sum(ARMAorder)
+  nAR        = ARMAorder[1]
+  nMA        = ARMAorder[2]
 
   if(!is.null(initialParam) && length(initialParam)!=nparms) {
     error = 1
@@ -125,9 +125,14 @@ ModelScheme = function(DependentVar, Regressor, EstMethod, ARMAorder, CountDist,
     myinvcdf        = myinvcdf,
     MargParmIndices = MargParmIndices,
     initialParam    = initialParam,
+    TrueParam       = TrueParam,
     # ARMAModel       = ARMAModel,
     # MargParm        = MargParm,
+    # ARParm          = ARParm,
+    # MAParm          = MAParm,
     nMargParms      = nMargParms,
+    nAR             = nAR,
+    nMA             = nMA,
     n               = n,
     nreg            = nreg,
     # MaxCdf          = MaxCdf,
@@ -144,7 +149,11 @@ ModelScheme = function(DependentVar, Regressor, EstMethod, ARMAorder, CountDist,
     EstMethod       = EstMethod,
     # maxit         = maxit,
     DependentVar    = DependentVar,
-    Regressor       = Regressor
+    Regressor       = Regressor,
+    Optimization    = Optimization,
+    OptMethod       = OptMethod,
+    OutputType      = OutputType,
+    ParamScheme     = ParamScheme
   )
   return(out)
 
@@ -291,14 +300,14 @@ ParticleFilter_Res_AR = function(theta, mod){
 
     # STEP 2 is SISR: Update the latent Gaussian series Z
     if(mod$nreg==0){
-      a = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t]-1,t(MargParms)),0,1)) - Zhat)/Rt[ARMAorder[1]]
-      b = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t],t(MargParms)),0,1)) - Zhat)/Rt[ARMAorder[1]]
+      a = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t]-1,t(MargParms)),0,1)) - Zhat)/Rt[mod$ARMAorder[1]]
+      b = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t],t(MargParms)),0,1)) - Zhat)/Rt[mod$ARMAorder[1]]
     }else{
-      a = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t]-1,ConstMargParm, DynamMargParm[t]),0,1)) - Zhat)/Rt[ARMAorder[1]]
-      b = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t],ConstMargParm, DynamMargParm[t]),0,1)) - Zhat)/Rt[ARMAorder[1]]
+      a = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t]-1,ConstMargParm, DynamMargParm[t]),0,1)) - Zhat)/Rt[mod$ARMAorder[1]]
+      b = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t],ConstMargParm, DynamMargParm[t]),0,1)) - Zhat)/Rt[mod$ARMAorder[1]]
     }
 
-    Znew = qnorm(runif(length(a),0,1)*(pnorm(b,0,1)-pnorm(a,0,1))+pnorm(a,0,1),0,1)*Rt[ARMAorder[1]] + Zhat
+    Znew = qnorm(runif(length(a),0,1)*(pnorm(b,0,1)-pnorm(a,0,1))+pnorm(a,0,1),0,1)*Rt[mod$ARMAorder[1]] + Zhat
 
     # compute unnormalized weights
     # wgh[t,] = wgh[t-1,]*(pnorm(b,0,1) - pnorm(a,0,1))
@@ -574,6 +583,7 @@ ParticleFilter_Res = function(theta, mod){
   if(mod$ARMAorder[1]>0 && mod$ARMAorder[2]==0) loglik = ParticleFilter_Res_AR(theta, mod)
   # Pure MA model or White noise
   if(mod$ARMAorder[1]==0&& mod$ARMAorder[2]>=0) loglik = ParticleFilter_Res_MA(theta, mod)
+
   return(loglik)
 }
 
@@ -629,6 +639,7 @@ FitMultiplePF_Res = function(theta, mod){
       # FIX ME: I need to somehow update this in mod. (number of particles to be used). I t now works only for 1 choice of ParticleNumber
       ParticleNumber = mod$ParticleNumber[k]
 
+      if(mod$Optimization == TRUE){
       # run optimization for our model --no ARMA model allowed
       optim.output <- optimx(
         par     = theta,
@@ -638,7 +649,21 @@ FitMultiplePF_Res = function(theta, mod){
         hessian = TRUE,
         method  = mod$OptMethod,
         mod     = mod)
+      }else{
+        optim.output = as.data.frame(matrix(rep(NA,8+length(theta)), ncol=8+length(theta)))
+        names(optim.output) = c(mapply(sprintf, rep("p%.f",length(theta)), (1:length(theta)), USE.NAMES = FALSE),
+                                "value",  "fevals", "gevals", "niter", "convcode",  "kkt1", "kkt2", "xtime")
 
+        optim.output[,1:length(theta)] = theta
+        t1 = tic()
+        loglikelihood = ParticleFilter_Res(theta,mod)
+        t2 = tic()
+        optim.output[,(length(theta)+1)] = loglikelihood
+        optim.output[,(length(theta)+2)] = 1
+        optim.output[,(length(theta)+3)] = 1
+        optim.output[,(length(theta)+4)] = 0
+        optim.output[,(length(theta)+8)] = as.numeric(t2-t1)
+      }
 
 
       # save estimates, loglik value and diagonal hessian
@@ -690,27 +715,124 @@ FitMultiplePF_Res = function(theta, mod){
 
 
   # get the names of the final output
-  parmnames = colnames(optim.output)
-  mynames = c(parmnames[1:nparms],paste("se", parmnames[1:nparms], sep="_"), "loglik", "AIC", "BIC","AICc", "ConvergenceStatus", "kkt1", "kkt2")
-  All = matrix(c(ParmEst, se, loglik, Criteria, convcode, kkt1, kkt2),nrow=1)
-  colnames(All) = mynames
+  parmnames     = colnames(optim.output)
+  # mynames       = c(parmnames[1:nparms],paste("se", parmnames[1:nparms], sep="_"), "loglik", "AIC", "BIC","AICc", "ConvergenceStatus", "kkt1", "kkt2")
+  # All           = matrix(c(ParmEst, se, loglik, Criteria, convcode, kkt1, kkt2),nrow=1)
+  # colnames(All) = mynames
+  # All           = data.frame(c(ParmEst, se, loglik, Criteria, convcode, kkt1, kkt2),nrow=1)
 
-  #  save the results in a list
-  ModelOutput <- list(data.frame(matrix(rep(NA,nparms),nrow=1)),
+  if(mod$OutputType=="list"){
+    #  save the results in a list
+    ModelOutput = list(data.frame(matrix(rep(NA,nparms),nrow=1)),
                       data.frame(matrix(rep(NA,nparms),nrow=1)),
                       data.frame(matrix(rep(NA,4),nrow=1)),
                       data.frame(matrix(rep(NA,3),nrow=1)))
-  names(ModelOutput) <- c("ParamEstimates", "StdErrors", "FitStatistics", "OptimOutput")
-  ModelOutput$ParamEstimates = All[,1:nparms]
-  ModelOutput$StdErrors      = All[,(nparms+1):(2*nparms)]
-  ModelOutput$FitStatistics  = All[,(2*nparms+1):(2*nparms+4)]
-  ModelOutput$OptimOutput    = All[,(2*nparms+5):(2*nparms+7)]
+    names(ModelOutput)         = c("ParamEstimates", "StdErrors", "FitStatistics", "OptimOutput")
+    ModelOutput$ParamEstimates = ParmEst
+    ModelOutput$StdErrors      = se
+    ModelOutput$FitStatistics  = c(loglik, Criteria)
+    ModelOutput$OptimOutput    = c(convcode,kkt1,kkt2)
+    ModelOutput$CountDist      = mod$CountDist
+    ModelOutput$EstMethod      = mod$EstMethod
+    ModelOutput$ARMAModel      = mod$ARMAorder
+    ModelOutput$Optimization   = mod$Optimization
+  }else{
+    ModelOutput  = data.frame(matrix(ncol = 4*mod$nparms+16, nrow = 1))
 
-  ModelOutput$CountDist  = mod$CountDist
-  ModelOutput$EstMethod  = mod$EstMethod
-  ModelOutput$nparms     = mod$nparms
-  ModelOutput$ARMAModel  = mod$ARMAorder
-  ModelOutput$InitialEst = mod$ARMAorder
+    # names of the output data frame
+    colnames(ModelOutput) = c(
+      'CountDist','ARMAModel', 'Regressor',
+      paste("True", parmnames[1:nparms], sep="_"), paste("InitialEstim", parmnames[1:nparms], sep="_"),
+      parmnames[1:nparms], paste("se", parmnames[1:nparms], sep="_"),
+      'EstMethod', 'SampleSize', 'ParticleNumber', 'epsilon', 'OptMethod', 'ParamScheme',
+      "loglik", "AIC", "BIC", "AICc", "ConvergeStatus", "kkt1", "kkt2")
+
+    # Start Populating the output data frame
+    ModelOutput$CountDist      = mod$CountDist
+    ModelOutput$ARMAModel      = paste(mod$ARMAorder, collapse=' ')
+    ModelOutput$Regressor      = !is.null(mod$Regressor)
+
+
+    # true Parameters
+    offset = 4
+    if(mod$nMargParms>0){
+      ModelOutput[, offset:(offset + mod$nMargParms -1)] = mod$TrueParam[1:mod$nMargParms]
+      offset = offset + mod$nMargParms
+    }
+
+    if(mod$nAR>0){
+      ModelOutput[, offset:(offset + mod$nAR -1)]        = mod$TrueParam[ (mod$nMargParms+1):(mod$nMargParms+mod$nAR) ]
+      offset = offset + mod$nAR
+    }
+
+    if(mod$nMA>0){
+      ModelOutput[, offset:(offset + mod$nMA -1)]        = mod$TrueParam[ (mod$nMargParms+mod$nAR+1):(mod$nMargParms+mod$nAR+mod$nMA)]
+      offset = offset + mod$nMA
+     }
+
+    # Initial Parameter Estimates
+    if(mod$nMargParms>0){
+      ModelOutput[, offset:(offset + mod$nMargParms -1 )] = mod$initialParam[1:mod$nMargParms ]
+      offset = offset + mod$nMargParms
+    }
+    if(mod$nAR>0){
+      ModelOutput[, offset:(offset + mod$nAR-1)]        = mod$initialParam[(mod$nMargParms+1):(mod$nMargParms+mod$nAR) ]
+      offset = offset + mod$nAR
+    }
+
+    if(mod$nMA>0){
+      ModelOutput[, offset:(offset + mod$nMA-1)]        = mod$initialParam[(mod$nMargParms+mod$nAR+1):(mod$nMargParms+mod$nAR+mod$nMA) ]
+      offset = offset + mod$nMA
+    }
+
+    # Parameter Estimates
+    if(mod$nMargParms>0){
+      ModelOutput[, offset:(offset + mod$nMargParms-1)] = ParmEst[,1:mod$nMargParms]
+      offset = offset + mod$nMargParms
+    }
+
+    if(mod$nAR>0){
+      ModelOutput[, offset:(offset + mod$nAR-1)]        = ParmEst[,(mod$nMargParms+1):(mod$nMargParms+mod$nAR)]
+      offset = offset + mod$nAR
+    }
+
+    if(mod$nMA>0){
+      ModelOutput[, offset:(offset + mod$nMA-1)]        = ParmEst[,(mod$nMargParms+mod$nAR+1):(mod$nMargParms+mod$nAR+mod$nMA)]
+      offset = offset + mod$nMA
+    }
+
+    # Parameter Std Errors
+    if(mod$nMargParms>0){
+      ModelOutput[, offset:(offset + mod$nMargParms-1)] = se[,1:mod$nMargParms]
+      offset = offset + mod$nMargParms
+    }
+
+    if(mod$nAR>0){
+      ModelOutput[, offset:(offset + mod$nAR-1)]        = se[,(mod$nMargParms+1):(mod$nMargParms+mod$nAR)]
+      offset = offset + mod$nAR
+    }
+
+    if(mod$nMA>0){
+      ModelOutput[, offset:(offset + mod$nMA-1)]        = se[,(mod$nMargParms+mod$nAR+1):(mod$nMargParms+mod$nAR+mod$nMA)]
+    }
+
+    ModelOutput$EstMethod      = mod$EstMethod
+    ModelOutput$SampleSize     = mod$n
+    ModelOutput$ParticleNumber = mod$ParticleNumber
+    ModelOutput$epsilon        = mod$epsilon
+    ModelOutput$OptMethod      = row.names(optim.output)
+    ModelOutput$ParamScheme    = mod$ParamScheme
+    ModelOutput$loglik         = loglik
+    ModelOutput$AIC            = Criteria[1]
+    ModelOutput$BIC            = Criteria[2]
+    ModelOutput$AICc           = Criteria[3]
+    ModelOutput$ConvergeStatus = convcode
+    ModelOutput$kkt1           = kkt1
+    ModelOutput$kkt2           = kkt2
+
+  }
+
+
 
   return(ModelOutput)
 }
@@ -754,22 +876,22 @@ CheckStability = function(AR,MA){
 
 # compute initial estimates
 InitialEstimates = function(mod){
-  require(itsmr)
+  # require(itsmr)
   est  = rep(NA, mod$nMargParms+sum(mod$ARMAorder))
   #-----Poisson case
   if(mod$CountDist=="Poisson"){
     if(mod$nreg==0){
       est[1] = mean(mod$DependentVar)
-      if(mod$ARMAorder[1]) est[(mod$nMargParms+1):(mod$nMargParms+mod$ARMAorder[1])] = itsmr::arma(mod$DependentVar,mod$ARMAorder[1],mod$ARMAorder[2])$phi
-      if(mod$ARMAorder[2]) est[(1+mod$nMargParms+mod$ARMAorder[1]):(1+mod$nMargParms+sum(mod$ARMAorder))] = itsmr::arma(mod$DependentVar,mod$ARMAorder[1],mod$ARMAorder[2])$theta
+      if(mod$ARMAorder[1]) est[(mod$nMargParms+1):(mod$nMargParms+mod$ARMAorder[1])] = arma(mod$DependentVar,mod$ARMAorder[1],mod$ARMAorder[2])$phi
+      if(mod$ARMAorder[2]) est[(1+mod$nMargParms+mod$ARMAorder[1]):(1+mod$nMargParms+sum(mod$ARMAorder))] = arma(mod$DependentVar,mod$ARMAorder[1],mod$ARMAorder[2])$theta
     }else{
       # GLM for the mean that depends on time
       # CHECK ME: If I fit a Poisson AR(3) in the the data example of the JASA paper, but the code below doesn't specify poisson family (it would pick up the default distribution that glm function has) then there will be a numerical error in the likelihood. Check it!
       glmPoisson            = glm(mod$DependentVar~mod$Regressor[,2:(mod$nreg+1)], family = "poisson")
       est[1:mod$nMargParms] = as.numeric(glmPoisson[1]$coef)
 
-      if(mod$ARMAorder[1]) est[(mod$nMargParms+1):(mod$nMargParms+mod$ARMAorder[1])] = itsmr::arma(mod$DependentVar,mod$ARMAorder[1],mod$ARMAorder[2])$phi
-      if(mod$ARMAorder[2]) est[(1+mod$ARMAorder[1]+mod$nMargParms):(mod$nMargParms+sum(mod$ARMAorder))] = itsmr::arma(mod$DependentVar,mod$ARMAorder[1],mod$ARMAorder[2])$theta
+      if(mod$ARMAorder[1]) est[(mod$nMargParms+1):(mod$nMargParms+mod$ARMAorder[1])] = arma(mod$DependentVar,mod$ARMAorder[1],mod$ARMAorder[2])$phi
+      if(mod$ARMAorder[2]) est[(1+mod$ARMAorder[1]+mod$nMargParms):(mod$nMargParms+sum(mod$ARMAorder))] = arma(mod$DependentVar,mod$ARMAorder[1],mod$ARMAorder[2])$theta
     }
   }
 
