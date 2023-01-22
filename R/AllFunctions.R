@@ -86,6 +86,26 @@ ModelScheme = function(DependentVar, Regressor, EstMethod, ARMAorder, CountDist,
     errorMsg = "The length of the initial parameter doesn't match the model specifications."
   }
 
+  # create names of parameters that will be used for output - start with marginal parameters
+  if(nreg<1){
+    MargParmsNames = switch(CountDist,
+                            "Poisson"             = c("lambda"),
+                            "Negative Binomial"   = c("r","p"),
+                            "Mixed Poisson"       = c("lambda_1", "lambda_2", "p"),
+                            "Generalized Poisson" = c("lambda", "a"),
+                            "Binomial"            = c("n", "p")
+    )
+  }
+
+  # create names of the ARMA parameters
+  if(nAR>0) ARNames = paste("AR_",1:ARMAorder[1], sep="")
+  if(nMA>0) MANames = paste("MA_",1:ARMAorder[2], sep="")
+
+  # put all the names together
+  if(nAR>0 && nMA<1) parmnames = c(MargParmsNames, ARNames)
+  if(nAR<1 && nMA>0) parmnames = c(MargParmsNames, MANames)
+  if(nAR>0 && nMA>0) parmnames = c(MargParmsNames, ARNames, MANames)
+
   # create the constraints
   if(CountDist =="Poisson"){
     if(nreg==0){
@@ -126,6 +146,7 @@ ModelScheme = function(DependentVar, Regressor, EstMethod, ARMAorder, CountDist,
     MargParmIndices = MargParmIndices,
     initialParam    = initialParam,
     TrueParam       = TrueParam,
+    parmnames       = parmnames,
     # ARMAModel       = ARMAModel,
     # MargParm        = MargParm,
     # ARParm          = ARParm,
@@ -740,12 +761,22 @@ FitMultiplePF_Res = function(theta, mod){
     ModelOutput  = data.frame(matrix(ncol = 4*mod$nparms+16, nrow = 1))
 
     # names of the output data frame
+    # colnames(ModelOutput) = c(
+    #   'CountDist','ARMAModel', 'Regressor',
+    #   paste("True", parmnames[1:nparms], sep="_"), paste("InitialEstim", parmnames[1:nparms], sep="_"),
+    #   parmnames[1:nparms], paste("se", parmnames[1:nparms], sep="_"),
+    #   'EstMethod', 'SampleSize', 'ParticleNumber', 'epsilon', 'OptMethod', 'ParamScheme',
+    #   "loglik", "AIC", "BIC", "AICc", "ConvergeStatus", "kkt1", "kkt2")
+
     colnames(ModelOutput) = c(
       'CountDist','ARMAModel', 'Regressor',
-      paste("True", parmnames[1:nparms], sep="_"), paste("InitialEstim", parmnames[1:nparms], sep="_"),
-      parmnames[1:nparms], paste("se", parmnames[1:nparms], sep="_"),
+      paste("True_", mod$parmnames, sep=""), paste("InitialEstim_", mod$parmnames, sep=""),
+      mod$parmnames, paste("se_", mod$parmnames, sep=""),
       'EstMethod', 'SampleSize', 'ParticleNumber', 'epsilon', 'OptMethod', 'ParamScheme',
       "loglik", "AIC", "BIC", "AICc", "ConvergeStatus", "kkt1", "kkt2")
+
+
+
 
     # Start Populating the output data frame
     ModelOutput$CountDist      = mod$CountDist
@@ -882,16 +913,16 @@ InitialEstimates = function(mod){
   if(mod$CountDist=="Poisson"){
     if(mod$nreg==0){
       est[1] = mean(mod$DependentVar)
-      if(mod$ARMAorder[1]) est[(mod$nMargParms+1):(mod$nMargParms+mod$ARMAorder[1])] = arma(mod$DependentVar,mod$ARMAorder[1],mod$ARMAorder[2])$phi
-      if(mod$ARMAorder[2]) est[(1+mod$nMargParms+mod$ARMAorder[1]):(1+mod$nMargParms+sum(mod$ARMAorder))] = arma(mod$DependentVar,mod$ARMAorder[1],mod$ARMAorder[2])$theta
+      if(mod$ARMAorder[1]) est[(mod$nMargParms+1):(mod$nMargParms+mod$ARMAorder[1])] = itsmr::arma(mod$DependentVar,mod$ARMAorder[1],mod$ARMAorder[2])$phi
+      if(mod$ARMAorder[2]) est[(1+mod$nMargParms+mod$ARMAorder[1]):(1+mod$nMargParms+sum(mod$ARMAorder))] = itsmr::arma(mod$DependentVar,mod$ARMAorder[1],mod$ARMAorder[2])$theta
     }else{
       # GLM for the mean that depends on time
       # CHECK ME: If I fit a Poisson AR(3) in the the data example of the JASA paper, but the code below doesn't specify poisson family (it would pick up the default distribution that glm function has) then there will be a numerical error in the likelihood. Check it!
       glmPoisson            = glm(mod$DependentVar~mod$Regressor[,2:(mod$nreg+1)], family = "poisson")
       est[1:mod$nMargParms] = as.numeric(glmPoisson[1]$coef)
 
-      if(mod$ARMAorder[1]) est[(mod$nMargParms+1):(mod$nMargParms+mod$ARMAorder[1])] = arma(mod$DependentVar,mod$ARMAorder[1],mod$ARMAorder[2])$phi
-      if(mod$ARMAorder[2]) est[(1+mod$ARMAorder[1]+mod$nMargParms):(mod$nMargParms+sum(mod$ARMAorder))] = arma(mod$DependentVar,mod$ARMAorder[1],mod$ARMAorder[2])$theta
+      if(mod$ARMAorder[1]) est[(mod$nMargParms+1):(mod$nMargParms+mod$ARMAorder[1])] = itsmr::arma(mod$DependentVar,mod$ARMAorder[1],mod$ARMAorder[2])$phi
+      if(mod$ARMAorder[2]) est[(1+mod$ARMAorder[1]+mod$nMargParms):(mod$nMargParms+sum(mod$ARMAorder))] = itsmr::arma(mod$DependentVar,mod$ARMAorder[1],mod$ARMAorder[2])$theta
     }
   }
 

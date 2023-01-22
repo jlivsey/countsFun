@@ -22,13 +22,14 @@ MAParm         = NULL
 EstMethod      = "PFR"
 ParticleNumber = 10
 epsilon        = 0.5
-initialParam   = c(MargParm, ARParm, MAParm)
+#initialParam   = c(MargParm, ARParm, MAParm)
+initialParam   = NULL
 OptMethod      = "bobyqa"
 ParamScheme    = 1
 nsim           = 2
 Optimization   = TRUE
 OutputType     = "data.frame"
-
+no_cores       = NULL
 
 # Run the Simulation
 mysim = LGCSimulation(nsim           = nsim,
@@ -45,5 +46,6 @@ mysim = LGCSimulation(nsim           = nsim,
                       OptMethod      = OptMethod,
                       Optimization   = Optimization,
                       OutputType     = OutputType,
-                      ParamScheme    = ParamScheme
+                      ParamScheme    = ParamScheme,
+                      no_cores       = no_cores
                       )

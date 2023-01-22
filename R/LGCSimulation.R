@@ -12,7 +12,8 @@ LGCSimulation = function(nsim           = NULL,
                          OptMethod      = NULL,
                          Optimization   = NULL,
                          OutputType     = NULL,
-                         ParamScheme    = NULL)
+                         ParamScheme    = NULL,
+                         no_cores       = NULL)
   {
 
 
@@ -21,7 +22,8 @@ LGCSimulation = function(nsim           = NULL,
   require(doParallel)
 
   # Simulation scheme details
-  no_cores      = detectCores() - 1                  # Select the number of cores
+
+  if(is.null(no_cores)) no_cores = detectCores() - 1                  # Select the number of cores
   ##-------------------------------------------------------------------------------------------------#
 
   # generate all the realizations and save in a list

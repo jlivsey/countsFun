@@ -4,16 +4,17 @@ lgc = function(DependentVar, Regressor=NULL, EstMethod="PFR", CountDist=NULL, AR
                    ParticleNumber=400, epsilon = 0.5, initialParam = NULL, TrueParam = NULL,
                    Optimization = TRUE, OptMethod = "bobyqa", OutputType="list", ParamScheme = NULL){
 
-
+  # parse all the parameters and the data into a list called mod
   mod = ModelScheme(DependentVar, Regressor, EstMethod, ARMAorder, CountDist,ParticleNumber, epsilon,
                     initialParam, TrueParam, Optimization, OptMethod, OutputType, ParamScheme)
 
-  # stop if there was an error in model specification
+  # fix me: we need to do implement error checking
   if(mod$error) stop(mod$errorMsg)
 
-  # fix me: I need a function that computes initial parameters
+  # compute initial parameters if they haven't been provided and save them in mod
   if (is.null(initialParam)){
     theta  = InitEst =  InitialEstimates(mod)
+    mod$initialParam = InitEst
   }else{
     theta  = InitEst = mod$initialParam
   }
@@ -24,6 +25,7 @@ lgc = function(DependentVar, Regressor=NULL, EstMethod="PFR", CountDist=NULL, AR
     return(out)
   }
 
+  # create an lgc object and save the initial estimate
   class(out) = "lgc"
   if(OutputType == "list"){
     out$InitialEstim = InitEst
