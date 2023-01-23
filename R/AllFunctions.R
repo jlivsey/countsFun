@@ -1,6 +1,6 @@
 #---------retrieve the model scheme
 ModelScheme = function(DependentVar, Regressor, EstMethod, ARMAorder, CountDist, ParticleNumber, epsilon,
-                       initialParam, TrueParam=NULL, Task, OptMethod, OutputType, ParamScheme){
+                       initialParam, TrueParam=NULL, Task, SampleSize, OptMethod, OutputType, ParamScheme){
 
   error = 0
   errorMsg = NULL
@@ -9,7 +9,8 @@ ModelScheme = function(DependentVar, Regressor, EstMethod, ARMAorder, CountDist,
   nreg = ifelse(is.null(Regressor), 0,dim(Regressor)[2]-1)
 
   # retrieve sample size
-  n = length(DependentVar)
+  n = ifelse(!is.null(DependentVar), length(DependentVar), SampleSize)
+
 
   # FIX ME: When I add the function in LGC the following can happen in LGC and pass here as arguments
 
@@ -81,10 +82,10 @@ ModelScheme = function(DependentVar, Regressor, EstMethod, ARMAorder, CountDist,
   nAR        = ARMAorder[1]
   nMA        = ARMAorder[2]
 
-  if(!is.null(initialParam) && length(initialParam)!=nparms) {
-    error = 1
-    errorMsg = "The length of the initial parameter doesn't match the model specifications."
-  }
+  # if(!is.null(initialParam) && length(initialParam)!=nparms) {
+  #   error = 1
+  #   errorMsg = "The length of the initial parameter doesn't match the model specifications."
+  # }
 
   # create names of parameters that will be used for output - start with marginal parameters
   if(nreg<1){
@@ -769,7 +770,7 @@ FitMultiplePF_Res = function(theta, mod){
     ModelOutput$OptimOutput    = c(convcode,kkt1,kkt2)
     ModelOutput$CountDist      = mod$CountDist
     ModelOutput$EstMethod      = mod$EstMethod
-    ModelOutput$ARMAModel      = mod$ARMAorder
+    ModelOutput$ARMAModel      = paste("ARMA(",mod$ARMAorder[1],",",mod$ARMAorder[2],")",sep="")
     ModelOutput$Task           = mod$Task
 
     # assign names to all output elements
@@ -791,7 +792,7 @@ FitMultiplePF_Res = function(theta, mod){
 
     # Start Populating the output data frame
     ModelOutput$CountDist      = mod$CountDist
-    ModelOutput$ARMAModel      = paste(mod$ARMAorder, collapse=' ')
+    ModelOutput$ARMAModel      = paste("ARMA(",mod$ARMAorder[1],",",mod$ARMAorder[2],")",sep="")
     ModelOutput$Regressor      = !is.null(mod$Regressor)
 
 
