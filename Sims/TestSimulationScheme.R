@@ -27,7 +27,7 @@ initialParam   = NULL
 OptMethod      = "bobyqa"
 ParamScheme    = 1
 nsim           = 2
-Optimization   = TRUE
+Task           = 'Optimization'
 OutputType     = "data.frame"
 no_cores       = NULL
 
@@ -44,7 +44,7 @@ mysim = LGCSimulation(nsim           = nsim,
                       epsilon        = epsilon,
                       initialParam   = initialParam,
                       OptMethod      = OptMethod,
-                      Optimization   = Optimization,
+                      Task           = Task,
                       OutputType     = OutputType,
                       ParamScheme    = ParamScheme,
                       no_cores       = no_cores

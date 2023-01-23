@@ -1,6 +1,6 @@
 #---------retrieve the model scheme
 ModelScheme = function(DependentVar, Regressor, EstMethod, ARMAorder, CountDist, ParticleNumber, epsilon,
-                       initialParam, TrueParam, Optimization, OptMethod, OutputType, ParamScheme){
+                       initialParam, TrueParam=NULL, Task, OptMethod, OutputType, ParamScheme){
 
   error = 0
   errorMsg = NULL
@@ -95,6 +95,15 @@ ModelScheme = function(DependentVar, Regressor, EstMethod, ARMAorder, CountDist,
                             "Generalized Poisson" = c("lambda", "a"),
                             "Binomial"            = c("n", "p")
     )
+  }else{
+    # fix me: check mixed poisson case
+    MargParmsNames = switch(CountDist,
+                            "Poisson"             = paste(rep("b_",nreg),0:nreg,sep=""),
+                            "Negative Binomial"   = c(paste(rep("b_",nreg),0:nreg,sep=""), "k"),
+                            "Mixed Poisson"       = c(paste(rep("b_1",nreg),0:nreg,sep=""),paste(rep("b_2",nreg),0:nreg,sep=""), "p"),
+                            "Generalized Poisson" = c(paste(rep("b_",nreg),0:nreg,sep=""), "a"),
+                            "Binomial"            = c("n", paste(rep("b_",nreg),0:nreg,sep=""))
+    )
   }
 
   # create names of the ARMA parameters
@@ -105,6 +114,9 @@ ModelScheme = function(DependentVar, Regressor, EstMethod, ARMAorder, CountDist,
   if(nAR>0 && nMA<1) parmnames = c(MargParmsNames, ARNames)
   if(nAR<1 && nMA>0) parmnames = c(MargParmsNames, MANames)
   if(nAR>0 && nMA>0) parmnames = c(MargParmsNames, ARNames, MANames)
+
+  # add the parmnames on theta fix me: does this affect performance?
+  if(!is.null(initialParam)) names(initialParam) = parmnames
 
   # create the constraints
   if(CountDist =="Poisson"){
@@ -171,7 +183,7 @@ ModelScheme = function(DependentVar, Regressor, EstMethod, ARMAorder, CountDist,
     # maxit         = maxit,
     DependentVar    = DependentVar,
     Regressor       = Regressor,
-    Optimization    = Optimization,
+    Task            = Task,
     OptMethod       = OptMethod,
     OutputType      = OutputType,
     ParamScheme     = ParamScheme
@@ -276,8 +288,15 @@ ParticleFilter_Res_AR = function(theta, mod){
   #======================   Start the SIS algorithm   ======================#
   # Initialize the weights and the latent Gaussian series particles
   wgh[1,] = rep(1,N)
-  a       = rep( qnorm(mod$mycdf(mod$DependentVar[1]-1,t(MargParms)),0,1), N)
-  b       = rep( qnorm(mod$mycdf(mod$DependentVar[1],t(MargParms)),0,1), N)
+
+  if(mod$nreg==0){
+    a       = rep( qnorm(mod$mycdf(mod$DependentVar[1]-1,t(MargParms)),0,1), N)
+    b       = rep( qnorm(mod$mycdf(mod$DependentVar[1],t(MargParms)),0,1), N)
+  }else{
+    a       = rep( qnorm(mod$mycdf(mod$DependentVar[1]-1,ConstMargParm, DynamMargParm[1]),0,1), N)
+    b       = rep( qnorm(mod$mycdf(mod$DependentVar[1],ConstMargParm, DynamMargParm[1]),0,1), N)
+  }
+
   Z[1,]   = qnorm(runif(length(a),0,1)*(pnorm(b,0,1)-pnorm(a,0,1))+pnorm(a,0,1),0,1)
 
   # =================== Loop from 2 to AR order===================== #
@@ -660,7 +679,7 @@ FitMultiplePF_Res = function(theta, mod){
       # FIX ME: I need to somehow update this in mod. (number of particles to be used). I t now works only for 1 choice of ParticleNumber
       ParticleNumber = mod$ParticleNumber[k]
 
-      if(mod$Optimization == TRUE){
+      if(mod$Task == 'Optimization'){
       # run optimization for our model --no ARMA model allowed
       optim.output <- optimx(
         par     = theta,
@@ -735,19 +754,14 @@ FitMultiplePF_Res = function(theta, mod){
   Criteria = Criteria.lgc(loglik, mod)
 
 
-  # get the names of the final output
-  parmnames     = colnames(optim.output)
-  # mynames       = c(parmnames[1:nparms],paste("se", parmnames[1:nparms], sep="_"), "loglik", "AIC", "BIC","AICc", "ConvergenceStatus", "kkt1", "kkt2")
-  # All           = matrix(c(ParmEst, se, loglik, Criteria, convcode, kkt1, kkt2),nrow=1)
-  # colnames(All) = mynames
-  # All           = data.frame(c(ParmEst, se, loglik, Criteria, convcode, kkt1, kkt2),nrow=1)
-
   if(mod$OutputType=="list"){
     #  save the results in a list
     ModelOutput = list(data.frame(matrix(rep(NA,nparms),nrow=1)),
-                      data.frame(matrix(rep(NA,nparms),nrow=1)),
-                      data.frame(matrix(rep(NA,4),nrow=1)),
-                      data.frame(matrix(rep(NA,3),nrow=1)))
+                       data.frame(matrix(rep(NA,nparms),nrow=1)),
+                       data.frame(matrix(rep(NA,4),     nrow=1)),
+                       data.frame(matrix(rep(NA,3),     nrow=1))
+                      )
+    # specify output list names
     names(ModelOutput)         = c("ParamEstimates", "StdErrors", "FitStatistics", "OptimOutput")
     ModelOutput$ParamEstimates = ParmEst
     ModelOutput$StdErrors      = se
@@ -756,27 +770,24 @@ FitMultiplePF_Res = function(theta, mod){
     ModelOutput$CountDist      = mod$CountDist
     ModelOutput$EstMethod      = mod$EstMethod
     ModelOutput$ARMAModel      = mod$ARMAorder
-    ModelOutput$Optimization   = mod$Optimization
+    ModelOutput$Task           = mod$Task
+
+    # assign names to all output elements
+    colnames(ModelOutput$ParamEstimates) = mod$parmnames
+    colnames(ModelOutput$StdErrors)      = paste("se(", mod$parmnames,")", sep="")
+    names(ModelOutput$FitStatistics)     = c("loglik", "AIC", "BIC", "AICc")
+    names(ModelOutput$OptimOutput)       = c("ConvergeStatus", "kkt1", "kkt2")
+
   }else{
     ModelOutput  = data.frame(matrix(ncol = 4*mod$nparms+16, nrow = 1))
 
-    # names of the output data frame
-    # colnames(ModelOutput) = c(
-    #   'CountDist','ARMAModel', 'Regressor',
-    #   paste("True", parmnames[1:nparms], sep="_"), paste("InitialEstim", parmnames[1:nparms], sep="_"),
-    #   parmnames[1:nparms], paste("se", parmnames[1:nparms], sep="_"),
-    #   'EstMethod', 'SampleSize', 'ParticleNumber', 'epsilon', 'OptMethod', 'ParamScheme',
-    #   "loglik", "AIC", "BIC", "AICc", "ConvergeStatus", "kkt1", "kkt2")
-
+    # specify output names
     colnames(ModelOutput) = c(
       'CountDist','ARMAModel', 'Regressor',
       paste("True_", mod$parmnames, sep=""), paste("InitialEstim_", mod$parmnames, sep=""),
-      mod$parmnames, paste("se_", mod$parmnames, sep=""),
+      mod$parmnames, paste("se(", mod$parmnames,")", sep=""),
       'EstMethod', 'SampleSize', 'ParticleNumber', 'epsilon', 'OptMethod', 'ParamScheme',
       "loglik", "AIC", "BIC", "AICc", "ConvergeStatus", "kkt1", "kkt2")
-
-
-
 
     # Start Populating the output data frame
     ModelOutput$CountDist      = mod$CountDist
@@ -1001,7 +1012,8 @@ InitialEstimates = function(mod){
   }
 
 
-
+  # add the parmnames on theta fix me: does this affect performance?
+  names(est) = mod$parmnames
 
 
   return(est)
@@ -1037,20 +1049,53 @@ innovations.algorithm <- function(acvf,n.max=length(acvf)-1){
 }
 
 # simulate from our model
-sim_lgc = function(n, CountDist, MargParm, ARParm, MAParm){
+sim_lgc = function(n, CountDist, MargParm, ARParm, MAParm, Regressor=NULL){
 
-  myinvcdf = switch(CountDist,
+
+  # Generate latent Gaussian model
+  z  =arima.sim(model = list( ar = ARParm, ma=MAParm  ), n = n)
+
+  # select the correct count model
+  if(is.null(Regressor)){
+    myinvcdf = switch(CountDist,
                     "Poisson"             = qpois,
                     "Negative Binomial"   = function(x, theta){ qnbinom (x, theta[1], 1-theta[2]) },
                     "Mixed Poisson"       = function(x, theta){ qmixpois(x, theta[1], theta[2], theta[3])},
                     "Generalized Poisson" = function(x, theta){ qGpois  (x, theta[1], theta[2])},
-                    "Binomial"            = qbinom
-  )
+                    "Binomial"            = qbinom)
 
-  # Generate latent Gaussian model
-  z  =arima.sim(model = list( ar = ARParm, ma=MAParm  ), n = n)
-  # Generate the count data (without regressor)
-  x = myinvcdf(pnorm(z), MargParm)
+    x = myinvcdf(pnorm(z), MargParm)
+  }else{
+    myinvcdf = switch(CountDist,
+                      "Poisson"             = function(x, ConstMargParm, DynamMargParm){             qpois   (x, DynamMargParm)},
+                      "Negative Binomial"   = function(x, ConstMargParm, DynamMargParm){ qnbinom (x, ConstMargParm, 1-DynamMargParm)},
+                      "Generalized Poisson" = function(x, ConstMargParm, DynamMargParm){ qGpois  (x, ConstMargParm, DynamMargParm)}
+    )
+
+    # number of regressors assuming there is an intercept, fix me: check the case with not intercept
+    nreg = ifelse(is.null(Regressor), 0,dim(Regressor)[2]-1)
+    beta  = MargParm[1:(nreg+1)]
+    m     = exp(Regressor%*%beta)
+
+    if(CountDist == "Poisson" && nreg>0){
+      ConstMargParm  = NULL
+      DynamMargParm  = m
+    }
+
+    if(CountDist == "Negative Binomial" && nreg>0){
+      ConstMargParm  = 1/MargParms[nreg+2]
+      DynamMargParm  = MargParms[nreg+2]*m/(1+MargParms[nreg+2]*m)
+    }
+
+    if(CountDist == "Generalized Poisson" && nreg>0){
+      ConstMargParm  = MargParms[nreg+2]
+      DynamMargParm  = m
+    }
+
+    x = myinvcdf(pnorm(z), ConstMargParm, DynamMargParm)
+
+  }
+
   return(x)
 }
 
@@ -1136,239 +1181,3 @@ model.lgc = function(object){
   names(a) = c("Distribution", "Model")
   return(a)
 }
-
-
-
-# PF likelihood with resampling for AR(p)
-# ParticleFilter_Res_AR_old = function(theta, mod){
-#   #--------------------------------------------------------------------------#
-#   # PURPOSE:  Use particle filtering with resampling
-#   #           to approximate the likelihood of the
-#   #           a specified count time series model with an underlying AR(p)
-#   #           dependence structure. A singloe dummy regression is added here.
-#   #
-#   # NOTES:    1. See "Latent Gaussian Count Time Series Modeling" for  more
-#   #           details. A first version of the paer can be found at:
-#   #           https://arxiv.org/abs/1811.00203
-#   #           2. This function is very similar to LikSISGenDist_ARp but here
-#   #           I have a resampling step.
-#   #
-#   # INPUTS:
-#   #    theta:            parameter vector
-#   #    data:             data
-#   #    ParticleNumber:   number of particles to be used.
-#   #    CountDist:        count marginal distribution
-#   #    epsilon           resampling when ESS<epsilon*N
-#   #
-#   # OUTPUT:
-#   #    loglik:           approximate log-likelihood
-#   #
-#   #
-#   # AUTHORS: James Livsey, Vladas Pipiras, Stefanos Kechagias,
-#   # DATE:    July  2020
-#   #--------------------------------------------------------------------------#
-#
-#   old_state <- get_rand_state()
-#   on.exit(set_rand_state(old_state))
-#
-#   # retrieve marginal parameters
-#   MargParms        = theta[mod$MargParmIndices]
-#
-#   # retrieve regressor parameters
-#   if(mod$nreg>0){
-#     beta  = MargParms[1:(mod$nreg+1)]
-#     m     = exp(mod$Regressor%*%beta)
-#   }
-#
-#   # retrieve GLM type  parameters
-#   if(mod$CountDist == "Negative Binomial" && mod$nreg>0){
-#     ConstMargParm  = 1/MargParms[mod$nreg+2]
-#     DynamMargParm  = MargParms[mod$nreg+2]*m/(1+MargParms[mod$nreg+2]*m)
-#   }
-#
-#   if(mod$CountDist == "Generalized Poisson" && mod$nreg>0){
-#     ConstMargParm  = MargParms[mod$nreg+2]
-#     DynamMargParm  = m
-#   }
-#
-#   if(mod$CountDist == "Poisson" && mod$nreg>0){
-#     ConstMargParm  = NULL
-#     DynamMargParm  = m
-#   }
-#
-#   # retrieve ARMA parameters
-#   AR = NULL
-#   if(mod$ARMAorder[1]>0) AR = theta[(mod$nMargParms+1):(mod$nMargParms + mod$ARMAorder[1])]
-#
-#   MA = NULL
-#   if(mod$ARMAorder[2]>0) MA = theta[(mod$nMargParms+mod$ARMAorder[1]+1) : (mod$nMargParms + mod$ARMAorder[1] + mod$ARMAorder[2]) ]
-#
-#   # check for causality
-#   if( CheckStability(AR,MA) ) return(10^(8))
-#
-#
-#   T1 = length(data)
-#   N = mod$ParticleNumber          # number of particles
-#
-#   wgh = matrix(0,T1,N)        # to collect all particle weights
-#
-#   # allocate memory for zprev
-#   ZprevAll = matrix(0,mod$ARMAorder[1],N)
-#
-#   if(mod$nreg==0){
-#     # Compute integral limits
-#     a = rep( qnorm(mod$mycdf(data[1]-1,t(MargParms)),0,1), N)
-#     b = rep( qnorm(mod$mycdf(data[1],t(MargParms)),0,1), N)
-#   }else{
-#     a = rep( qnorm(mod$mycdf(data[1]-1, ConstMargParm, DynamMargParm[1]) ,0,1), N)
-#     b = rep( qnorm(mod$mycdf(data[1], ConstMargParm, DynamMargParm[1]) ,0,1), N)
-#   }
-#   # Generate N(0,1) variables restricted to (ai,bi),i=1,...n
-#   zprev = qnorm(runif(length(a),0,1)*(pnorm(b,0,1)-pnorm(a,0,1))+pnorm(a,0,1),0,1)
-#
-#   # save the currrent normal variables
-#   ZprevAll[1,] = zprev
-#
-#   # initial estimate of first AR coefficient as Gamma(1)/Gamma(0) and corresponding error
-#   # phit = TacvfAR(AR)[2]/TacvfAR(AR)[1] - this FitAR package is obsolete
-#   # FIX ME: check if the code below is correct
-#   phit = ARMAacf(ar = AR)[2]/ARMAacf(ar = AR)[1]
-#   rt = as.numeric(sqrt(1-phit^2))
-#
-#   # particle filter weights
-#   wprev = rep(1,N)
-#   wgh[1,] = wprev
-#
-#   # Initiate log likelihood
-#   nloglik = ifelse(mod$nreg==0,  - log(mod$mypdf(mod$DependentVar[1],MargParms)),
-#                    - log(mod$mypdf(mod$DependentVar[1], ConstMargParm, DynamMargParm[1])))
-#   # print(nloglik)
-#   # First p steps:
-#   if (mod$ARMAorder[1]>=2){
-#     for (t in 2:mod$ARMAorder[1]){
-#
-#       # best linear predictor is just Phi1*lag(Z,1)+...+phiP*lag(Z,p)
-#       if (t==2) {
-#         zhat = ZprevAll[1:(t-1),]*phit
-#       } else{
-#         zhat = colSums(ZprevAll[1:(t-1),]*phit)
-#       }
-#
-#       # Recompute integral limits
-#       if(mod$nreg==0){
-#         a = (qnorm(mod$mycdf(data[t]-1,t(MargParms)),0,1) - zhat)/rt
-#         b = (qnorm(mod$mycdf(data[t],t(MargParms)),0,1) - zhat)/rt
-#       }else{
-#         a = (qnorm(mod$mycdf(data[t]-1,ConstMargParm, DynamMargParm[t]),0,1) - zhat)/rt
-#         b = (qnorm(mod$mycdf(data[t],ConstMargParm, DynamMargParm[t]),0,1) - zhat)/rt
-#       }
-#
-#       # compute random errors from truncated normal
-#       err = qnorm(runif(length(a),0,1)*(pnorm(b,0,1)-pnorm(a,0,1))+pnorm(a,0,1),0,1)
-#
-#       # compute the new Z and add it to the previous ones
-#       znew = rbind(zhat + rt*err, ZprevAll[1:(t-1),])
-#       ZprevAll[1:t,] = znew
-#
-#       # recompute weights
-#       wgh[t,] = wprev*(pnorm(b,0,1) - pnorm(a,0,1))
-#       wprev = wgh[t,]
-#
-#       # use YW equation to compute estimates of phi and of the errors
-#       # FIX ME: Check if the code below is correct in terms of the ARMAacf
-#       Gt    = toeplitz(ARMAacf(AR)[1:t])
-#       gt    = ARMAacf(AR)[2:(t+1)]
-#       phit  = as.numeric(solve(Gt) %*% gt)
-#       rt    =  as.numeric(sqrt(1 - gt %*% solve(Gt) %*% gt/ARMAacf(AR)[1]))
-#
-#       # update likelihood
-#       nloglik = nloglik - log(mean(wgh[t,]))
-#       # print(t)
-#       # print(nloglik)
-#     }
-#   }
-#
-#
-#   # From p to T1 I dont need to estimate phi anymore
-#   for (t in (mod$ARMAorder[1]+1):T1){
-#
-#     # compute phi_1*Z_{t-1} + phi_2*Z_{t-2} for all particles
-#     if(mod$ARMAorder[1]>1){# colsums doesnt work for 1-dimensional matrix
-#       zhat = colSums(ZprevAll*AR)
-#     }else{
-#       zhat=ZprevAll*AR
-#     }
-#
-#     # compute limits of truncated normal distribution
-#     if(mod$nreg==0){
-#       a = as.numeric(qnorm(mod$mycdf(mod$DependentVar[t]-1,MargParms),0,1) - zhat)/rt
-#       b = as.numeric(qnorm(mod$mycdf(mod$DependentVar[t],  MargParms),0,1) - zhat)/rt
-#     }else{
-#       a = as.numeric(qnorm(mod$mycdf(mod$DependentVar[t]-1,ConstMargParm, DynamMargParm[t]),0,1) - zhat)/rt
-#       b = as.numeric(qnorm(mod$mycdf(mod$DependentVar[t],  ConstMargParm, DynamMargParm[t]),0,1) - zhat)/rt
-#     }
-#
-#     # draw errors from truncated normal
-#     err = qnorm(runif(length(a),0,1)*(pnorm(b,0,1)-pnorm(a,0,1))+pnorm(a,0,1),0,1)
-#
-#     # Update the underlying Gaussian series (see step 3 in SIS section in the paper)
-#     znew = zhat + rt*err
-#
-#     # Resampling Step--here the function differs from LikSISGenDist_ARp
-#
-#     # compute unnormalized weights
-#     wgh[t,] = pnorm(b,0,1) - pnorm(a,0,1)
-#
-#     # break if I got NA weight
-#     if (any(is.na(wgh[t,]))| sum(wgh[t,])==0 ){
-#       message(sprintf('WARNING: Some of the weights are either too small or sum to 0'))
-#       return(10^8)
-#       # I am fitting a poisson with initialParam= NULL in the Sales data and the initial estimated
-#       # mean form GLM, returns parameters that yield a, and b above that lead to Zprev = -Inf. I will comment
-#       # out the break and return, also change the value from 10^8 to 10^18.
-#       # return(nloglik)
-#     }
-#
-#     # normalized weights
-#     wghn = wgh[t,]/sum(wgh[t,])
-#
-#     old_state1 <- get_rand_state()
-#
-#     # sample indices from multinomial distribution-see Step 4 of SISR in paper
-#     ESS = 1/sum(wghn^2)
-#     if(ESS<mod$epsilon*N){
-#       ind = rmultinom(1,N,wghn)
-#       # sample particles
-#       znew = rep(znew,ind)
-#
-#       # use low variance resampling
-#       #znew = lowVarianceRS(znew, wghn, N)
-#     }
-#     set_rand_state(old_state1)
-#
-#
-#     # save particles
-#     if (mod$ARMAorder[1]>1){
-#       ZprevAll = rbind(znew, ZprevAll[1:(mod$ARMAorder[1]-1),])
-#     }else {
-#       ZprevAll[1,]=znew
-#     }
-#     # update likelihood
-#     nloglik = nloglik - log(mean(wgh[t,]))
-#     # print(t)
-#     # print(nloglik)
-#   }
-#
-#   # for log-likelihood we use a bias correction--see par2.3 in Durbin Koopman, 1997
-#   # nloglik = nloglik
-#   #- (1/(2*N))*(var(na.omit(wgh[T1,]))/mean(na.omit(wgh[T1,])))/mean(na.omit(wgh[T1,]))
-#   # print(t)
-#   # print(nloglik)
-#   return(nloglik)
-# }
-#
-
-
-
-
-
