@@ -1,5 +1,5 @@
 #---------retrieve the model scheme
-ModelScheme = function(DependentVar, Regressor, EstMethod, ARMAorder, CountDist, ParticleNumber, epsilon,
+ModelScheme = function(DependentVar, Regressor, EstMethod, ARMAModel, CountDist, ParticleNumber, epsilon,
                        initialParam, TrueParam=NULL, Task, SampleSize, OptMethod, OutputType, ParamScheme){
 
   error = 0
@@ -78,9 +78,9 @@ ModelScheme = function(DependentVar, Regressor, EstMethod, ARMAorder, CountDist,
 
   # retrieve marginal distribution parameters
   nMargParms = length(MargParmIndices)
-  nparms     = nMargParms + sum(ARMAorder)
-  nAR        = ARMAorder[1]
-  nMA        = ARMAorder[2]
+  nparms     = nMargParms + sum(ARMAModel)
+  nAR        = ARMAModel[1]
+  nMA        = ARMAModel[2]
 
   # if(!is.null(initialParam) && length(initialParam)!=nparms) {
   #   error = 1
@@ -108,8 +108,8 @@ ModelScheme = function(DependentVar, Regressor, EstMethod, ARMAorder, CountDist,
   }
 
   # create names of the ARMA parameters
-  if(nAR>0) ARNames = paste("AR_",1:ARMAorder[1], sep="")
-  if(nMA>0) MANames = paste("MA_",1:ARMAorder[2], sep="")
+  if(nAR>0) ARNames = paste("AR_",1:ARMAModel[1], sep="")
+  if(nMA>0) MANames = paste("MA_",1:ARMAModel[2], sep="")
 
   # put all the names together
   if(nAR>0 && nMA<1) parmnames = c(MargParmsNames, ARNames)
@@ -122,32 +122,32 @@ ModelScheme = function(DependentVar, Regressor, EstMethod, ARMAorder, CountDist,
   # create the constraints
   if(CountDist =="Poisson"){
     if(nreg==0){
-      LB = c(0.001, rep(-Inf, sum(ARMAorder)))
-      UB = rep(Inf, sum(ARMAorder)+1)
+      LB = c(0.001, rep(-Inf, sum(ARMAModel)))
+      UB = rep(Inf, sum(ARMAModel)+1)
     }else{
-      LB = rep(-Inf, sum(ARMAorder)+nreg+1)
-      UB = rep(Inf, sum(ARMAorder)+nreg+1)
+      LB = rep(-Inf, sum(ARMAModel)+nreg+1)
+      UB = rep(Inf, sum(ARMAModel)+nreg+1)
     }
   }
 
   if(CountDist == "Negative Binomial"){
     if(nreg==0){
-      LB = c(0.01, 0.01, rep(-Inf, sum(ARMAorder)))
-      UB = c(Inf, 0.99,   rep( Inf, sum(ARMAorder)))
+      LB = c(0.01, 0.01, rep(-Inf, sum(ARMAModel)))
+      UB = c(Inf, 0.99,   rep( Inf, sum(ARMAModel)))
     }else{
-      LB = c(rep(-Inf, nreg+1), 0.001, rep(-Inf, sum(ARMAorder)))
-      UB = c(rep(Inf, nreg+1), Inf, rep(Inf, sum(ARMAorder)))
+      LB = c(rep(-Inf, nreg+1), 0.001, rep(-Inf, sum(ARMAModel)))
+      UB = c(rep(Inf, nreg+1), Inf, rep(Inf, sum(ARMAModel)))
     }
   }
 
 
   if(CountDist == "Generalized Poisson"){
     if(nreg==0){
-      LB = c(0.001, 0.001, rep(-Inf, sum(ARMAorder)))
-      UB = c(Inf, Inf,     rep( Inf, sum(ARMAorder)))
+      LB = c(0.001, 0.001, rep(-Inf, sum(ARMAModel)))
+      UB = c(Inf, Inf,     rep( Inf, sum(ARMAModel)))
     }else{
-      LB = c(rep(-Inf, nreg+1), 0.001, rep(-Inf, sum(ARMAorder)))
-      UB = c(rep(Inf, nreg+1), Inf, rep(Inf, sum(ARMAorder)))
+      LB = c(rep(-Inf, nreg+1), 0.001, rep(-Inf, sum(ARMAModel)))
+      UB = c(rep(Inf, nreg+1), Inf, rep(Inf, sum(ARMAModel)))
     }
   }
 
@@ -172,7 +172,7 @@ ModelScheme = function(DependentVar, Regressor, EstMethod, ARMAorder, CountDist,
     # MaxCdf          = MaxCdf,
     # nHC             = nHC,
     CountDist       = CountDist,
-    ARMAorder       = ARMAorder,
+    ARMAModel       = ARMAModel,
     ParticleNumber  = ParticleNumber,
     epsilon         = epsilon,
     nparms          = nparms,
@@ -255,11 +255,11 @@ ParticleFilter_Res_AR = function(theta, mod){
 
   # ARMA parameters
   AR = NULL
-  if(mod$ARMAorder[1]>0) AR = theta[(mod$nMargParms+1):(mod$nMargParms + mod$ARMAorder[1])]
+  if(mod$ARMAModel[1]>0) AR = theta[(mod$nMargParms+1):(mod$nMargParms + mod$ARMAModel[1])]
 
   MA = NULL
-  if(mod$ARMAorder[2]>0) MA = theta[(mod$nMargParms+mod$ARMAorder[1]+1) :
-                                      (mod$nMargParms + mod$ARMAorder[1] + mod$ARMAorder[2]) ]
+  if(mod$ARMAModel[2]>0) MA = theta[(mod$nMargParms+mod$ARMAModel[1]+1) :
+                                      (mod$nMargParms + mod$ARMAModel[1] + mod$ARMAModel[2]) ]
 
   # check for causality
   if( CheckStability(AR,MA) ) return(10^(8))
@@ -274,7 +274,7 @@ ParticleFilter_Res_AR = function(theta, mod){
                    - log(mod$mypdf(mod$DependentVar[1], ConstMargParm, DynamMargParm[1])))
 
   # Compute the theoretical covariance for the AR model for current estimate
-  gt      = ARMAacf(ar = AR, ma = MA)[2:(max(mod$ARMAorder)+1)]
+  gt      = ARMAacf(ar = AR, ma = MA)[2:(max(mod$ARMAModel)+1)]
 
   # Compute the best linear predictor coefficients and errors using Durbin Levinson
   DL      = DLAcfToAR(gt)
@@ -284,7 +284,7 @@ ParticleFilter_Res_AR = function(theta, mod){
 
   # allocate memory for particle weights and the latent Gaussian Series particles
   wgh     = matrix(0,T1,N)
-  Z       = matrix(0,mod$ARMAorder[1],N)
+  Z       = matrix(0,mod$ARMAModel[1],N)
 
   #======================   Start the SIS algorithm   ======================#
   # Initialize the weights and the latent Gaussian series particles
@@ -301,8 +301,8 @@ ParticleFilter_Res_AR = function(theta, mod){
   Z[1,]   = qnorm(runif(length(a),0,1)*(pnorm(b,0,1)-pnorm(a,0,1))+pnorm(a,0,1),0,1)
 
   # =================== Loop from 2 to AR order===================== #
-  if (mod$ARMAorder[1]>=2){
-    for (t in 2: (mod$ARMAorder[1])){
+  if (mod$ARMAModel[1]>=2){
+    for (t in 2: (mod$ARMAModel[1])){
       # STEP 1 in SIS: Compute the latent Gaussian predictions Zhat using Durbin Levinson
       if (t==2) {
         Zhat = Z[1:(t-1),]*phit[1:(t-1)]
@@ -330,10 +330,10 @@ ParticleFilter_Res_AR = function(theta, mod){
   }
   # =================== Loop from AR order + 1  to T ===================== #
   # From p to T1 I don't need to estimate phi anymore
-  for (t in (mod$ARMAorder[1]+1):T1){
+  for (t in (mod$ARMAModel[1]+1):T1){
 
     # STEP 1 in SIS: Compute the latent Gaussian predictions Zhat using Durbin Levinson
-    if(mod$ARMAorder[1]>1){# colsums doesnt work for 1-dimensional matrix
+    if(mod$ARMAModel[1]>1){# colsums doesnt work for 1-dimensional matrix
       Zhat = colSums(Z*phit)
     }else{
       Zhat =  Z*phit
@@ -341,14 +341,14 @@ ParticleFilter_Res_AR = function(theta, mod){
 
     # STEP 2 is SISR: Update the latent Gaussian series Z
     if(mod$nreg==0){
-      a = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t]-1,t(MargParms)),0,1)) - Zhat)/Rt[mod$ARMAorder[1]]
-      b = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t],t(MargParms)),0,1)) - Zhat)/Rt[mod$ARMAorder[1]]
+      a = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t]-1,t(MargParms)),0,1)) - Zhat)/Rt[mod$ARMAModel[1]]
+      b = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t],t(MargParms)),0,1)) - Zhat)/Rt[mod$ARMAModel[1]]
     }else{
-      a = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t]-1,ConstMargParm, DynamMargParm[t]),0,1)) - Zhat)/Rt[mod$ARMAorder[1]]
-      b = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t],ConstMargParm, DynamMargParm[t]),0,1)) - Zhat)/Rt[mod$ARMAorder[1]]
+      a = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t]-1,ConstMargParm, DynamMargParm[t]),0,1)) - Zhat)/Rt[mod$ARMAModel[1]]
+      b = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t],ConstMargParm, DynamMargParm[t]),0,1)) - Zhat)/Rt[mod$ARMAModel[1]]
     }
 
-    Znew = qnorm(runif(length(a),0,1)*(pnorm(b,0,1)-pnorm(a,0,1))+pnorm(a,0,1),0,1)*Rt[mod$ARMAorder[1]] + Zhat
+    Znew = qnorm(runif(length(a),0,1)*(pnorm(b,0,1)-pnorm(a,0,1))+pnorm(a,0,1),0,1)*Rt[mod$ARMAModel[1]] + Zhat
 
     # compute unnormalized weights
     # wgh[t,] = wgh[t-1,]*(pnorm(b,0,1) - pnorm(a,0,1))
@@ -374,8 +374,8 @@ ParticleFilter_Res_AR = function(theta, mod){
 
 
     # save particles
-    if (mod$ARMAorder[1]>1){
-      Z = rbind(Znew, Z[1:(mod$ARMAorder[1]-1),])
+    if (mod$ARMAModel[1]>1){
+      Z = rbind(Znew, Z[1:(mod$ARMAModel[1]-1),])
     }else {
       Z[1,]=Znew
     }
@@ -447,10 +447,10 @@ ParticleFilter_Res_MA = function(theta, mod){
 
   # retrieve ARMA parameters
   AR = NULL
-  if(mod$ARMAorder[1]>0) AR = theta[(mod$nMargParms+1):(mod$nMargParms + mod$ARMAorder[1])]
+  if(mod$ARMAModel[1]>0) AR = theta[(mod$nMargParms+1):(mod$nMargParms + mod$ARMAModel[1])]
 
   MA = NULL
-  if(mod$ARMAorder[2]>0) MA = theta[(mod$nMargParms+mod$ARMAorder[1]+1) : (mod$nMargParms + mod$ARMAorder[1] + mod$ARMAorder[2]) ]
+  if(mod$ARMAModel[2]>0) MA = theta[(mod$nMargParms+mod$ARMAModel[1]+1) : (mod$nMargParms + mod$ARMAModel[1] + mod$ARMAModel[2]) ]
 
   # check for causality
   if( CheckStability(AR,MA) ) return(10^(-6))
@@ -477,7 +477,7 @@ ParticleFilter_Res_MA = function(theta, mod){
 
 
   # run innovations Algorithm for MA models that are not WN
-  if(mod$ARMAorder[2]>0) Inn = matrix(0,N,mod$ARMAorder[2])   # I will save here the q many innovations (Z - Zhat) --see (5.3.9) BD book
+  if(mod$ARMAModel[2]>0) Inn = matrix(0,N,mod$ARMAModel[2])   # I will save here the q many innovations (Z - Zhat) --see (5.3.9) BD book
   if (is.null(MA) && is.null(AR)){
     v0   = 1
     zhat = 0
@@ -508,7 +508,7 @@ ParticleFilter_Res_MA = function(theta, mod){
     }
 
     # roll the old Innovations to earlier columns
-    if(mod$ARMAorder[2]>1) Inn[,1:(mod$ARMAorder[2]-1)] = Inn[,2:(mod$ARMAorder[2])]
+    if(mod$ARMAModel[2]>1) Inn[,1:(mod$ARMAModel[2]-1)] = Inn[,2:(mod$ARMAModel[2])]
 
     # compute limits of truncated normal distribution
     if(mod$nreg==0){
@@ -526,7 +526,7 @@ ParticleFilter_Res_MA = function(theta, mod){
     znew = zhat + vt*err
 
     # compute new innovation
-    Inn[,mod$ARMAorder[2]] = (znew-zhat)
+    Inn[,mod$ARMAModel[2]] = (znew-zhat)
 
     # compute unnormalized weights
     wgh[t,] = pnorm(b,0,1) - pnorm(a,0,1)
@@ -558,8 +558,8 @@ ParticleFilter_Res_MA = function(theta, mod){
       zhat = 0
     }else{
       S = 0
-      for(j in 1:min(t,mod$ARMAorder[2])){
-        S = S-Theta[[t]][j]*Inn[,mod$ARMAorder[2]-j+1]
+      for(j in 1:min(t,mod$ARMAModel[2])){
+        S = S-Theta[[t]][j]*Inn[,mod$ARMAModel[2]-j+1]
       }
       zhat = S
     }
@@ -621,9 +621,9 @@ ParticleFilter_Res = function(theta, mod){
 
 
   # Pure AR model
-  if(mod$ARMAorder[1]>0 && mod$ARMAorder[2]==0) loglik = ParticleFilter_Res_AR(theta, mod)
+  if(mod$ARMAModel[1]>0 && mod$ARMAModel[2]==0) loglik = ParticleFilter_Res_AR(theta, mod)
   # Pure MA model or White noise
-  if(mod$ARMAorder[1]==0&& mod$ARMAorder[2]>=0) loglik = ParticleFilter_Res_MA(theta, mod)
+  if(mod$ARMAModel[1]==0&& mod$ARMAModel[2]>=0) loglik = ParticleFilter_Res_MA(theta, mod)
 
   return(loglik)
 }
@@ -681,15 +681,15 @@ FitMultiplePF_Res = function(theta, mod){
       ParticleNumber = mod$ParticleNumber[k]
 
       if(mod$Task == 'Optimization'){
-      # run optimization for our model --no ARMA model allowed
-      optim.output <- optimx(
-        par     = theta,
-        fn      = ParticleFilter_Res,
-        lower   = mod$LB,
-        upper   = mod$UB,
-        hessian = TRUE,
-        method  = mod$OptMethod,
-        mod     = mod)
+        # run optimization for our model --no ARMA model allowed
+        optim.output <- optimx(
+          par     = theta,
+          fn      = ParticleFilter_Res,
+          lower   = mod$LB,
+          upper   = mod$UB,
+          hessian = TRUE,
+          method  = mod$OptMethod,
+          mod     = mod)
       }else{
         optim.output = as.data.frame(matrix(rep(NA,8+length(theta)), ncol=8+length(theta)))
         names(optim.output) = c(mapply(sprintf, rep("p%.f",length(theta)), (1:length(theta)), USE.NAMES = FALSE),
@@ -761,7 +761,7 @@ FitMultiplePF_Res = function(theta, mod){
                        data.frame(matrix(rep(NA,nparms),nrow=1)),
                        data.frame(matrix(rep(NA,4),     nrow=1)),
                        data.frame(matrix(rep(NA,3),     nrow=1))
-                      )
+    )
     # specify output list names
     names(ModelOutput)         = c("ParamEstimates", "StdErrors", "FitStatistics", "OptimOutput")
     ModelOutput$ParamEstimates = ParmEst
@@ -770,7 +770,7 @@ FitMultiplePF_Res = function(theta, mod){
     ModelOutput$OptimOutput    = c(convcode,kkt1,kkt2)
     ModelOutput$CountDist      = mod$CountDist
     ModelOutput$EstMethod      = mod$EstMethod
-    ModelOutput$ARMAModel      = paste("ARMA(",mod$ARMAorder[1],",",mod$ARMAorder[2],")",sep="")
+    ModelOutput$ARMAModel      = paste("ARMA(",mod$ARMAModel[1],",",mod$ARMAModel[2],")",sep="")
     ModelOutput$Task           = mod$Task
 
     # assign names to all output elements
@@ -792,7 +792,7 @@ FitMultiplePF_Res = function(theta, mod){
 
     # Start Populating the output data frame
     ModelOutput$CountDist      = mod$CountDist
-    ModelOutput$ARMAModel      = paste("ARMA(",mod$ARMAorder[1],",",mod$ARMAorder[2],")",sep="")
+    ModelOutput$ARMAModel      = paste("ARMA(",mod$ARMAModel[1],",",mod$ARMAModel[2],")",sep="")
     ModelOutput$Regressor      = !is.null(mod$Regressor)
 
 
@@ -811,7 +811,7 @@ FitMultiplePF_Res = function(theta, mod){
     if(mod$nMA>0){
       ModelOutput[, offset:(offset + mod$nMA -1)]        = mod$TrueParam[ (mod$nMargParms+mod$nAR+1):(mod$nMargParms+mod$nAR+mod$nMA)]
       offset = offset + mod$nMA
-     }
+    }
 
     # Initial Parameter Estimates
     if(mod$nMargParms>0){
@@ -920,21 +920,21 @@ CheckStability = function(AR,MA){
 # compute initial estimates
 InitialEstimates = function(mod){
   # require(itsmr)
-  est  = rep(NA, mod$nMargParms+sum(mod$ARMAorder))
+  est  = rep(NA, mod$nMargParms+sum(mod$ARMAModel))
   #-----Poisson case
   if(mod$CountDist=="Poisson"){
     if(mod$nreg==0){
       est[1] = mean(mod$DependentVar)
-      if(mod$ARMAorder[1]) est[(mod$nMargParms+1):(mod$nMargParms+mod$ARMAorder[1])] = itsmr::arma(mod$DependentVar,mod$ARMAorder[1],mod$ARMAorder[2])$phi
-      if(mod$ARMAorder[2]) est[(1+mod$nMargParms+mod$ARMAorder[1]):(1+mod$nMargParms+sum(mod$ARMAorder))] = itsmr::arma(mod$DependentVar,mod$ARMAorder[1],mod$ARMAorder[2])$theta
+      if(mod$ARMAModel[1]) est[(mod$nMargParms+1):(mod$nMargParms+mod$ARMAModel[1])] = itsmr::arma(mod$DependentVar,mod$ARMAModel[1],mod$ARMAModel[2])$phi
+      if(mod$ARMAModel[2]) est[(1+mod$nMargParms+mod$ARMAModel[1]):(1+mod$nMargParms+sum(mod$ARMAModel))] = itsmr::arma(mod$DependentVar,mod$ARMAModel[1],mod$ARMAModel[2])$theta
     }else{
       # GLM for the mean that depends on time
       # CHECK ME: If I fit a Poisson AR(3) in the the data example of the JASA paper, but the code below doesn't specify poisson family (it would pick up the default distribution that glm function has) then there will be a numerical error in the likelihood. Check it!
       glmPoisson            = glm(mod$DependentVar~mod$Regressor[,2:(mod$nreg+1)], family = "poisson")
       est[1:mod$nMargParms] = as.numeric(glmPoisson[1]$coef)
 
-      if(mod$ARMAorder[1]) est[(mod$nMargParms+1):(mod$nMargParms+mod$ARMAorder[1])] = itsmr::arma(mod$DependentVar,mod$ARMAorder[1],mod$ARMAorder[2])$phi
-      if(mod$ARMAorder[2]) est[(1+mod$ARMAorder[1]+mod$nMargParms):(mod$nMargParms+sum(mod$ARMAorder))] = itsmr::arma(mod$DependentVar,mod$ARMAorder[1],mod$ARMAorder[2])$theta
+      if(mod$ARMAModel[1]) est[(mod$nMargParms+1):(mod$nMargParms+mod$ARMAModel[1])] = itsmr::arma(mod$DependentVar,mod$ARMAModel[1],mod$ARMAModel[2])$phi
+      if(mod$ARMAModel[2]) est[(1+mod$ARMAModel[1]+mod$nMargParms):(mod$nMargParms+sum(mod$ARMAModel))] = itsmr::arma(mod$DependentVar,mod$ARMAModel[1],mod$ARMAModel[2])$theta
     }
   }
 
@@ -948,16 +948,16 @@ InitialEstimates = function(mod){
       rEst = xbar^2/(sSquare - xbar)
       pEst = 1 - xbar/sSquare
       est[1:2] = c(rEst, pEst)
-      if(mod$ARMAorder[1]) est[(mod$nMargParms+1):(mod$nMargParms+mod$ARMAorder[1])] = itsmr::arma(mod$DependentVar,mod$ARMAorder[1],mod$ARMAorder[2])$phi
-      if(mod$ARMAorder[2]) est[(1+mod$nMargParms+mod$ARMAorder[1]):(1+mod$nMargParms+sum(mod$ARMAorder))] = itsmr::arma(mod$DependentVar,mod$ARMAorder[1],mod$ARMAorder[2])$theta
+      if(mod$ARMAModel[1]) est[(mod$nMargParms+1):(mod$nMargParms+mod$ARMAModel[1])] = itsmr::arma(mod$DependentVar,mod$ARMAModel[1],mod$ARMAModel[2])$phi
+      if(mod$ARMAModel[2]) est[(1+mod$nMargParms+mod$ARMAModel[1]):(1+mod$nMargParms+sum(mod$ARMAModel))] = itsmr::arma(mod$DependentVar,mod$ARMAModel[1],mod$ARMAModel[2])$theta
     }else{
       # GLM for the mean that depends on time
       glmNegBin                 = glm.nb(mod$DependentVar~mod$Regressor[,2:(mod$nreg+1)])
       est[1:(mod$nMargParms-1)] = as.numeric(glmNegBin[1]$coef)
       # Mom on constant variance
       est[mod$nMargParms]       = NegBinMoM(mod$DependentVar,glmNegBin$fitted.values)
-      if(mod$ARMAorder[1]) est[(mod$nMargParms+1):(mod$nMargParms+mod$ARMAorder[1])] = itsmr::arma(mod$DependentVar,mod$ARMAorder[1],mod$ARMAorder[2])$phi
-      if(mod$ARMAorder[2]) est[(1+mod$ARMAorder[1]+mod$nMargParms):(mod$nMargParms+sum(mod$ARMAorder))] = itsmr::arma(mod$DependentVar,mod$ARMAorder[1],mod$ARMAorder[2])$theta
+      if(mod$ARMAModel[1]) est[(mod$nMargParms+1):(mod$nMargParms+mod$ARMAModel[1])] = itsmr::arma(mod$DependentVar,mod$ARMAModel[1],mod$ARMAModel[2])$phi
+      if(mod$ARMAModel[2]) est[(1+mod$ARMAModel[1]+mod$nMargParms):(mod$nMargParms+sum(mod$ARMAModel))] = itsmr::arma(mod$DependentVar,mod$ARMAModel[1],mod$ARMAModel[2])$theta
     }
   }
 
@@ -982,12 +982,12 @@ InitialEstimates = function(mod){
 
       est[1:3] = c(l1Est, l1Est, pEst)
 
-      if(mod$ARMAorder[1]) est[(mod$nMargParms+1):(mod$nMargParms+mod$ARMAorder[1])] = itsmr::arma(mod$DependentVar,mod$ARMAorder[1],mod$ARMAorder[2])$phi
-      if(mod$ARMAorder[2]) est[(1+mod$nMargParms+mod$ARMAorder[1]):(1+mod$nMargParms+sum(mod$ARMAorder))] = itsmr::arma(mod$DependentVar,mod$ARMAorder[1],mod$ARMAorder[2])$theta
+      if(mod$ARMAModel[1]) est[(mod$nMargParms+1):(mod$nMargParms+mod$ARMAModel[1])] = itsmr::arma(mod$DependentVar,mod$ARMAModel[1],mod$ARMAModel[2])$phi
+      if(mod$ARMAModel[2]) est[(1+mod$nMargParms+mod$ARMAModel[1]):(1+mod$nMargParms+sum(mod$ARMAModel))] = itsmr::arma(mod$DependentVar,mod$ARMAModel[1],mod$ARMAModel[2])$theta
     }else{
       est[1:mod$nMargParms] = as.numeric(glm.nb(mod$DependentVar~mod$Regressor)[1]$coef)
-      if(mod$ARMAorder[1]) est[(mod$nMargParms+1):(1+mod$nMargParms+mod$ARMAorder[1])] = itsmr::arma(mod$DependentVar,mod$ARMAorder[1],mod$ARMAorder[2])$phi
-      if(mod$ARMAorder[2]) est[(1+mod$ARMAorder[1]+mod$nMargParms):(1+mod$nMargParms+sum(mod$ARMAorder))] = itsmr::arma(mod$DependentVar,mod$ARMAorder[1],mod$ARMAorder[2])$theta
+      if(mod$ARMAModel[1]) est[(mod$nMargParms+1):(1+mod$nMargParms+mod$ARMAModel[1])] = itsmr::arma(mod$DependentVar,mod$ARMAModel[1],mod$ARMAModel[2])$phi
+      if(mod$ARMAModel[2]) est[(1+mod$ARMAModel[1]+mod$nMargParms):(1+mod$nMargParms+sum(mod$ARMAModel))] = itsmr::arma(mod$DependentVar,mod$ARMAModel[1],mod$ARMAModel[2])$theta
     }
   }
 
@@ -1003,12 +1003,12 @@ InitialEstimates = function(mod){
       rEst = xbar^2/(sSquare - xbar)
       pEst = 1 - xbar/sSquare
       est[1:2] = c(rEst, pEst)
-      if(mod$ARMAorder[1]) est[(mod$nMargParms+1):(mod$nMargParms+mod$ARMAorder[1])] = itsmr::arma(mod$DependentVar,mod$ARMAorder[1],mod$ARMAorder[2])$phi
-      if(mod$ARMAorder[2]) est[(1+mod$nMargParms+mod$ARMAorder[1]):(1+mod$nMargParms+sum(mod$ARMAorder))] = itsmr::arma(mod$DependentVar,mod$ARMAorder[1],mod$ARMAorder[2])$theta
+      if(mod$ARMAModel[1]) est[(mod$nMargParms+1):(mod$nMargParms+mod$ARMAModel[1])] = itsmr::arma(mod$DependentVar,mod$ARMAModel[1],mod$ARMAModel[2])$phi
+      if(mod$ARMAModel[2]) est[(1+mod$nMargParms+mod$ARMAModel[1]):(1+mod$nMargParms+sum(mod$ARMAModel))] = itsmr::arma(mod$DependentVar,mod$ARMAModel[1],mod$ARMAModel[2])$theta
     }else{
       est[1:mod$nMargParms] = as.numeric(glm.nb(mod$DependentVar~mod$Regressor)[1]$coef)
-      if(mod$ARMAorder[1]) est[(mod$nMargParms+1):(1+mod$nMargParms+mod$ARMAorder[1])] = itsmr::arma(mod$DependentVar,mod$ARMAorder[1],mod$ARMAorder[2])$phi
-      if(mod$ARMAorder[2]) est[(1+mod$ARMAorder[1]+mod$nMargParms):(1+mod$nMargParms+sum(mod$ARMAorder))] = itsmr::arma(mod$DependentVar,mod$ARMAorder[1],mod$ARMAorder[2])$theta
+      if(mod$ARMAModel[1]) est[(mod$nMargParms+1):(1+mod$nMargParms+mod$ARMAModel[1])] = itsmr::arma(mod$DependentVar,mod$ARMAModel[1],mod$ARMAModel[2])$phi
+      if(mod$ARMAModel[2]) est[(1+mod$ARMAModel[1]+mod$nMargParms):(1+mod$nMargParms+sum(mod$ARMAModel))] = itsmr::arma(mod$DependentVar,mod$ARMAModel[1],mod$ARMAModel[2])$theta
     }
   }
 
@@ -1059,11 +1059,11 @@ sim_lgc = function(n, CountDist, MargParm, ARParm, MAParm, Regressor=NULL){
   # select the correct count model
   if(is.null(Regressor)){
     myinvcdf = switch(CountDist,
-                    "Poisson"             = qpois,
-                    "Negative Binomial"   = function(x, theta){ qnbinom (x, theta[1], 1-theta[2]) },
-                    "Mixed Poisson"       = function(x, theta){ qmixpois(x, theta[1], theta[2], theta[3])},
-                    "Generalized Poisson" = function(x, theta){ qGpois  (x, theta[1], theta[2])},
-                    "Binomial"            = qbinom)
+                      "Poisson"             = qpois,
+                      "Negative Binomial"   = function(x, theta){ qnbinom (x, theta[1], 1-theta[2]) },
+                      "Mixed Poisson"       = function(x, theta){ qmixpois(x, theta[1], theta[2], theta[3])},
+                      "Generalized Poisson" = function(x, theta){ qGpois  (x, theta[1], theta[2])},
+                      "Binomial"            = qbinom)
 
     x = myinvcdf(pnorm(z), MargParm)
   }else{

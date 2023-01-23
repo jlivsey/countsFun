@@ -12,7 +12,7 @@ lgc = function(DependentVar   = NULL,
                Regressor      = NULL,
                EstMethod      = "PFR",
                CountDist      = NULL,
-               ARMAorder      = c(0,0),
+               ARMAModel      = NULL,
                ParticleNumber = 10,
                epsilon        = 0.5,
                initialParam   = NULL,
@@ -26,7 +26,7 @@ lgc = function(DependentVar   = NULL,
                ParamScheme    = NULL){
 
   # parse all the parameters and the data into a list called mod
-  mod = ModelScheme(DependentVar, Regressor, EstMethod, ARMAorder, CountDist,ParticleNumber, epsilon,
+  mod = ModelScheme(DependentVar, Regressor, EstMethod, ARMAModel, CountDist,ParticleNumber, epsilon,
                     initialParam, TrueParam, Task,SampleSize, OptMethod, OutputType, ParamScheme)
 
 
