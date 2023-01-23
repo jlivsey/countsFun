@@ -80,14 +80,10 @@ lgc = function(DependentVar   = NULL,
     if(EstMethod=="PFR"){
       out = FitMultiplePF_Res(theta, mod)
     }
-
   }
 
   # create an lgc object and save the initial estimate
   class(out) = "lgc"
-  if(OutputType == "list"){
-    out$InitialEstim = InitEst
-  }
 
   return(out)
 

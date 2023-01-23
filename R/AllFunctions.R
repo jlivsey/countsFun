@@ -783,11 +783,19 @@ FitMultiplePF_Res = function(theta, mod){
     ModelOutput  = data.frame(matrix(ncol = 4*mod$nparms+16, nrow = 1))
 
     # specify output names
+    if(!is.null(mod$TrueParam)){
+      colnames(ModelOutput) = c(
+        'CountDist','ARMAModel', 'Regressor',
+        paste("True_", mod$parmnames, sep=""), paste("InitialEstim_", mod$parmnames, sep=""),
+        mod$parmnames, paste("se(", mod$parmnames,")", sep=""),
+        'EstMethod', 'SampleSize', 'ParticleNumber', 'epsilon', 'OptMethod', 'ParamScheme',
+        "loglik", "AIC", "BIC", "AICc", "ConvergeStatus", "kkt1", "kkt2")
+    }
     colnames(ModelOutput) = c(
       'CountDist','ARMAModel', 'Regressor',
-      paste("True_", mod$parmnames, sep=""), paste("InitialEstim_", mod$parmnames, sep=""),
+      paste("InitialEstim_", mod$parmnames, sep=""),
       mod$parmnames, paste("se(", mod$parmnames,")", sep=""),
-      'EstMethod', 'SampleSize', 'ParticleNumber', 'epsilon', 'OptMethod', 'ParamScheme',
+      'EstMethod', 'SampleSize', 'ParticleNumber', 'epsilon', 'OptMethod',
       "loglik", "AIC", "BIC", "AICc", "ConvergeStatus", "kkt1", "kkt2")
 
     # Start Populating the output data frame
@@ -795,22 +803,23 @@ FitMultiplePF_Res = function(theta, mod){
     ModelOutput$ARMAModel      = paste("ARMA(",mod$ARMAModel[1],",",mod$ARMAModel[2],")",sep="")
     ModelOutput$Regressor      = !is.null(mod$Regressor)
 
-
-    # true Parameters
     offset = 4
-    if(mod$nMargParms>0){
-      ModelOutput[, offset:(offset + mod$nMargParms -1)] = mod$TrueParam[1:mod$nMargParms]
-      offset = offset + mod$nMargParms
-    }
+    # true Parameters
+    if(!is.null(mod$TrueParam)){
+      if(mod$nMargParms>0){
+        ModelOutput[, offset:(offset + mod$nMargParms -1)] = mod$TrueParam[1:mod$nMargParms]
+        offset = offset + mod$nMargParms
+      }
 
-    if(mod$nAR>0){
-      ModelOutput[, offset:(offset + mod$nAR -1)]        = mod$TrueParam[ (mod$nMargParms+1):(mod$nMargParms+mod$nAR) ]
-      offset = offset + mod$nAR
-    }
+      if(mod$nAR>0){
+        ModelOutput[, offset:(offset + mod$nAR -1)]        = mod$TrueParam[ (mod$nMargParms+1):(mod$nMargParms+mod$nAR) ]
+        offset = offset + mod$nAR
+      }
 
-    if(mod$nMA>0){
-      ModelOutput[, offset:(offset + mod$nMA -1)]        = mod$TrueParam[ (mod$nMargParms+mod$nAR+1):(mod$nMargParms+mod$nAR+mod$nMA)]
-      offset = offset + mod$nMA
+      if(mod$nMA>0){
+        ModelOutput[, offset:(offset + mod$nMA -1)]        = mod$TrueParam[ (mod$nMargParms+mod$nAR+1):(mod$nMargParms+mod$nAR+mod$nMA)]
+        offset = offset + mod$nMA
+      }
     }
 
     # Initial Parameter Estimates
@@ -864,7 +873,7 @@ FitMultiplePF_Res = function(theta, mod){
     ModelOutput$ParticleNumber = mod$ParticleNumber
     ModelOutput$epsilon        = mod$epsilon
     ModelOutput$OptMethod      = row.names(optim.output)
-    ModelOutput$ParamScheme    = mod$ParamScheme
+    if(!is.null(mod$TrueParam)) ModelOutput$ParamScheme    = mod$ParamScheme
     ModelOutput$loglik         = loglik
     ModelOutput$AIC            = Criteria[1]
     ModelOutput$BIC            = Criteria[2]

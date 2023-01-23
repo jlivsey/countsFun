@@ -71,20 +71,23 @@ x  = c(1,2)
 nsim = 10000
 
 # for each simulation compute the gradient using finite differences
-tic()
+t1 = tic()
 for(i in 1:nsim){
   a1_d = grad(myfun,x)
 }
-toc()
+t1 = tic() - t1
 
 # for each simulation compute the gradient using automatic differentiation
-tic()
+t2 = tic()
 for(i in 1:nsim){
   b1_d = myfun_d(x[1],x[2], 1, 0)
   b2_d = myfun_d(x[1],x[2], 0, 1)
 }
-toc()
+t2 = tic() - t2
 
+
+t1
+t2
 
 
 
