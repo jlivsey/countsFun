@@ -17,7 +17,7 @@ SampleSize     = 100
 Regressor      = NULL
 CountDist      = "Poisson"
 MargParm       = 10
-ARParm         = c(0.75)
+ARParm         = c(0.75, 0.2)
 MAParm         = NULL
 EstMethod      = "PFR"
 ParticleNumber = 10
@@ -28,17 +28,17 @@ OptMethod      = "bobyqa"
 ParamScheme    = 1
 nsim           = 2
 Task           = 'Simulation'
-OutputType     = "data.frame"
+OutputType     = "list"
 no_cores       = NULL
 DependentVar   = NULL
-ARMAorder      = c(length(ARParm), length(MAParm))
+ARMAModel      = c(length(ARParm), length(MAParm))
 
 # Run the Simulation
 mysim = lgc(DependentVar   = DependentVar,
             Regressor      = Regressor,
             EstMethod      = EstMethod,
             CountDist      = CountDist,
-            ARMAorder      = ARMAorder,
+            ARMAModel      = ARMAModel,
             ParticleNumber = ParticleNumber,
             epsilon        = epsilon,
             initialParam   = initialParam,

@@ -12,69 +12,38 @@ require(countsFun)
 
 # Specify model and methods
 n              = 100
-# Regressor      = cbind(rep(1,n),rbinom(n,1,0.25))
 Regressor      = NULL
 CountDist      = "Poisson"
-beta0          = 2
-beta1          = 0.4
-MargParm       = c(beta0, beta1)
+MargParm       = 10
 ARParm         = c(0.75)
 MAParm         = NULL
-ARMAModel      = c(length(ARParm),length(MAParm))
+EstMethod      = "PFR"
+ARMAorder      = c(length(ARParm),length(MAParm))
 ParticleNumber = 10
 epsilon        = 0.5
-EstMethod      = "PFR"
+initialParam   = c(MargParm*0.5, 0*ARParm, 0.5*MAParm)
 initialParam   = NULL
-TrueParam      = NULL
-Task           = 'Optimization'
-SampleSize     = NULL
-nsim           = NULL
-no_cores       = NULL
-OptMethod      = "bobyqa"
-OutputType     = "data.frame"
-ParamScheme    = NULL
-
+theta          = initialParam
+OptMethod      = NULL
+Optimization   = 0
+OutputType     = "matrix"
 
 # simulate data
-DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor)
+DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm,MAParm)
 
 # Fit the model using the lgc wrapper
 mylgc = lgc(DependentVar   = DependentVar,
-            Regressor      = Regressor,
+            Regressor      = NULL,
             EstMethod      = EstMethod,
             CountDist      = CountDist,
-            ARMAModel      = ARMAModel,
+            ARMAorder      = ARMAorder,
             ParticleNumber = ParticleNumber,
             epsilon        = epsilon,
             initialParam   = initialParam,
-            TrueParam      = TrueParam,
-            Task           = Task,
-            SampleSize     = SampleSize,
-            nsim           = nsim,
-            no_cores       = no_cores,
+            Optimization   = Optimization,
             OptMethod      = OptMethod,
-            OutputType     = OutputType,
-            ParamScheme    = ParamScheme
+            OutputType     = OutputType
 )
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

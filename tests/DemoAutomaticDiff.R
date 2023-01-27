@@ -25,21 +25,21 @@ myfun = function(x){
 myfun_d = function(x1,x2, x1_d, x2_d){
   # The idea of automatic differentiation is to take each term of our function and name it
   # an intermediate variable vj. For example the term x[1]/x[2] above is denoted here as v1.
-  # The arguments x1_d and x2_d take the values zero and 1 depending on which derivatiave
+  # The arguments x1_d and x2_d take the values zero and 1 depending on which derivative
   # I am computing. If for example I call the function with (x1_d, x2_d) = (1,0) then
   # the derivative with respect to x1 will be computed. After each term v_j is computed I
   # will also compute the derivative of that term (and denote it as vj_d) using simple
   # derivative rules and chain rule. For example the term v2 = sin(v1) has derivative
   # v2_d = cos(v1_d)*v1_d.
 
-  # start by "initializing the actual arguement iof the function using the "v" notation
+  # start by "initializing the actual argument if the function using the "v" notation
   v_neg1   = x1
   v0       = x2
   v_neg1_d = x1_d
   v0_d     = x2_d
 
   # first term I will write using the "v" variables is the ratio x[1]/x[2]
-  v1   = v_neg1/v0
+  v1    = v_neg1/v0
   v1_d = (v0*v_neg1_d - v_neg1*v0_d)/v0^2
 
   # sin(x[1]/x[2])
