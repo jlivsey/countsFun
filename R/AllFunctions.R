@@ -193,7 +193,7 @@ ModelScheme = function(DependentVar, Regressor, EstMethod, ARMAModel, CountDist,
 
 }
 
-# PF likelihood with resampling for AR(p)
+# PF likelihood with resampling for AR(p) - written more concicely
 ParticleFilter_Res_AR = function(theta, mod){
   #--------------------------------------------------------------------------#
   # PURPOSE:  Use particle filtering with resampling
@@ -226,167 +226,79 @@ ParticleFilter_Res_AR = function(theta, mod){
   on.exit(set_rand_state(old_state))
 
 
-  #-----------  Step 0: Retrieve values from the mod Structure --------------#
+  # Retrieve parameters ans save them in a list
 
-  # marginal parameters
-  MargParms        = theta[mod$MargParmIndices]
+  Parms = RetrieveParameters(theta,mod)
 
-  # regressor parameters
-  if(mod$nreg>0){
-    beta  = MargParms[1:(mod$nreg+1)]
-    m     = exp(mod$Regressor%*%beta)
-  }
-
-  # GLM type parameters
-  if(mod$CountDist == "Negative Binomial" && mod$nreg>0){
-    ConstMargParm  = 1/MargParms[mod$nreg+2]
-    DynamMargParm  = MargParms[mod$nreg+2]*m/(1+MargParms[mod$nreg+2]*m)
-  }
-
-  if(mod$CountDist == "Generalized Poisson" && mod$nreg>0){
-    ConstMargParm  = MargParms[mod$nreg+2]
-    DynamMargParm  = m
-  }
-
-  if(mod$CountDist == "Poisson" && mod$nreg>0){
-    ConstMargParm  = NULL
-    DynamMargParm  = m
-  }
-
-  # ARMA parameters
-  AR = NULL
-  if(mod$ARMAModel[1]>0) AR = theta[(mod$nMargParms+1):(mod$nMargParms + mod$ARMAModel[1])]
-
-  MA = NULL
-  if(mod$ARMAModel[2]>0) MA = theta[(mod$nMargParms+mod$ARMAModel[1]+1) :
-                                      (mod$nMargParms + mod$ARMAModel[1] + mod$ARMAModel[2]) ]
-
-  # check for causality
-  if( CheckStability(AR,MA) ) return(10^(8))
-
-
-  # sample size and number of particles
-  T1      = length(mod$DependentVar)
-  N       = mod$ParticleNumber
+    # check for causality
+  if( CheckStability(Parms$AR,Parms$MA) ) return(10^(8))
 
   # Initialize the negative log likelihood computation
-  nloglik = ifelse(mod$nreg==0,  - log(mod$mypdf(mod$DependentVar[1],MargParms)),
-                   - log(mod$mypdf(mod$DependentVar[1], ConstMargParm, DynamMargParm[1])))
+  nloglik = ifelse(mod$nreg==0,  - log(mod$mypdf(mod$DependentVar[1],Parms$MargParms)),
+                   - log(mod$mypdf(mod$DependentVar[1], Parms$ConstMargParm, Parms$DynamMargParm[1])))
 
   # Compute the theoretical covariance for the AR model for current estimate
-  gt      = ARMAacf(ar = AR, ma = MA)[2:(max(mod$ARMAModel)+1)]
+  gt    = ARMAacf(ar = Parms$AR, ma = Parms$MA)[2:(max(mod$ARMAModel)+1)]
 
   # Compute the best linear predictor coefficients and errors using Durbin Levinson
-  DL      = DLAcfToAR(gt)
-  phit    = DL[,1]
-  Rt      = sqrt(DL[,3])
+  DL    = DLAcfToAR(gt)
+  phit  = DL[,1]
+  Rt    = sqrt(DL[,3])
 
 
   # allocate memory for particle weights and the latent Gaussian Series particles
-  wgh     = matrix(0,T1,N)
-  Z       = matrix(0,mod$ARMAModel[1],N)
+  w     = matrix(0,mod$n, mod$ParticleNumber)
+  Z     = matrix(0,mod$ARMAModel[1],mod$ParticleNumber)
 
   #======================   Start the SIS algorithm   ======================#
-  # Initialize the weights and the latent Gaussian series particles
-  wgh[1,] = rep(1,N)
+  # Initialize the weights
+  w[1,] = rep(1,mod$ParticleNumber)
 
-  if(mod$nreg==0){
-    a       = rep( qnorm(mod$mycdf(mod$DependentVar[1]-1,t(MargParms)),0,1), N)
-    b       = rep( qnorm(mod$mycdf(mod$DependentVar[1],t(MargParms)),0,1), N)
-  }else{
-    a       = rep( qnorm(mod$mycdf(mod$DependentVar[1]-1,ConstMargParm, DynamMargParm[1]),0,1), N)
-    b       = rep( qnorm(mod$mycdf(mod$DependentVar[1],ConstMargParm, DynamMargParm[1]),0,1), N)
-  }
+  # Compute the first integral limits Limit$ a and Limit$b
+  Limit = ComputeLimits(mod, Parms, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
 
-  Z[1,]   = qnorm(runif(length(a),0,1)*(pnorm(b,0,1)-pnorm(a,0,1))+pnorm(a,0,1),0,1)
+  # Initialize particles from truncated normal distribution
+  Z[1,] = SampleTruncNormParticles(mod, Limit$a, Limit$b, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
 
-  # =================== Loop from 2 to AR order===================== #
-  if (mod$ARMAModel[1]>=2){
-    for (t in 2: (mod$ARMAModel[1])){
-      # STEP 1 in SIS: Compute the latent Gaussian predictions Zhat using Durbin Levinson
-      if (t==2) {
-        Zhat = Z[1:(t-1),]*phit[1:(t-1)]
-      } else{
-        Zhat = colSums(Z[1:(t-1),]*phit[1:(t-1)])
-      }
+  # =================== Loop over t ===================== #
+  for (t in 2:mod$n){
+    # Compute the latent Gaussian predictions Zhat_t using Durbin Levinson
+    Zhat  = ComputeZhat(Z,phit,t)
 
-      # STEP 2 is SIS: Update the latent Gaussian series Z and the importance weights w
-      if(mod$nreg==0){
-        a = (qnorm(mod$mycdf(mod$DependentVar[t]-1,t(MargParms)),0,1) - Zhat)/Rt[t]
-        b = (qnorm(mod$mycdf(mod$DependentVar[t],t(MargParms)),0,1) - Zhat)/Rt[t]
-      }else{
-        a = (qnorm(mod$mycdf(mod$DependentVar[t]-1,ConstMargParm, DynamMargParm[t]),0,1) - Zhat)/Rt[t]
-        b = (qnorm(mod$mycdf(mod$DependentVar[t],ConstMargParm, DynamMargParm[t]),0,1) - Zhat)/Rt[t]
-      }
+    # Compute integral limits
+    Limit = ComputeLimits(mod, Parms, t, Zhat, Rt)
 
-      Z[1:t,] = rbind(qnorm(runif(length(a),0,1)*(pnorm(b,0,1)-pnorm(a,0,1))+pnorm(a,0,1),0,1)*Rt[t] + Zhat, Z[1:(t-1),])
-      wgh[t,] = wgh[t-1,]*(pnorm(b,0,1) - pnorm(a,0,1))
+    # Sample truncated normal particles
+    Znew  = SampleTruncNormParticles(mod, Limit$a, Limit$b,t, Zhat, Rt)
 
-      # update likelihood
-      nloglik = nloglik - log(mean(wgh[t,]))
-      # print(t)
-      # print(nloglik)
-    }
-  }
-  # =================== Loop from AR order + 1  to T ===================== #
-  # From p to T1 I don't need to estimate phi anymore
-  for (t in (mod$ARMAModel[1]+1):T1){
+    # update weights
+    w[t,] = ComputeWeights(mod, Limit$a, Limit$b, t, w[(t-1),])
 
-    # STEP 1 in SIS: Compute the latent Gaussian predictions Zhat using Durbin Levinson
-    if(mod$ARMAModel[1]>1){# colsums doesnt work for 1-dimensional matrix
-      Zhat = colSums(Z*phit)
-    }else{
-      Zhat =  Z*phit
-    }
-
-    # STEP 2 is SISR: Update the latent Gaussian series Z
-    if(mod$nreg==0){
-      a = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t]-1,t(MargParms)),0,1)) - Zhat)/Rt[mod$ARMAModel[1]]
-      b = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t],t(MargParms)),0,1)) - Zhat)/Rt[mod$ARMAModel[1]]
-    }else{
-      a = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t]-1,ConstMargParm, DynamMargParm[t]),0,1)) - Zhat)/Rt[mod$ARMAModel[1]]
-      b = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t],ConstMargParm, DynamMargParm[t]),0,1)) - Zhat)/Rt[mod$ARMAModel[1]]
-    }
-
-    Znew = qnorm(runif(length(a),0,1)*(pnorm(b,0,1)-pnorm(a,0,1))+pnorm(a,0,1),0,1)*Rt[mod$ARMAModel[1]] + Zhat
-
-    # compute unnormalized weights
-    # wgh[t,] = wgh[t-1,]*(pnorm(b,0,1) - pnorm(a,0,1))
-    wgh[t,] = (pnorm(b,0,1) - pnorm(a,0,1))
-    # break if I got NA weight
-    if (any(is.na(wgh[t,]))| sum(wgh[t,])==0 ){
+    # check me: break if I got NA weight
+    if (any(is.na(w[t,]))| sum(w[t,])==0 ){
       message(sprintf('WARNING: Some of the weights are either too small or sum to 0'))
       return(10^8)
     }
 
-    # compute normalized weights
-    wghn = wgh[t,]/sum(wgh[t,])
-
-    # STEP 3 is SISR: Resample
-    old_state1 <- get_rand_state()
-    ESS = 1/sum(wghn^2)
-    if(ESS<mod$epsilon*N){
-      ind = rmultinom(1,N,wghn)
-      # sample particles
-      Znew = rep(Znew,ind)
-    }
+    # Resample the particles using common random numbers
+    old_state1 = get_rand_state()
+    Znew = ResampleParticles(mod, w, t, Znew)
     set_rand_state(old_state1)
 
-
-    # save particles
+    # Combine current particles, with particles from previous iterations
     if (mod$ARMAModel[1]>1){
-      Z = rbind(Znew, Z[1:(mod$ARMAModel[1]-1),])
+      Z = rbind(Znew, Z[1:( min(t,mod$ARMAModel[1]) -1),])
     }else {
       Z[1,]=Znew
     }
-    # update likelihood
-    nloglik = nloglik - log(mean(wgh[t,]))
-    # print(t)
-    # print(nloglik)
+
+    # update log-likelihood
+    nloglik = nloglik - log(mean(w[t,]))
   }
 
   return(nloglik)
 }
+
 
 # PF likelihood with resampling for MA(q)
 ParticleFilter_Res_MA = function(theta, mod){
@@ -1110,6 +1022,25 @@ sim_lgc = function(n, CountDist, MargParm, ARParm, MAParm, Regressor=NULL){
 }
 
 
+
+myppois = function(x, lambda){
+  # compute poisson cdf as the ratio of an incomplete gamma function over the standard gamma function
+  # I will also compute the derivative of the poisson cdf wrt lambda
+  X  =c(lambda,x+1)
+  v1 = gammainc(X)
+  v2 = gamma(x+1)
+
+  # straight forward formula from the definition of incomplete gamma integral
+  v1_d = -lambda^x*exp(-lambda)
+  v2_d = 0
+
+  z  = v1/v2
+  z_d = (v1_d*v2 - v2_d*v1)/v2^2
+  return(c(z,z_d))
+}
+
+
+
 #---------Compute AIC, BIC, AICc
 Criteria.lgc = function(loglik, mod){
   #---------------------------------#
@@ -1191,3 +1122,127 @@ model.lgc = function(object){
   names(a) = c("Distribution", "Model")
   return(a)
 }
+
+
+ComputeLimits = function(mod, Parms, t, Zhat, Rt){
+  # a and b are the arguments in the two normal cdfs in the 4th line in equation (19) in JASA paper
+  Lim = list()
+  index = min(t, mod$ARMAModel[1])
+  if(mod$nreg==0){
+    Lim$a = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t]-1,t(Parms$MargParms)),0,1)) - Zhat)/(Rt[index])
+    Lim$b = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t],t(Parms$MargParms)),0,1)) - Zhat)/Rt[index]
+  }else{
+    Lim$a = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t]-1,Parms$ConstMargParm, Parms$DynamMargParm[t]),0,1)) - Zhat)/Rt[index]
+    Lim$b = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t],Parms$ConstMargParm, Parms$DynamMargParm[t]),0,1)) - Zhat)/Rt[index]
+  }
+
+  return(Lim)
+}
+
+SampleTruncNormParticles = function(mod, a, b, t, Zhat, Rt){
+  # relation (21) in JASA paper and the inverse transform method
+  # check me: this can be improved?
+  index = min(t, mod$ARMAModel[1])
+  z = qnorm(runif(length(a),0,1)*(pnorm(b,0,1)-pnorm(a,0,1))+pnorm(a,0,1),0,1)*Rt[index] + Zhat
+  return(z)
+}
+
+ComputeZhat = function(Z,phit,t){
+  # Given particles Z and Durbin Levinson coefficients phit compute the best linear predictor Zhat_t
+  # there is probably an easier way to do this but is ok for now
+  if(t <= mod$ARMAModel[1]){
+    if (t==2) {
+      Zhat = Z[1,]*phit[1]
+    } else{
+      Zhat = colSums(Z[1:(t-1),]*phit[1:(t-1)])
+    }
+  }
+  else{
+
+    if(mod$ARMAModel[1]>1){# colsums doesnt work for 1-dimensional matrix
+      Zhat = colSums(Z*phit)
+    }else{
+      Zhat =  Z*phit
+    }
+
+  }
+
+
+  return(Zhat)
+}
+
+ComputeWeights = function(mod, a, b, t, PreviousWeights){
+  # equation (21) in JASA paper
+  # update weights
+  if(t<=mod$ARMAModel[1]){
+    NewWeights = PreviousWeights*(pnorm(b,0,1) - pnorm(a,0,1))
+  }else{ # fix me: if I add the wgh[t-1,] below as I should the weights become small?
+    NewWeights = (pnorm(b,0,1) - pnorm(a,0,1))
+  }
+
+  return(NewWeights)
+}
+
+ResampleParticles = function(mod, wgh, t, Znew){
+
+  # relation (26) in JASA paper and following step
+  # compute normalized weights
+  wghn = wgh[t,]/sum(wgh[t,])
+
+  # effective sample size
+  ESS = 1/sum(wghn^2)
+
+  if(ESS<mod$epsilon*mod$ParticleNumber){
+    ind = rmultinom(1,mod$ParticleNumber,wghn)
+    Znew = rep(Znew,ind)
+  }
+return(Znew)
+}
+
+
+RetrieveParameters = function(theta,mod){
+
+  Parms =  vector(mode = "list", length = (mod$nparms+2))
+
+
+  names(Parms) = c("MargParms", "ConstMargParm", "DynamMargParm", "AR", "MA")
+
+  # marginal parameters
+  Parms$MargParms      = theta[mod$MargParmIndices]
+
+  # regressor parameters
+  if(mod$nreg>0){
+    beta  = Parms$MargParms[1:(mod$nreg+1)]
+    m     = exp(mod$Regressor%*%beta)
+  }
+
+  # GLM type parameters
+  if(mod$CountDist == "Negative Binomial" && mod$nreg>0){
+    Parms$ConstMargParm  = 1/Parms$MargParms[mod$nreg+2]
+    Parms$DynamMargParm  = Parms$MargParms[mod$nreg+2]*m/(1+Parms$MargParms[mod$nreg+2]*m)
+  }
+
+  if(mod$CountDist == "Generalized Poisson" && mod$nreg>0){
+    Parms$ConstMargParm  = Parms$MargParms[mod$nreg+2]
+    Parms$DynamMargParm  = m
+  }
+
+  if(mod$CountDist == "Poisson" && mod$nreg>0){
+    Parms$ConstMargParm  = NULL
+    Parms$DynamMargParm  = m
+  }
+
+
+  # Parms$AR = NULL
+  if(mod$ARMAModel[1]>0) Parms$AR = theta[(mod$nMargParms+1):(mod$nMargParms + mod$ARMAModel[1])]
+
+  # Parms$MA = NULL
+  if(mod$ARMAModel[2]>0) Parms$MA = theta[(mod$nMargParms+mod$ARMAModel[1]+1) :
+                                      (mod$nMargParms + mod$ARMAModel[1] + mod$ARMAModel[2]) ]
+
+
+  return(Parms)
+}
+
+
+

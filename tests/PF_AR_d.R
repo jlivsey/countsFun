@@ -1,5 +1,5 @@
 # PF likelihood with resampling for AR(p)
-PF_AR_d = function(theta, mod){
+ParticleFilter_Res_AR = function(theta, mod){
   #--------------------------------------------------------------------------#
   # PURPOSE:  Use particle filtering with resampling
   #           to approximate the likelihood of the
@@ -90,56 +90,118 @@ PF_AR_d = function(theta, mod){
   # allocate memory for particle weights and the latent Gaussian Series particles
   wgh     = matrix(0,T1,N)
   Z       = matrix(0,mod$ARMAModel[1],N)
+  Z_D     = matrix(0,mod$ARMAModel[1],N)
 
   #======================   Start the SIS algorithm   ======================#
   # Initialize the weights and the latent Gaussian series particles
   wgh[1,] = rep(1,N)
+  wgh_d[1,] = rep(1,N)
 
   if(mod$nreg==0){
-    v1 = mod$mycdf(mod$DependentVar[1]-1,t(MargParms))
-    v2 = qnorm(v1,0,1)
-    v3 = mod$mycdf(mod$DependentVar[1],t(MargParms))
-    v4 = qnorm(v3,0,1)
-    a  = rep(v2, N)
-    b  = rep(v4, N)
+    # compute count cdf and its derivative wrt the marginal paramterer in one step
+    F1   = myppois(mod$DependentVar[1]-1,t(MargParms))
+    v1   = F1[1]
+    v1_d = F1[2]
+
+    v2   = qnorm(v1,0,1)
+    v2_d = 1/dnorm(qnorm(v1,0,1),0,1)*v1_d
+
+    # fix me: there is a more efficient way to compute F2 from F1 and the pmf, but for now it
+    # is more readable to do it  this way
+    F2   = myppois(mod$DependentVar[1],t(MargParms))
+    v3   = F2[1]
+    v3_d = F2[2]
+
+    v4   = qnorm(v3,0,1)
+    v4_d = 1/dnorm(qnorm(v3,0,1),0,1)*v3_d
+
+    a    = v5   = rep(v2, N)
+    a_d  = v5_d = rep(v2_d,N)
+
+    b    = v6   = rep(v4, N)
+    b_d  = v6_d = rep(v4_d,N)
   }else{
-    a       = rep( qnorm(mod$mycdf(mod$DependentVar[1]-1,ConstMargParm, DynamMargParm[1]),0,1), N)
-    b       = rep( qnorm(mod$mycdf(mod$DependentVar[1],ConstMargParm, DynamMargParm[1]),0,1), N)
+    a    = rep( qnorm(mod$mycdf(mod$DependentVar[1]-1,ConstMargParm, DynamMargParm[1]),0,1), N)
+    b    = rep( qnorm(mod$mycdf(mod$DependentVar[1],ConstMargParm, DynamMargParm[1]),0,1), N)
   }
 
-  Z[1,]   = qnorm(runif(length(a),0,1)*(pnorm(b,0,1)-pnorm(a,0,1))+pnorm(a,0,1),0,1)
+  v7      = pnorm(v5,0,1)
+  v7_d    = dnorm(v5,0,1)*v5_d
+  v8      = pnorm(v6,0,1)
+  v8_d    = dnorm(v6,0,1)*v6_d
+
+  v9      = runif(length(a),0,1)*(v8-v7)+v7
+  v9_d    = runif(length(a),0,1)*(v8_d-v7_d)+v7_d
+
+  Z[1,]   = v10   = qnorm(v9,0,1)
+  Z_d[1,] = v10_d = 1/dnorm(v10,0,1)*v9_d
+
 
   # =================== Loop from 2 to AR order===================== #
   if (mod$ARMAModel[1]>=2){
     for (t in 2: (mod$ARMAModel[1])){
       # STEP 1 in SIS: Compute the latent Gaussian predictions Zhat using Durbin Levinson
       if (t==2) {
-        Zhat = Z[1:(t-1),]*phit[1:(t-1)]
+        Zhat   = v11   = Z[1:(t-1),]*phit[1:(t-1)]
+        # Chcek me: Is this correct?
+        Zhat_d = v11_d = Z_d[1:(t-1),]*phit[1:(t-1)]
       } else{
-        Zhat = colSums(Z[1:(t-1),]*phit[1:(t-1)])
+        Zhat   = v11   = colSums(Z[1:(t-1),]*phit[1:(t-1)])
+        Zhat_d = v11_d = colSums(Z_d[1:(t-1),]*phit[1:(t-1)])
       }
 
       # STEP 2 is SIS: Update the latent Gaussian series Z and the importance weights w
       if(mod$nreg==0){
-        v5 = mod$mycdf(mod$DependentVar[t]-1,t(MargParms))
-        v6 = qnorm(v5,0,1)
-        v7 = mod$mycdf(mod$DependentVar[t],t(MargParms))
-        v8 = qnorm(v7,0,1)
-        a = (v6 - Zhat)/Rt[t]
-        b = (v8 - Zhat)/Rt[t]
+        # compute count cdf and its derivative wrt the marginal paramterer in one step
+        F1   = myppois(mod$DependentVar[t]-1,t(MargParms))
+        v13   = F1[1]
+        v13_d = F1[2]
+
+        v14   = qnorm(v13,0,1)
+        v14_d = 1/dnorm(qnorm(v13,0,1),0,1)*v3_d
+
+
+        F2   = myppois(mod$DependentVar[t],t(MargParms))
+        v15   = F1[1]
+        v15_d = F1[2]
+
+        v16   = qnorm(v15,0,1)
+        v16_d = 1/dnorm(v16,0,1)*v15_d
+
+        # fix me I need to add Rt here - for now suppose it is constant
+        a   = v17   = (v14 - v11)/Rt[t]
+        a_d = v17_d = (v14_d - v11_d)/Rt[t]
+        b   = v18   = (v16 - v11)/Rt[t]
+        b_d = v18_d = (v16 - v11)/Rt[t]
 
       }else{
         a = (qnorm(mod$mycdf(mod$DependentVar[t]-1,ConstMargParm, DynamMargParm[t]),0,1) - Zhat)/Rt[t]
         b = (qnorm(mod$mycdf(mod$DependentVar[t],ConstMargParm, DynamMargParm[t]),0,1) - Zhat)/Rt[t]
       }
 
-      Z[1:t,] = rbind(qnorm(runif(length(a),0,1)*(pnorm(b,0,1)-pnorm(a,0,1))+pnorm(a,0,1),0,1)*Rt[t] + Zhat, Z[1:(t-1),])
-      wgh[t,] = wgh[t-1,]*(pnorm(b,0,1) - pnorm(a,0,1))
+      v19   = pnorm(v17,0,1)
+      v19_d = dnorm(v17,0,1)*v17_d
+      v20   = pnorm(v18,0,1)
+      v20_d = dnorm(v18,0,1)*v18_d
+
+      v21   = runif(length(a),0,1)*(v20-v19)+v19
+      v21_d = runif(length(a),0,1)*(v20_d-v19_d)+v19_d
+
+      v22   = qnorm(v21,0,1)
+      v22_d = 1/dnorm(v22,0,1)*v21_d
+
+      v23   = v22*Rt[t] + v11
+      v23_d = v22_d*Rt[t] + v11_d
+
+      Z[1:t,]   = rbind(v23, Z[1:(t-1),])
+      Z_d[1:t,] = rbind(v23_d, Z_d[1:(t-1),])
+
+      wgh[t,] = wgh[t-1,]*(v20 - v19)
+      wgh_d[t,] = wgh_d[t-1,]*(v20 - v19) + wgh[t-1,]*(v20_d - v19_d)
 
       # update likelihood
-      nloglik = nloglik - log(mean(wgh[t,]))
-      # print(t)
-      # print(nloglik)
+      nloglik   = nloglik   - log(mean(wgh[t,]))
+      nloglik_d = nloglik_d - 1/(mean(wgh[t,])) + mean(wgh_d[t,])
     }
   }
   # =================== Loop from AR order + 1  to T ===================== #
@@ -148,20 +210,17 @@ PF_AR_d = function(theta, mod){
 
     # STEP 1 in SIS: Compute the latent Gaussian predictions Zhat using Durbin Levinson
     if(mod$ARMAModel[1]>1){# colsums doesnt work for 1-dimensional matrix
-      Zhat = colSums(Z*phit)
+      Zhat   = v24   = colSums(Z*phit)
+      Zhat_d = v24_d = colSums(Z_d*phit)
     }else{
-      Zhat =  Z*phit
+      Zhat   = v24   =  Z*phit
+      Zhat_d = v24_d =  Z_d*phit
     }
 
     # STEP 2 is SISR: Update the latent Gaussian series Z
     if(mod$nreg==0){
-      v9 = mod$mycdf(mod$DependentVar[t]-1,t(MargParms))
-      v10 = qnorm(v9,0,1)
-      v11 = mod$mycdf(mod$DependentVar[t],t(MargParms))
-      v12 = qnorm(v11,0,1)
-
-      a = as.numeric(v10 - Zhat)/Rt[mod$ARMAModel[1]]
-      b = as.numeric(v12 - Zhat)/Rt[mod$ARMAModel[1]]
+      a = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t]-1,t(MargParms)),0,1)) - Zhat)/Rt[mod$ARMAModel[1]]
+      b = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t],t(MargParms)),0,1)) - Zhat)/Rt[mod$ARMAModel[1]]
     }else{
       a = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t]-1,ConstMargParm, DynamMargParm[t]),0,1)) - Zhat)/Rt[mod$ARMAModel[1]]
       b = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t],ConstMargParm, DynamMargParm[t]),0,1)) - Zhat)/Rt[mod$ARMAModel[1]]

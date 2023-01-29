@@ -15,10 +15,8 @@ n              = 100
 # Regressor      = cbind(rep(1,n),rbinom(n,1,0.25))
 Regressor      = NULL
 CountDist      = "Poisson"
-beta0          = 2
-beta1          = 0.4
-MargParm       = c(beta0, beta1)
-ARParm         = c(0.75)
+MargParm       = 3
+ARParm         = c(0.5, -0.25)
 MAParm         = NULL
 ARMAModel      = c(length(ARParm),length(MAParm))
 ParticleNumber = 10
@@ -56,7 +54,7 @@ mylgc = lgc(DependentVar   = DependentVar,
             OutputType     = OutputType,
             ParamScheme    = ParamScheme
 )
-
+mylgc
 
 
 
