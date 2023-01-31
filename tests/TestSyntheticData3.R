@@ -9,6 +9,7 @@
 library(optimx)
 library(ltsa)
 require(countsFun)
+library(itsmr)
 
 # Specify model and methods
 n              = 100
@@ -16,8 +17,10 @@ n              = 100
 Regressor      = NULL
 CountDist      = "Poisson"
 MargParm       = 3
-ARParm         = c(0.5, -0.25)
+ARParm         = c(0.8, -0.25)
 MAParm         = NULL
+#ARParm         = NULL
+#MAParm         = c(0.5,0.25)
 ARMAModel      = c(length(ARParm),length(MAParm))
 ParticleNumber = 10
 epsilon        = 0.5
@@ -31,13 +34,16 @@ no_cores       = NULL
 OptMethod      = "bobyqa"
 OutputType     = "data.frame"
 ParamScheme    = NULL
-
+Algorithm      = "IA"
 
 # simulate data
+set.seed(2)
 DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor)
 
+
+t0 = tic()
 # Fit the model using the lgc wrapper
-mylgc = lgc(DependentVar   = DependentVar,
+mylgc1 = lgc(DependentVar   = DependentVar,
             Regressor      = Regressor,
             EstMethod      = EstMethod,
             CountDist      = CountDist,
@@ -54,26 +60,5 @@ mylgc = lgc(DependentVar   = DependentVar,
             OutputType     = OutputType,
             ParamScheme    = ParamScheme
 )
-mylgc
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
