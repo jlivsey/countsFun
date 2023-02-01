@@ -464,8 +464,11 @@ ParticleFilter_Res_ARMA = function(theta, mod){
   gt    = as.vector(ARMAacf(ar = Parms$AR, ma = Parms$MA, lag.max = mod$n))
 
   # Compute coefficients of Innovations Algorithm see 5.2.16 and 5.3.9 in in Brockwell Davis book
-  # IA    = innovations.algorithm(gt)
-  IA    = InnovAlgMA(gt,q=mod$nMA,maxdiff=0.00001)
+  if(mod$nAR>0){
+    IA    = innovations.algorithm(gt)
+  }else{
+    IA    = InnovAlgMA(gt,q=mod$nMA,maxdiff=0.00001)
+  }
   Theta = IA$thetas
   Rt    = sqrt(IA$vs)
 
