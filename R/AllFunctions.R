@@ -1736,7 +1736,7 @@ ParticleFilter_Res_MA_Old = function(theta, mod){
   return(nloglik)
 }
 
-
+# Stefanos
 
 # INPUT :
 #   -Phi          matrix coefficientsin AR polynomial
