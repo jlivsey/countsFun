@@ -217,7 +217,7 @@ ParticleFilter_Res_AR = function(theta, mod){
   old_state <- get_rand_state()
   on.exit(set_rand_state(old_state))
 
-  # Retrieve parameters ans save them in a list
+  # Retrieve parameters ans save them in a li
   Parms = RetrieveParameters(theta,mod)
 
     # check for causality
@@ -255,6 +255,7 @@ ParticleFilter_Res_AR = function(theta, mod){
   # =================== Loop over t ===================== #
   for (t in 2:mod$n){
     # Compute the latent Gaussian predictions Zhat_t using Innovations Algorithm
+
     if(t==2){
       Zhat  =         Z[1:(t-1),] * Phi[[t-1]]
     }else{
@@ -463,7 +464,8 @@ ParticleFilter_Res_ARMA = function(theta, mod){
   gt    = as.vector(ARMAacf(ar = Parms$AR, ma = Parms$MA, lag.max = mod$n))
 
   # Compute coefficients of Innovations Algorithm see 5.2.16 and 5.3.9 in in Brockwell Davis book
-  IA    = innovations.algorithm(gt)
+  # IA    = innovations.algorithm(gt)
+  IA    = InnovAlgMA(gt,q=mod$nMA,maxdiff=0.00001)
   Theta = IA$thetas
   Rt    = sqrt(IA$vs)
 
@@ -485,41 +487,11 @@ ParticleFilter_Res_ARMA = function(theta, mod){
   Inn[1,] = Z[1,]
 
   # retrieve max order
-  m = max(mod$ARMAModel)
 
   for (t in 2:mod$n){
 
     # Compute the latent Gaussian predictions Zhat_t using Innovations Algorithm - see 5.3.9 in Brockwell Davis book
-    if(mod$nAR==0){
-      if(t==2){
-        Zhat  =         Inn[1:(min(t-1,mod$nMA)),] * Theta[[t-1]][1:(min(t-1,mod$nMA))]
-      }else{
-        Zhat  = colSums(Inn[1:(min(t-1,mod$nMA)),] * Theta[[t-1]][1:(min(t-1,mod$nMA))])
-      }
-    }else{
-      if(t<=m){
-        if(t==2){
-          Zhat  =         Inn[1:(t-1),] * Theta[[t-1]][1:(t-1)]
-        }else{
-          Zhat  = colSums(Inn[1:(t-1),] * Theta[[t-1]][1:(t-1)])
-        }
-      }else{
-        if(mod$nMA==0){
-          if(t==2){
-            Zhat  = Z[1:mod$nAR,]*Parms$AR
-          }else{
-            Zhat  = colSums(Z[1:mod$nAR,]*Parms$AR)
-          }
-        }else{
-          if(t==2){
-            Zhat  = Z[1:mod$nAR,]*Parms$AR +         Inn[1:mod$nMA,] * Theta[[t-1]][1:mod$nMA]
-          }else{
-            Zhat  = colSums(Z[1:mod$nAR,]*Parms$AR + Inn[1:mod$nMA,] * Theta[[t-1]][1:mod$nMA])
-          }
-        }
-      }
-    }
-
+    Zhat = ComputeZhat(mod, Inn, Z, t, Parms, Theta)
 
     # Compute integral limits
     Limit = ComputeLimits(mod, Parms, t, Zhat, Rt)
@@ -1042,6 +1014,34 @@ innovations.algorithm <- function(acvf,n.max=length(acvf)-1){
   return(structure(list(vs=vs,thetas=thetas)))
 }
 
+# innovations algorithm code for MA series
+InnovAlgMA = function(acvf,n.max=length(acvf)-1,q,maxdiff){
+  # In the case of MA series the innovation alogrithm coefficients
+  # converege fast to the MA coefficients
+  thetas   = list()
+  vs   = rep(acvf[1],n.max+1)
+  Diff = rep(1,q)
+  n=1
+  while( abs(max(Diff))>maxdiff && (n>q || n<=n.max) ){
+
+    thetas[[n]] <- rep(0,q)
+    thetas[[n]][n] = ifelse(n<=q, acvf[n+1]/vs[1],0)
+    if(n>1){
+      for(k in 1:(n-1)){
+        js <- 0:(k-1)
+        thetas[[n]][n-k] <- (acvf[n-k+1] - sum(thetas[[k]][k-js]*thetas[[n]][n-js]*vs[js+1]))/vs[k+1]
+        Diff[k] = thetas[[n]][n-k] - thetas[[n-1]][n-k]
+      }
+      #Diff[n] = thetas[[n]][1:min(n,q)] - thetas[[n-1]][1:min(n,q)]
+    }
+    js <- 0:(n-1)
+    vs[n+1] <- vs[n+1] - sum(thetas[[n]][n-js]^2*vs[js+1])
+    n = n+1
+  }
+
+  return(structure(list(vs=vs[1:(n-1)],thetas=lapply(thetas[ ][1:(n-1)], function(x) {x[1:q]}))))
+}
+
 # simulate from our model
 sim_lgc = function(n, CountDist, MargParm, ARParm, MAParm, Regressor=NULL){
 
@@ -1092,8 +1092,6 @@ sim_lgc = function(n, CountDist, MargParm, ARParm, MAParm, Regressor=NULL){
 
   return(x)
 }
-
-
 
 myppois = function(x, lambda){
   # compute poisson cdf as the ratio of an incomplete gamma function over the standard gamma function
@@ -1196,9 +1194,6 @@ model.lgc = function(object){
 }
 
 
-
-
-
 ComputeLimits = function(mod, Parms, t, Zhat, Rt){
   # a and b are the arguments in the two normal cdfs in the 4th line in equation (19) in JASA paper
   Lim = list()
@@ -1223,30 +1218,39 @@ SampleTruncNormParticles = function(mod, a, b, t, Zhat, Rt){
   return(z)
 }
 
-ComputeZhat = function(Z,coefficients){
+ComputeZhat = function(mod, Inn, Z, t, Parms, Theta){
 
-
-  Zhat = colSums(Z*coefficients)
-    # Given particles Z and Durbin Levinson coefficients phit compute the best linear predictor Zhat_t
-  # there is probably an easier way to do this but is ok for now
-  # if(mod$ARMAModel[2]==0){
-  #   if(t <= mod$ARMAModel[1]){
-  #     if (t==2) {
-  #       Zhat = Z[1,]*coefficients[1]
-  #     } else{
-  #       Zhat = colSums(Z[1:(t-1),]*coefficients[1:(t-1)])
-  #     }
-  #   }
-  #   else{
-  #     if(mod$ARMAModel[1]>1){# colsums doesnt work for 1-dimensional matrix
-  #       Zhat = colSums(Z*coefficients)
-  #     }else{
-  #       Zhat =  Z*coefficients
-  #     }
-  #   }
-  # }else{
-  #
-  # }
+  # Implementing 5.3.9 in Brockwell Davis book.
+  m = max(mod$ARMAModel)
+  if(mod$nAR==0){
+    if(t==2){
+      Zhat  =         Inn[1:(min(t-1,mod$nMA)),] * Theta[[min(t-1,length(Theta))]][1:(min(t-1,mod$nMA))]
+    }else{
+      Zhat  = colSums(Inn[1:(min(t-1,mod$nMA)),] * Theta[[min(t-1,length(Theta))]][1:(min(t-1,mod$nMA))])
+    }
+  }else{
+    if(t<=m){
+      if(t==2){
+        Zhat  =         Inn[1:(t-1),] * Theta[[t-1]][1:(t-1)]
+      }else{
+        Zhat  = colSums(Inn[1:(t-1),] * Theta[[t-1]][1:(t-1)])
+      }
+    }else{
+      if(mod$nMA==0){
+        if(t==2){
+          Zhat  = Z[1:mod$nAR,]*Parms$AR
+        }else{
+          Zhat  = colSums(Z[1:mod$nAR,]*Parms$AR)
+        }
+      }else{
+        if(t==2){
+          Zhat  = Z[1:mod$nAR,]*Parms$AR +         Inn[1:mod$nMA,] * Theta[[t-1]][1:mod$nMA]
+        }else{
+          Zhat  = colSums(Z[1:mod$nAR,]*Parms$AR + Inn[1:mod$nMA,] * Theta[[t-1]][1:mod$nMA])
+        }
+      }
+    }
+  }
 
   return(Zhat)
 }
@@ -1729,5 +1733,24 @@ ParticleFilter_Res_MA_Old = function(theta, mod){
   return(nloglik)
 }
 
+
+
+# INPUT :
+#   -Phi          matrix coefficientsin AR polynomial
+#   -Z            given process
+#
+# OUTPOUT :     Y = Phi(B)Z, where B is backshift operator
+# works for AR(1) only at this time
+#
+#   M = nrow(Z);
+#   k = ncol(Z);					/*dimensionality of the series*/
+#   p = ncol(Phi)/k; 			/*AR order*/
+#
+#   Y = j(M,k,.);
+# Y[1:p,] = Z[1:p,];
+# Y[p+1:M,] = (Z[p+1:M,]-Z[p:M-1,]*Phi);
+# finish;
+# /*-------------------------------------------------------------------------------------------------------*/
+#
 
 
