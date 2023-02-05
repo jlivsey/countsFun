@@ -1,6 +1,6 @@
 #---------retrieve the model scheme
 ModelScheme = function(DependentVar, Regressor, EstMethod, ARMAModel, CountDist, ParticleNumber, epsilon,
-                       initialParam, TrueParam=NULL, Task, SampleSize, OptMethod, OutputType, ParamScheme){
+                       initialParam, TrueParam=NULL, Task, SampleSize, OptMethod, OutputType, ParamScheme, maxdiff){
 
   error = 0
   errorMsg = NULL
@@ -187,7 +187,8 @@ ModelScheme = function(DependentVar, Regressor, EstMethod, ARMAModel, CountDist,
     Task            = Task,
     OptMethod       = OptMethod,
     OutputType      = OutputType,
-    ParamScheme     = ParamScheme
+    ParamScheme     = ParamScheme,
+    maxdiff         = maxdiff
   )
   return(out)
 
@@ -256,10 +257,10 @@ ParticleFilter_Res_AR = function(theta, mod){
   for (t in 2:mod$n){
     # Compute the latent Gaussian predictions Zhat_t using Innovations Algorithm
 
-    if(t==2){
-      Zhat  =         Z[1:(t-1),] * Phi[[t-1]]
+    if(t==2 || mod$ParticleNumber==1){
+      Zhat  =         Z[1:(t-1),] %*% Phi[[t-1]]
     }else{
-      Zhat  = colSums(Z[1:(t-1),] * Phi[[t-1]])
+      Zhat  = colSums(Z[1:(t-1),] %*% Phi[[t-1]])
     }
 
     # Compute integral limits
@@ -283,7 +284,7 @@ ParticleFilter_Res_AR = function(theta, mod){
     set_rand_state(old_state1)
 
     # Combine current particles, with particles from previous iterations
-    Z = rbind(Znew, Z[1:(t-1),])
+    Z = rbind(Znew, as.matrix(Z[1:(t-1),]))
     # if (mod$ARMAModel[1]>1){
     #   Z = rbind(Znew, Z[1:( min(t,max(mod$ARMAModel)) -1),])
     # }else {
@@ -296,7 +297,6 @@ ParticleFilter_Res_AR = function(theta, mod){
 
   return(nloglik)
 }
-
 
 # PF likelihood with resampling for MA(q)
 ParticleFilter_Res_MA = function(theta, mod){
@@ -369,10 +369,10 @@ ParticleFilter_Res_MA = function(theta, mod){
   for (t in 2:mod$n){
 
     # Compute the latent Gaussian predictions Zhat_t using Innovations Algorithm - see 5.3.9 in Brockwell Davis book
-    if(t==2){
-      Zhat  =         Inn[1:(min(t-1,mod$nMA)),] * Theta[[t-1]][1:(min(t-1,mod$nMA))]
+    if(t==2 || mod$ParticleNumber==1){
+      Zhat  =         Inn[1:(min(t-1,mod$nMA)),] %*% Theta[[t-1]][1:(min(t-1,mod$nMA))]
     }else{
-      Zhat  = colSums(Inn[1:(min(t-1,mod$nMA)),] * Theta[[t-1]][1:(min(t-1,mod$nMA))])
+      Zhat  = colSums(Inn[1:(min(t-1,mod$nMA)),] %*% Theta[[t-1]][1:(min(t-1,mod$nMA))])
     }
 
     # Compute integral limits
@@ -399,7 +399,7 @@ ParticleFilter_Res_MA = function(theta, mod){
     InnNew = Znew - Zhat
 
     # Combine current particles, with particles from previous iterations
-    Inn = rbind(InnNew, Inn[1:(min(t,max(mod$ARMAModel)) -1),])
+    Inn = rbind(InnNew, as.matrix(Inn[1:min(t-1,mod$nMA),]))
 
     # update likelihood
     nloglik = nloglik - log(mean(w[t,]))
@@ -416,7 +416,6 @@ ParticleFilter_Res_MA = function(theta, mod){
 
   return(nloglik)
 }
-
 
 # PF likelihood with resampling for MA(q)
 ParticleFilter_Res_ARMA = function(theta, mod){
@@ -460,47 +459,61 @@ ParticleFilter_Res_ARMA = function(theta, mod){
   nloglik = ifelse(mod$nreg==0,  - log(mod$mypdf(mod$DependentVar[1],Parms$MargParms)),
                    - log(mod$mypdf(mod$DependentVar[1], Parms$ConstMargParm, Parms$DynamMargParm[1])))
 
-  # Compute covariance up to lag n-1
-  gt    = as.vector(ARMAacf(ar = Parms$AR, ma = Parms$MA, lag.max = mod$n))
+  # retrieve AR, MA orders and their max
+  m = max(mod$ARMAModel)
+  p = mod$ARMAModel[1]
+  q = mod$ARMAModel[2]
+
+
+  # Compute ARMA covariance up to lag n-1
+  a        = list()
+  if(!is.null(Parms$AR)){
+    a$phi = Parms$AR
+  }else{
+    a$phi = 0
+  }
+  if(!is.null(Parms$MA)){
+    a$theta = Parms$MA
+  }else{
+    a$theta = 0
+  }
+  a$sigma2 = 1
+  gamma    = itsmr::aacvf(a,mod$n)
 
   # Compute coefficients of Innovations Algorithm see 5.2.16 and 5.3.9 in in Brockwell Davis book
-  if(mod$nAR>0){
-    IA    = innovations.algorithm(gt)
-  }else{
-    IA    = InnovAlgMA(gt,q=mod$nMA,maxdiff=0.00001)
-  }
-  Theta = IA$thetas
-  Rt    = sqrt(IA$vs)
+  IA       = InnovAlg(Parms, gamma, mod$maxdiff)
+  Theta    = IA$thetas
+  Rt       = sqrt(IA$v)
 
-  # allocate matrices for weights, particles and innovations which are equal to Z-Zhat
-  w     = matrix(0, mod$n, mod$ParticleNumber)
-  Z     = matrix(0, max(mod$ARMAModel), mod$ParticleNumber)
-  Inn   = matrix(0, max(mod$ARMAModel), mod$ParticleNumber)
+  # Get the n such that |v_n-v_{n-1}|< mod$maxdiff. check me: does this guarantee convergence of Thetas?
+  nTheta   = IA$n
+  Theta_n  = Theta[[nTheta]]
 
-  # particle filter weights
-  w[1,]   = rep(1,mod$ParticleNumber)
+  # allocate matrices for weights, particles and predictions of the latent series
+  w        = matrix(0, mod$n, mod$ParticleNumber)
+  Z        = matrix(0, mod$n, mod$ParticleNumber)
+  Zhat     = matrix(0, mod$n, mod$ParticleNumber)
 
-  # Compute the first integral limits Limit$ a and Limit$b
-  Limit = ComputeLimits(mod, Parms, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
+  # initialize particle filter weights
+  w[1,]    = rep(1,mod$ParticleNumber)
 
-  # Generate N(0,1) variables restricted to (ai,bi),i=1,...n
-  Z[1,]   = SampleTruncNormParticles(mod, Limit$a, Limit$b, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
+  # Compute the first integral limits Limit$a and Limit$b
+  Limit    = ComputeLimits(mod, Parms, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
 
-  # Compute the first innovation (Zhat_1=0)
-  Inn[1,] = Z[1,]
+  # Initialize the particles using N(0,1) variables truncated to the limits computed above
+  Z[1,]    = SampleTruncNormParticles(mod, Limit$a, Limit$b, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
 
-  # retrieve max order
 
   for (t in 2:mod$n){
 
-    # Compute the latent Gaussian predictions Zhat_t using Innovations Algorithm - see 5.3.9 in Brockwell Davis book
-    Zhat = ComputeZhat(mod, Inn, Z, t, Parms, Theta)
+    # compute Zhat_t
+    Zhat[t,] = ComputeZhat_t(m,Theta,Z,Zhat,t, Parms,p,q, nTheta, Theta_n)
 
     # Compute integral limits
-    Limit = ComputeLimits(mod, Parms, t, Zhat, Rt)
+    Limit = ComputeLimits(mod, Parms, t, Zhat[t,], Rt)
 
     # Sample truncated normal particles
-    Znew  = SampleTruncNormParticles(mod, Limit$a, Limit$b, t, Zhat, Rt)
+    Znew  = SampleTruncNormParticles(mod, Limit$a, Limit$b, t, Zhat[t,], Rt)
 
     # update weights
     w[t,] = ComputeWeights(mod, Limit$a, Limit$b, t, w[(t-1),])
@@ -518,12 +531,8 @@ ParticleFilter_Res_ARMA = function(theta, mod){
     Znew = ResampleParticles(mod, w, t, Znew)
     set_rand_state(old_state1)
 
-    # Compute the new Innovation
-    InnNew = Znew - Zhat
-
-    # Combine current particles, with particles from previous iterations
-    if(mod$nAR>0) Z   = rbind(Znew,   Z[1:(min(t,mod$nAR)-1),])
-    Inn = rbind(InnNew, Inn[1:(min(t,max(mod$ARMAModel)) -1),])
+    # save the current particle
+    Z[t,]   = Znew
 
     # update likelihood
     nloglik = nloglik - log(mean(w[t,]))
@@ -540,7 +549,6 @@ ParticleFilter_Res_ARMA = function(theta, mod){
 
   return(nloglik)
 }
-
 
 # PF likelihood with resampling
 ParticleFilter_Res = function(theta, mod){
@@ -583,7 +591,6 @@ ParticleFilter_Res = function(theta, mod){
 
   return(loglik)
 }
-
 
 # Optimization wrapper to fit PF likelihood with resampling
 FitMultiplePF_Res = function(theta, mod){
@@ -860,7 +867,6 @@ set_rand_state <- function(state) {
   }
 }
 
-
 #---------check causality and invertibility
 CheckStability = function(AR,MA){
   if (is.null(AR) && is.null(MA)) return(0)
@@ -880,7 +886,6 @@ CheckStability = function(AR,MA){
 
   return(rc)
 }
-
 
 # compute initial estimates
 InitialEstimates = function(mod){
@@ -988,7 +993,6 @@ InitialEstimates = function(mod){
   return(est)
 }
 
-
 NegBinMoM = function(data, GLMMeanEst){
   # the GLMMeanEst is the GLM estimate of the standard log-link
   # th formula below is standard MoM for the over dispersion param in NegBin2 parametrization
@@ -1017,32 +1021,64 @@ innovations.algorithm <- function(acvf,n.max=length(acvf)-1){
   return(structure(list(vs=vs,thetas=thetas)))
 }
 
-# innovations algorithm code for MA series
-InnovAlgMA = function(acvf,n.max=length(acvf)-1,q,maxdiff){
-  # In the case of MA series the innovation alogrithm coefficients
-  # converege fast to the MA coefficients
-  thetas   = list()
-  vs   = rep(acvf[1],n.max+1)
-  Diff = rep(1,q)
-  n=1
-  while( abs(max(Diff))>maxdiff && (n>q || n<=n.max) ){
+InnovAlg = function(Parms,gamma, maxdiff) {
+  # adapt the Innovation.algorithm if ITSMR
 
-    thetas[[n]] <- rep(0,q)
-    thetas[[n]][n] = ifelse(n<=q, acvf[n+1]/vs[1],0)
-    if(n>1){
-      for(k in 1:(n-1)){
-        js <- 0:(k-1)
-        thetas[[n]][n-k] <- (acvf[n-k+1] - sum(thetas[[k]][k-js]*thetas[[n]][n-js]*vs[js+1]))/vs[k+1]
-        Diff[k] = thetas[[n]][n-k] - thetas[[n-1]][n-k]
-      }
-      #Diff[n] = thetas[[n]][1:min(n,q)] - thetas[[n-1]][1:min(n,q)]
-    }
-    js <- 0:(n-1)
-    vs[n+1] <- vs[n+1] - sum(thetas[[n]][n-js]^2*vs[js+1])
-    n = n+1
+  # Compute autocovariance kappa(i,j) per equation (3.3.3)
+
+  # Optimized for i >= j and j > 0
+
+  kappa = function(i,j) {
+    if (j > m)
+      return(sum(theta_r[1:(q+1)] * theta_r[(i-j+1):(i-j+q+1)]))
+    else if (i > 2*m)
+      return(0)
+    else if (i > m)
+      return((gamma[i-j+1] - sum(phi * gamma[abs(seq(1-i+j,p-i+j))+1]))/sigma2)
+    else
+      return(gamma[i-j+1]/sigma2)
   }
 
-  return(structure(list(vs=vs[1:(n-1)],thetas=lapply(thetas[ ][1:(n-1)], function(x) {x[1:q]}))))
+  phi     = Parms$AR
+  sigma2  = 1
+  N       = length(gamma)
+  theta_r = c(1,Parms$MA,numeric(N))
+
+  # Innovations algorithm
+
+  p = ifelse(is.null(Parms$AR),0,length(Parms$AR))
+  q = ifelse(is.null(Parms$MA),0,length(Parms$MA))
+  m = max(p,q)
+
+  Theta   = list()
+  v       = rep(NA,N+1)
+  v[1]    = kappa(1,1)
+  StopCondition = FALSE
+  n       = 1
+
+
+  while(!StopCondition && n<N ) {
+    Theta[[n]] <- rep(0,q)
+    Theta[[n]][n] = kappa(n+1,1)/v[1]
+    if(n>q && mod$nAR==0) Theta[[n]][n]= 0
+    if(n>1){
+      for (k in 1:(n-1)) {
+        js <- 0:(k-1)
+        Theta[[n]][n-k] <- (kappa(n+1,k+1) - sum(Theta[[k]][k-js]*Theta[[n]][n-js]*v[js+1])) / v[k+1]
+      }
+    }
+    js     = 0:(n-1)
+    v[n+1] = kappa(n+1,n+1) - sum(Theta[[n]][n-js]^2*v[js+1])
+    if(mod$nAR==0 && mod$nMA>0) StopCondition = (abs(v[n+1]-v[n])< maxdiff)
+    if(mod$nAR>0 && mod$nMA==0) StopCondition = (n>3*m)
+    n      = n+1
+  }
+  v = v/v[1]
+
+  StopCondition = (abs(v[n+1]-v[n])< maxdiff)
+
+
+  return(list(n=n-1,thetas=lapply(Theta[ ][1:(n-1)], function(x) {x[1:q]}),v=v[1:(n-1)]))
 }
 
 # simulate from our model
@@ -1051,6 +1087,7 @@ sim_lgc = function(n, CountDist, MargParm, ARParm, MAParm, Regressor=NULL){
 
   # Generate latent Gaussian model
   z  =arima.sim(model = list( ar = ARParm, ma=MAParm  ), n = n)
+  z = z/sd(z) # standardize the data
 
   # select the correct count model
   if(is.null(Regressor)){
@@ -1232,6 +1269,7 @@ ComputeZhat = function(mod, Inn, Z, t, Parms, Theta){
       Zhat  = colSums(Inn[1:(min(t-1,mod$nMA)),] * Theta[[min(t-1,length(Theta))]][1:(min(t-1,mod$nMA))])
     }
   }else{
+    # apply AR filter to the series
     if(t<=m){
       if(t==2){
         Zhat  =         Inn[1:(t-1),] * Theta[[t-1]][1:(t-1)]
@@ -1256,6 +1294,53 @@ ComputeZhat = function(mod, Inn, Z, t, Parms, Theta){
   }
 
   return(Zhat)
+}
+
+ComputeZhat_t = function(m,Theta,Z,Zhat,t, Parms,p,q,nTheta, Theta_n){
+
+
+  if(m>1 && t<=m)
+    Zhat_t = sum(Theta[[t-1]][1:(t-1)]*(Z[(t-1):1]-Zhat[(t-1):1]))
+  if(t>m && t<=nTheta){
+    A = sum(Parms$AR*Z[(t-1):(t-p)])
+    B = sum(Theta[[t-1]][1:q]*(Z[(t-1):(t-q)]-Zhat[(t-1):(t-q)]))
+    Zhat_t = A + B
+  }
+  if(t>nTheta){
+    A = sum(Parms$AR*Z[(t-1):(t-p)])
+    B = sum(Theta_n[1:q]*(Z[(t-1):(t-q)]-Zhat[(t-1):(t-q)]))
+    Zhat_t = A + B
+  }
+
+
+
+
+  return(Zhat_t)
+}
+
+
+
+ComputeInnAlgPred = function (Theta,x,Parms){
+  #  compute one-step ahead prediction
+  # given ARMA paramaters, Innovation Algorithm coeffcients and data
+  # adapted from ITSMR innovation.algorithm
+
+  N = length(x)+1
+  p = ifelse(is.null(Parms$AR),0,length(Parms$AR))
+  q = ifelse(is.null(Parms$MA),0,length(Parms$MA))
+  m = max(p,q)
+
+  xhat = numeric(N)
+  if (m > 1)
+    for (n in 1:(m-1))
+      xhat[n+1] = sum(Theta[[n]][1:n]*(x[n:1]-xhat[n:1]))
+  for (n in m:(N-1)) {
+    A = sum(Parms$AR*x[n:(n-p+1)])
+    B = sum(Theta[[n]][1:q]*(x[n:(n-q+1)]-xhat[n:(n-q+1)]))
+    xhat[n+1] = A + B
+  }
+
+  return(xhat)
 }
 
 ComputeWeights = function(mod, a, b, t, PreviousWeights){
@@ -1285,7 +1370,6 @@ ResampleParticles = function(mod, wgh, t, Znew){
   }
 return(Znew)
 }
-
 
 RetrieveParameters = function(theta,mod){
 
@@ -1736,24 +1820,47 @@ ParticleFilter_Res_MA_Old = function(theta, mod){
   return(nloglik)
 }
 
-# Stefanos
 
-# INPUT :
-#   -Phi          matrix coefficientsin AR polynomial
-#   -Z            given process
-#
-# OUTPOUT :     Y = Phi(B)Z, where B is backshift operator
-# works for AR(1) only at this time
-#
-#   M = nrow(Z);
-#   k = ncol(Z);					/*dimensionality of the series*/
-#   p = ncol(Phi)/k; 			/*AR order*/
-#
-#   Y = j(M,k,.);
-# Y[1:p,] = Z[1:p,];
-# Y[p+1:M,] = (Z[p+1:M,]-Z[p:M-1,]*Phi);
-# finish;
-# /*-------------------------------------------------------------------------------------------------------*/
-#
+ComputeWacvf = function(g,Parms,m){
+
+  m= max(mod$ARMAModel)
+  # implement (5.3.5) in Brockwell Davis for stationary series
+  phi = Parms$AR
+  theta = Parms$MA
+
+  k = rep(0,length(g))
+
+  k[1:m] = g[1:m]
+
+  k[(m+1):2*m ]
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 

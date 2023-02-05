@@ -23,11 +23,12 @@ lgc = function(DependentVar   = NULL,
                no_cores       = 1,
                OptMethod      = "bobyqa",
                OutputType     = "data.frame",
-               ParamScheme    = NULL){
+               ParamScheme    = NULL,
+               maxdiff        = 10^(-8) ){
 
   # parse all the parameters and the data into a list called mod
   mod = ModelScheme(DependentVar, Regressor, EstMethod, ARMAModel, CountDist,ParticleNumber, epsilon,
-                    initialParam, TrueParam, Task,SampleSize, OptMethod, OutputType, ParamScheme)
+                    initialParam, TrueParam, Task,SampleSize, OptMethod, OutputType, ParamScheme, maxdiff)
 
 
   # fix me: we need to do implement error checking

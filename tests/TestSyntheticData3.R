@@ -35,6 +35,7 @@ no_cores       = NULL
 OptMethod      = "bobyqa"
 OutputType     = "data.frame"
 ParamScheme    = NULL
+maxdiff        = 10^(-8)
 
 # simulate data
 set.seed(2)
@@ -58,7 +59,8 @@ mylgc = lgc(DependentVar   = DependentVar,
             no_cores       = no_cores,
             OptMethod      = OptMethod,
             OutputType     = OutputType,
-            ParamScheme    = ParamScheme
+            ParamScheme    = ParamScheme,
+            maxdiff        = maxdiff
 )
 
 
