@@ -256,12 +256,7 @@ ParticleFilter_Res_AR = function(theta, mod){
   # =================== Loop over t ===================== #
   for (t in 2:mod$n){
     # Compute the latent Gaussian predictions Zhat_t using Innovations Algorithm
-
-    if(t==2 || mod$ParticleNumber==1){
-      Zhat  =         Z[1:(t-1),] %*% Phi[[t-1]]
-    }else{
-      Zhat  = colSums(Z[1:(t-1),] %*% Phi[[t-1]])
-    }
+    Zhat  =         Phi[[t-1]]%*%Z[1:(t-1),]
 
     # Compute integral limits
     Limit = ComputeLimits(mod, Parms, t, Zhat, Rt)
@@ -284,12 +279,7 @@ ParticleFilter_Res_AR = function(theta, mod){
     set_rand_state(old_state1)
 
     # Combine current particles, with particles from previous iterations
-    Z = rbind(Znew, as.matrix(Z[1:(t-1),]))
-    # if (mod$ARMAModel[1]>1){
-    #   Z = rbind(Znew, Z[1:( min(t,max(mod$ARMAModel)) -1),])
-    # }else {
-    #   Z[1,]=Znew
-    # }
+    Z = rbind(Znew, matrix(Z[1:(t-1),],ncol = mod$ParticleNumber))
 
     # update log-likelihood
     nloglik = nloglik - log(mean(w[t,]))
@@ -369,10 +359,18 @@ ParticleFilter_Res_MA = function(theta, mod){
   for (t in 2:mod$n){
 
     # Compute the latent Gaussian predictions Zhat_t using Innovations Algorithm - see 5.3.9 in Brockwell Davis book
-    if(t==2 || mod$ParticleNumber==1){
-      Zhat  =         Inn[1:(min(t-1,mod$nMA)),] %*% Theta[[t-1]][1:(min(t-1,mod$nMA))]
+    if(mod$ParticleNumber==1){
+      if(t==2){
+        Zhat  =         Inn[1:(min(t-1,mod$nMA)),] %*% Theta[[t-1]][1:(min(t-1,mod$nMA))]
+      }else{
+        Zhat  = colSums(Inn[1:(min(t-1,mod$nMA)),] %*% Theta[[t-1]][1:(min(t-1,mod$nMA))])
+      }
     }else{
-      Zhat  = colSums(Inn[1:(min(t-1,mod$nMA)),] %*% Theta[[t-1]][1:(min(t-1,mod$nMA))])
+      if(t==2){
+        Zhat  =         Inn[1:(min(t-1,mod$nMA)),] * Theta[[t-1]][1:(min(t-1,mod$nMA))]
+      }else{
+        Zhat  = colSums(Inn[1:(min(t-1,mod$nMA)),] * Theta[[t-1]][1:(min(t-1,mod$nMA))])
+      }
     }
 
     # Compute integral limits
@@ -399,7 +397,7 @@ ParticleFilter_Res_MA = function(theta, mod){
     InnNew = Znew - Zhat
 
     # Combine current particles, with particles from previous iterations
-    Inn = rbind(InnNew, as.matrix(Inn[1:min(t-1,mod$nMA),]))
+    Inn[1:min(t,mod$nMA),] = rbind(matrix(InnNew,ncol=mod$ParticleNumber), matrix(Inn[1:min(t-1,mod$nMA-1),],ncol = mod$ParticleNumber))
 
     # update likelihood
     nloglik = nloglik - log(mean(w[t,]))
@@ -1298,22 +1296,20 @@ ComputeZhat = function(mod, Inn, Z, t, Parms, Theta){
 
 ComputeZhat_t = function(m,Theta,Z,Zhat,t, Parms,p,q,nTheta, Theta_n){
 
+  if(m>1 && t<=m) Zhat_t = Theta[[t-1]][1:(t-1)]%*%(Z[(t-1):1,]-Zhat[(t-1):1,])
 
-  if(m>1 && t<=m)
-    Zhat_t = sum(Theta[[t-1]][1:(t-1)]*(Z[(t-1):1]-Zhat[(t-1):1]))
   if(t>m && t<=nTheta){
-    A = sum(Parms$AR*Z[(t-1):(t-p)])
-    B = sum(Theta[[t-1]][1:q]*(Z[(t-1):(t-q)]-Zhat[(t-1):(t-q)]))
+    A = B= 0
+    if(!is.null(Parms$AR)) A = Parms$AR%*%Z[(t-1):(t-p),]
+    if(!is.null(Parms$MA)) B = Theta[[t-1]][1:q]%*%(Z[(t-1):(t-q),]-Zhat[(t-1):(t-q),])
     Zhat_t = A + B
   }
   if(t>nTheta){
-    A = sum(Parms$AR*Z[(t-1):(t-p)])
-    B = sum(Theta_n[1:q]*(Z[(t-1):(t-q)]-Zhat[(t-1):(t-q)]))
+    A = B = 0
+    if(!is.null(Parms$AR)) A = Parms$AR%*%Z[(t-1):(t-p),]
+    if(!is.null(Parms$MA)) B = Theta_n[1:q]%*%(Z[(t-1):(t-q),]-Zhat[(t-1):(t-q),])
     Zhat_t = A + B
   }
-
-
-
 
   return(Zhat_t)
 }

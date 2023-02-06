@@ -12,7 +12,7 @@ Regressor      = NULL
 CountDist      = "Poisson"
 MargParm       = 3
 ARParm         = c(0.5,0.2)
-#MAParm         = 0.5
+# MAParm         = 0.5
 #ARParm         = NULL
 MAParm         = NULL
 ARMAModel      = c(length(ARParm),length(MAParm))
@@ -28,7 +28,7 @@ no_cores       = NULL
 OptMethod      = "bobyqa"
 OutputType     = "data.frame"
 ParamScheme    = NULL
-maxdiff        = 10^(-4)
+maxdiff        = 10^(-8)
 # simulate data
 set.seed(2)
 DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor)
