@@ -16,61 +16,74 @@ ModelScheme = function(DependentVar, Regressor, EstMethod, ARMAModel, CountDist,
 
   # retrieve indices of marginal distribution parameters-the regressor is assumed to have an intercept
   MargParmIndices = switch(CountDist,
-                           "Poisson"             = 1:(1+nreg),
-                           "Negative Binomial"   = 1:(2+nreg),
-                           "Mixed Poisson"       = 1:(3+nreg),
-                           "Generalized Poisson" = 1:(2+nreg),
-                           "Binomial"            = 1:(2+nreg))
+                           "Poisson"               = 1:(1+nreg),
+                           "Negative Binomial"     = 1:(2+nreg),
+                           "Generalized Poisson"   = 1:(2+nreg),
+                           "Binomial"              = 1:(2+nreg),
+                           "Mixed Poisson"         = 1:(3+nreg*2),
+                           "Zero Inflated Poisson" = 1:(2+nreg*2))
   if(nreg<1){
     # retrieve marginal cdf
     mycdf = switch(CountDist,
-                   "Poisson"             = ppois,
-                   "Negative Binomial"   = function(x, theta){ pnbinom (x, theta[1], 1-theta[2])},
-                   "Mixed Poisson"       = function(x, theta){ pmixpois(x, theta[1], theta[2], theta[3])},
-                   "Generalized Poisson" = function(x,theta) { pGpois  (x, theta[1], theta[2])},
-                   "Binomial"            = pbinom
+                   "Poisson"               = ppois,
+                   "Negative Binomial"     = function(x, theta){ pnbinom (x, theta[1], 1-theta[2])},
+                   "Generalized Poisson"   = function(x, theta) { pGpois  (x, theta[1], theta[2])},
+                   "Binomial"              = pbinom,
+                   "Mixed Poisson"         = function(x, theta){ pmixpois(x, theta[1], theta[2], theta[3])},
+                   "Zero Inflated Poisson" = function(x, theta){ pzipois(x, theta[1], theta[2]) }
     )
 
     # retrieve marginal pdf
     mypdf = switch(CountDist,
-                   "Poisson"             = dpois,
-                   "Negative Binomial"   = function(x, theta){ dnbinom (x, theta[1], 1-theta[2]) },
-                   "Mixed Poisson"       = function(x, theta){ dmixpois(x, theta[1], theta[2], theta[3])},
-                   "Generalized Poisson" = function(x,theta) { dGpois  (x, theta[1], theta[2])},
-                   "Binomial"            = dbinom
-
+                   "Poisson"               = dpois,
+                   "Negative Binomial"     = function(x, theta){ dnbinom (x, theta[1], 1-theta[2]) },
+                   "Generalized Poisson"   = function(x, theta){ dGpois  (x, theta[1], theta[2])},
+                   "Binomial"              = dbinom,
+                   "Mixed Poisson"         = function(x, theta){ dmixpois(x, theta[1], theta[2], theta[3])},
+                   "Zero Inflated Poisson" = function(x, theta){ dzipois(x, theta[1], theta[2]) }
+                   
 
 
     )
 
     # retrieve marginal inverse cdf
     myinvcdf = switch(CountDist,
-                      "Poisson"             = qpois,
-                      "Negative Binomial"   = function(x, theta){ qnbinom (x, theta[1], 1-theta[2]) },
-                      "Mixed Poisson"       = function(x, theta){ qmixpois(x, theta[1], theta[2], theta[3])},
-                      "Generalized Poisson" = function(x, theta){ qGpois  (x, theta[1], theta[2])},
-                      "Binomial"            = qbinom
-
+                      "Poisson"               = qpois,
+                      "Negative Binomial"     = function(x, theta){ qnbinom (x, theta[1], 1-theta[2]) },
+                      "Generalized Poisson"   = function(x, theta){ qGpois  (x, theta[1], theta[2])},
+                      "Binomial"              = qbinom,
+                      "Mixed Poisson"         = function(x, theta){ qmixpois(x, theta[1], theta[2], theta[3])},
+                      "Zero Inflated Poisson" = function(x, theta){ qzipois(x, theta[1], theta[2]) }
+                      
     )
   }else{
     # retrieve marginal cdf
     mycdf = switch(CountDist,
-                   "Poisson"             = function(x, ConstMargParm, DynamMargParm){             ppois   (x, DynamMargParm)},
+                   "Poisson"             = function(x, ConstMargParm, DynamMargParm){ ppois   (x, DynamMargParm)},
                    "Negative Binomial"   = function(x, ConstMargParm, DynamMargParm){ pnbinom (x, ConstMargParm, 1-DynamMargParm)},
-                   "Generalized Poisson" = function(x, ConstMargParm, DynamMargParm){ pGpois  (x, ConstMargParm, DynamMargParm)}
+                   "Generalized Poisson" = function(x, ConstMargParm, DynamMargParm){ pGpois  (x, ConstMargParm, DynamMargParm)},
+                   "Binomial"            = function(x, ConstMargParm, DynamMargParm){ pbinom(x, ConstMargParm, DynamMargParm)},
+                   "Mixed Poisson"       = function(x, ConstMargParm, DynamMargParm){ pmixpois(x, DynamMargParm, ConstMargParm)},
+                   "Zero Inflated Poisson" = function(x, ConstMargParm, DynamMargParm){ pzipois(x, DynamMargParm[1], DynamMargParm[2]) }
     )
     # retrieve marginal pdf
     mypdf = switch(CountDist,
                    "Poisson"             = function(x, ConstMargParm, DynamMargParm){             dpois   (x, DynamMargParm)},
                    "Negative Binomial"   = function(x, ConstMargParm, DynamMargParm){ dnbinom (x, ConstMargParm, 1-DynamMargParm)},
-                   "Generalized Poisson" = function(x, ConstMargParm, DynamMargParm){ dGpois  (x, ConstMargParm, DynamMargParm)}
+                   "Generalized Poisson" = function(x, ConstMargParm, DynamMargParm){ dGpois  (x, ConstMargParm, DynamMargParm)},
+                   "Binomial"            = function(x, ConstMargParm, DynamMargParm){   dbinom(x, ConstMargParm, DynamMargParm)},
+                   "Mixed Poisson"         = function(x, ConstMargParm, DynamMargParm){ dmixpois(x, DynamMargParm, ConstMargParm)},
+                   "Zero Inflated Poisson" = function(x, ConstMargParm, DynamMargParm){ dzipois(x, DynamMargParm[1], DynamMargParm[2]) }
     )
 
     # retrieve marginal inverse cdf
     myinvcdf = switch(CountDist,
                       "Poisson"             = function(x, ConstMargParm, DynamMargParm){             qpois   (x, DynamMargParm)},
                       "Negative Binomial"   = function(x, ConstMargParm, DynamMargParm){ qnbinom (x, ConstMargParm, 1-DynamMargParm)},
-                      "Generalized Poisson" = function(x, ConstMargParm, DynamMargParm){ qGpois  (x, ConstMargParm, DynamMargParm)}
+                      "Generalized Poisson" = function(x, ConstMargParm, DynamMargParm){ qGpois  (x, ConstMargParm, DynamMargParm)},
+                      "Binomial"            = function(x, ConstMargParm, DynamMargParm){   qbinom(x, ConstMargParm, DynamMargParm)},
+                      "Mixed Poisson"         = function(x, ConstMargParm, DynamMargParm){ qmixpois(x, DynamMargParm, ConstMargParm)},
+                      "Zero Inflated Poisson" = function(x, ConstMargParm, DynamMargParm){ qzipois(x, DynamMargParm[1], DynamMargParm[2]) }
     )
 
 
@@ -94,7 +107,8 @@ ModelScheme = function(DependentVar, Regressor, EstMethod, ARMAModel, CountDist,
                             "Negative Binomial"   = c("r","p"),
                             "Mixed Poisson"       = c("lambda_1", "lambda_2", "p"),
                             "Generalized Poisson" = c("lambda", "a"),
-                            "Binomial"            = c("n", "p")
+                            "Binomial"            = c("n", "p"),
+                            "Zero Inflated Poisson" = c("lambda", "p")
     )
   }else{
     # fix me: check mixed poisson case
@@ -103,7 +117,8 @@ ModelScheme = function(DependentVar, Regressor, EstMethod, ARMAModel, CountDist,
                             "Negative Binomial"   = c(paste(rep("b_",nreg),0:nreg,sep=""), "k"),
                             "Mixed Poisson"       = c(paste(rep("b_1",nreg),0:nreg,sep=""),paste(rep("b_2",nreg),0:nreg,sep=""), "p"),
                             "Generalized Poisson" = c(paste(rep("b_",nreg),0:nreg,sep=""), "a"),
-                            "Binomial"            = c("n", paste(rep("b_",nreg),0:nreg,sep=""))
+                            "Binomial"            = c(paste(rep("b_",nreg),0:nreg,sep=""), "n"),
+                            "Zero Inflated Poisson"= c(paste(rep("b_",nreg),0:nreg, sep=""), paste(rep("c_",nreg),0:nreg, sep=""))
     )
   }
 
@@ -140,7 +155,6 @@ ModelScheme = function(DependentVar, Regressor, EstMethod, ARMAModel, CountDist,
     }
   }
 
-
   if(CountDist == "Generalized Poisson"){
     if(nreg==0){
       LB = c(0.001, 0.001, rep(-Inf, sum(ARMAModel)))
@@ -151,6 +165,35 @@ ModelScheme = function(DependentVar, Regressor, EstMethod, ARMAModel, CountDist,
     }
   }
 
+  if(CountDist == "Binomial"){
+    if(nreg==0){
+      LB = c(0.01, 0.01, rep(-Inf, sum(ARMAModel)))
+      UB = c(Inf, 0.99,     rep( Inf, sum(ARMAModel)))
+    }else{
+      LB = c(rep(-Inf, nreg+1), 0.01, rep(-Inf, sum(ARMAModel)))
+      UB = c(rep(Inf, nreg+1), Inf, rep(Inf, sum(ARMAModel)))
+    }
+  }
+  
+  if(CountDist == "Mixed Poisson"){
+    if(nreg==0){
+      LB = c(0.001, 0.001, 0.01,  rep(-Inf, sum(ARMAModel)))
+      UB = c(Inf, Inf, 0.99,  rep( Inf, sum(ARMAModel)))
+    }else{
+      LB = c(rep(-Inf, 2*nreg+2), 0.001, rep(-Inf, sum(ARMAModel)))
+      UB = c(rep(Inf, 2*nreg+2), 0.99, rep(Inf, sum(ARMAModel)))
+    }
+  }
+  
+  if(CountDist == "Zero Inflated Poisson"){
+    if(nreg==0){
+      LB = c(0.001, 0.001, rep(-Inf, sum(ARMAModel)))
+      UB = c(Inf, 0.99,     rep( Inf, sum(ARMAModel)))
+    }else{
+      LB = c(rep(-Inf, 2*nreg+2), rep(-Inf, sum(ARMAModel)))
+      UB = c(rep(Inf, 2*nreg+2), rep(Inf, sum(ARMAModel)))
+    }
+  }
 
   out = list(
     mycdf           = mycdf,
@@ -226,8 +269,8 @@ ParticleFilter_Res_AR = function(theta, mod){
 
   # Initialize the negative log likelihood computation
   nloglik = ifelse(mod$nreg==0,  - log(mod$mypdf(mod$DependentVar[1],Parms$MargParms)),
-                   - log(mod$mypdf(mod$DependentVar[1], Parms$ConstMargParm, Parms$DynamMargParm[1])))
-
+                   - log(mod$mypdf(mod$DependentVar[1], Parms$ConstMargParm, Parms$DynamMargParm[1,])))
+  
   # Compute the theoretical covariance for the AR model for current estimate
   gt    = ARMAacf(ar = Parms$AR, ma = Parms$MA,lag.max = mod$n)
 
@@ -328,7 +371,7 @@ ParticleFilter_Res_MA = function(theta, mod){
 
   # Initialize the negative log likelihood computation
   nloglik = ifelse(mod$nreg==0,  - log(mod$mypdf(mod$DependentVar[1],Parms$MargParms)),
-                   - log(mod$mypdf(mod$DependentVar[1], Parms$ConstMargParm, Parms$DynamMargParm[1])))
+                   - log(mod$mypdf(mod$DependentVar[1], Parms$ConstMargParm, Parms$DynamMargParm[1,])))
 
   # Compute covariance up to lag n-1
   gt    = as.vector(ARMAacf(ar = Parms$AR, ma = Parms$MA, lag.max = mod$n))
@@ -455,7 +498,7 @@ ParticleFilter_Res_ARMA = function(theta, mod){
 
   # Initialize the negative log likelihood computation
   nloglik = ifelse(mod$nreg==0,  - log(mod$mypdf(mod$DependentVar[1],Parms$MargParms)),
-                   - log(mod$mypdf(mod$DependentVar[1], Parms$ConstMargParm, Parms$DynamMargParm[1])))
+                   - log(mod$mypdf(mod$DependentVar[1], Parms$ConstMargParm, Parms$DynamMargParm[1,])))
 
   # retrieve AR, MA orders and their max
   m = max(mod$ARMAModel)
@@ -938,27 +981,29 @@ InitialEstimates = function(mod){
     if(mod$nreg==0){
       # pmle for marginal parameters
       MixPois_PMLE <- pmle.pois(x,2)
-
+      
       pEst  = MixPois_PMLE[[1]][1]
       l1Est = MixPois_PMLE[[2]][1]
       l2Est = MixPois_PMLE[[2]][2]
-
-
+      
+      
       # correct estimates if they are outside the feasible region
       if(pEst<LB[1]){pEst = 1.1*mod$LB[1]}
       if(pEst>UB[1]){pEst = 0.9*mod$UB[1]}
-
+      
       if(l1Est<LB[2]){l1Est = 1.1*mod$LB[2]}
       if(l2Est<LB[3]){l2Est = 1.1*mod$LB[3]}
-
+      
       est[1:3] = c(l1Est, l1Est, pEst)
-
-      if(mod$nAR) est[(mod$nMargParms+1):(mod$nMargParms+mod$nAR)]                     = itsmr::arma(mod$DependentVar,mod$nAR,mod$nMA)$phi
-      if(mod$nMA) est[(1+mod$nMargParms+mod$nAR):(mod$nMargParms+sum(mod$ARMAModel))]  = itsmr::arma(mod$DependentVar,mod$nAR,mod$nMA)$theta
+      
+      if(mod$ARMAModel[1]) est[(mod$nMargParms+1):(mod$nMargParms+mod$ARMAModel[1])] = itsmr::arma(mod$DependentVar,mod$ARMAModel[1],mod$ARMAModel[2])$phi
+      if(mod$ARMAModel[2]) est[(1+mod$nMargParms+mod$ARMAModel[1]):(mod$nMargParms+sum(mod$ARMAModel))] = itsmr::arma(mod$DependentVar,mod$ARMAModel[1],mod$ARMAModel[2])$theta
     }else{
-      est[1:mod$nMargParms] = as.numeric(glm.nb(mod$DependentVar~mod$Regressor)[1]$coef)
-      if(mod$nAR) est[(mod$nMargParms+1):(1+mod$nMargParms+mod$nAR)]                    = itsmr::arma(mod$DependentVar,mod$nAR,mod$nMA)$phi
-      if(mod$nMA) est[(1+mod$nAR+mod$nMargParms):(1+mod$nMargParms+sum(mod$ARMAModel))] = itsmr::arma(mod$DependentVar,mod$nAR,mod$nMA)$theta
+      # library(mixtools)
+      mix.reg = poisregmixEM(mod$DependentVar, mod$Regressor[,2:(mod$nreg+1)])
+      est[1:mod$nMargParms] = c(mix.reg$beta, mix.reg$lambda[1])
+      if(mod$ARMAModel[1]) est[(mod$nMargParms+1):(mod$nMargParms+mod$ARMAModel[1])] = itsmr::arma(mod$DependentVar,mod$ARMAModel[1],mod$ARMAModel[2])$phi
+      if(mod$ARMAModel[2]) est[(1+mod$ARMAModel[1]+mod$nMargParms):(mod$nMargParms+sum(mod$ARMAModel))] = itsmr::arma(mod$DependentVar,mod$ARMAModel[1],mod$ARMAModel[2])$theta
     }
   }
 
@@ -982,8 +1027,57 @@ InitialEstimates = function(mod){
       if(mod$nMA) est[(1+mod$nAR+mod$nMargParms):(1+mod$nMargParms+sum(mod$ARMAModel))] = itsmr::arma(mod$DependentVar,mod$nAR,mod$nMA)$theta
     }
   }
-
-
+  
+  #-----Binomial case
+  if(mod$CountDist=="Binomial"){
+    if(mod$nreg==0){
+      xbar = mean(mod$DependentVar)
+      sSquare = var(mod$DependentVar)
+      
+      # Method of Moments for Binomial E(X)=np, Var(X)=np(1-p), 1-p = Var(X)/E(X)
+      pEst = 1 - sSquare/xbar
+      nEst = xbar/pEst
+      est[1:2] = c(pEst, nEst)
+      if(mod$ARMAModel[1]) est[(mod$nMargParms+1):(mod$nMargParms+mod$ARMAModel[1])] = itsmr::arma(mod$DependentVar,mod$ARMAModel[1],mod$ARMAModel[2])$phi
+      if(mod$ARMAModel[2]) est[(1+mod$nMargParms+mod$ARMAModel[1]):(1+mod$nMargParms+sum(mod$ARMAModel))] = itsmr::arma(mod$DependentVar,mod$ARMAModel[1],mod$ARMAModel[2])$theta
+    }else{
+      failures                  = max(mod$DependentVar) - mod$DependentVar
+      glmBinomial               = glm(cbind(mod$DependentVar,failures)~mod$Regressor[,2:(mod$nreg+1)], family = "binomial")
+      est[1:(mod$nMargParms-1)] = as.numeric(glmBinomial$coef)
+      est[mod$nMargParms]       = max(mod$DependentVar)  ##Need to use method of moment?
+      if(mod$ARMAModel[1]) est[(mod$nMargParms+1):(mod$nMargParms+mod$ARMAModel[1])] = itsmr::arma(mod$DependentVar,mod$ARMAModel[1],mod$ARMAModel[2])$phi
+      if(mod$ARMAModel[2]) est[(1+mod$ARMAModel[1]+mod$nMargParms):(mod$nMargParms+sum(mod$ARMAModel))] = itsmr::arma(mod$DependentVar,mod$ARMAModel[1],mod$ARMAModel[2])$theta
+    }
+  }
+  
+  #-----Zero Inflation Poisson
+  if(mod$CountDist=="Zero Inflated Poisson"){
+    if(mod$nreg==0){
+      # pmle for marginal parameters
+      ZIP_PMLE <- poisson.zihmle(mod$DependentVar, type = c("zi"), 
+                                 lowerbound = LB,
+                                 upperbound = 10000)
+      
+      lEst = ZIP_PMLE[1]
+      pEst = ZIP_PMLE[2]
+      
+      # correct estimates if they are outside the feasible region
+      if(pEst<LB[1]){pEst = 1.1*mod$LB[1]}
+      if(pEst>UB[1]){pEst = 0.9*mod$UB[1]}
+      
+      if(lEst<LB[2]){l1Est = 1.1*mod$LB[2]}
+      
+      est[1:2] = c(lEst, pEst)
+      
+      if(mod$ARMAModel[1]) est[(mod$nMargParms+1):(mod$nMargParms+mod$ARMAModel[1])] = itsmr::arma(mod$DependentVar,mod$ARMAModel[1],mod$ARMAModel[2])$phi
+      if(mod$ARMAModel[2]) est[(1+mod$nMargParms+mod$ARMAModel[1]):(1+mod$nMargParms+sum(mod$ARMAModel))] = itsmr::arma(mod$DependentVar,mod$ARMAModel[1],mod$ARMAModel[2])$theta
+    }else{
+      zeroinfl_reg = zeroinfl(mod$DependentVar~mod$Regressor[,2:(mod$nreg+1)])$coefficients
+      est[1:mod$nMargParms] = as.numeric(c(zeroinfl_reg$count, zeroinfl_reg$zero))
+      if(mod$ARMAModel[1]) est[(mod$nMargParms+1):(mod$nMargParms+mod$ARMAModel[1])] = itsmr::arma(mod$DependentVar,mod$ARMAModel[1],mod$ARMAModel[2])$phi
+      if(mod$ARMAModel[2]) est[(1+mod$ARMAModel[1]+mod$nMargParms):(mod$nMargParms+sum(mod$ARMAModel))] = itsmr::arma(mod$DependentVar,mod$ARMAModel[1],mod$ARMAModel[2])$theta
+    }
+  }
   # add the parmnames on theta fix me: does this affect performance?
   names(est) = mod$parmnames
 
@@ -1090,18 +1184,22 @@ sim_lgc = function(n, CountDist, MargParm, ARParm, MAParm, Regressor=NULL){
   # select the correct count model
   if(is.null(Regressor)){
     myinvcdf = switch(CountDist,
-                      "Poisson"             = qpois,
-                      "Negative Binomial"   = function(x, theta){ qnbinom (x, theta[1], 1-theta[2]) },
-                      "Mixed Poisson"       = function(x, theta){ qmixpois(x, theta[1], theta[2], theta[3])},
-                      "Generalized Poisson" = function(x, theta){ qGpois  (x, theta[1], theta[2])},
-                      "Binomial"            = qbinom)
+                      "Poisson"               = qpois,
+                      "Negative Binomial"     = function(x, theta){ qnbinom (x, theta[1], 1-theta[2]) },
+                      "Generalized Poisson"   = function(x, theta){ qGpois  (x, theta[1], theta[2])},
+                      "Binomial"              = qbinom,
+                      "Mixed Poisson"         = function(x, theta){ qmixpois(x, theta[1], theta[2], theta[3])},
+                      "Zero Inflated Poisson" = function(x, theta){ qzipois(x, theta[1], theta[2]) }
 
     x = myinvcdf(pnorm(z), MargParm)
   }else{
     myinvcdf = switch(CountDist,
                       "Poisson"             = function(x, ConstMargParm, DynamMargParm){             qpois   (x, DynamMargParm)},
                       "Negative Binomial"   = function(x, ConstMargParm, DynamMargParm){ qnbinom (x, ConstMargParm, 1-DynamMargParm)},
-                      "Generalized Poisson" = function(x, ConstMargParm, DynamMargParm){ qGpois  (x, ConstMargParm, DynamMargParm)}
+                      "Generalized Poisson" = function(x, ConstMargParm, DynamMargParm){ qGpois  (x, ConstMargParm, DynamMargParm)},
+                      "Binomial"            = function(x, ConstMargParm, DynamMargParm){   qbinom(x, ConstMargParm, DynamMargParm)},
+                      "Mixed Poisson"         = function(x, ConstMargParm, DynamMargParm){ qmixpois(x, DynamMargParm, ConstMargParm)},
+                      "Zero Inflated Poisson" = function(x, ConstMargParm, DynamMargParm){ qzipois(x, DynamMargParm[1], DynamMargParm[2]) }
     )
 
     # number of regressors assuming there is an intercept, fix me: check the case with not intercept
@@ -1122,6 +1220,23 @@ sim_lgc = function(n, CountDist, MargParm, ARParm, MAParm, Regressor=NULL){
     if(CountDist == "Generalized Poisson" && nreg>0){
       ConstMargParm  = MargParms[nreg+2]
       DynamMargParm  = m
+    }
+    
+    if(mod$CountDist == "Binomial" && mod$nreg>0){
+      ConstMargParm  = MargParms[nreg+2]
+      DynamMargParm  = 1/(1+m)
+    }
+    
+    if(mod$CountDist == "Mixed Poisson" && mod$nreg>0){
+      ConstMargParm  = c(MargParms[nreg*2+3], 1 - MargParms[nreg*2+3])
+      DynamMargParm  = cbind(exp(Regressor%*%MargParms[1:(nreg+1)]),
+                             exp(Regressor%*%MargParms[(nreg+2):(nreg*2+2)]))
+    }
+    
+    if(mod$CountDist == "Zero Inflated Poisson" && mod$nreg>0){
+      ConstMargParm  = NULL
+      DynamMargParm  = cbind(exp(Regressor%*%MargParms[1:(nreg+1)]),
+                             1/(1+exp(-Regressor%*%MargParms[(nreg+2):(nreg*2+2)])))
     }
 
     x = myinvcdf(pnorm(z), ConstMargParm, DynamMargParm)
@@ -1241,8 +1356,8 @@ ComputeLimits = function(mod, Parms, t, Zhat, Rt){
     Lim$a = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t]-1,t(Parms$MargParms)),0,1)) - Zhat)/(Rt[index])
     Lim$b = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t],t(Parms$MargParms)),0,1)) - Zhat)/Rt[index]
   }else{
-    Lim$a = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t]-1,Parms$ConstMargParm, Parms$DynamMargParm[t]),0,1)) - Zhat)/Rt[index]
-    Lim$b = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t],Parms$ConstMargParm, Parms$DynamMargParm[t]),0,1)) - Zhat)/Rt[index]
+    Lim$a = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t]-1,Parms$ConstMargParm, Parms$DynamMargParm[t,]),0,1)) - Zhat)/Rt[index]
+    Lim$b = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t],Parms$ConstMargParm, Parms$DynamMargParm[t,]),0,1)) - Zhat)/Rt[index]
   }
 
   return(Lim)
@@ -1399,7 +1514,25 @@ RetrieveParameters = function(theta,mod){
     Parms$DynamMargParm  = m
   }
 
-
+  if(mod$CountDist == "Binomial" && mod$nreg>0){
+    Parms$ConstMargParm  = Parms$MargParms[mod$nreg+2]
+    Parms$DynamMargParm  = 1/(1+m)
+  }
+  
+  if(mod$CountDist == "Mixed Poisson" && mod$nreg>0){
+    Parms$ConstMargParm  = c(Parms$MargParms[mod$nreg*2+3], 1 - Parms$MargParms[mod$nreg*2+3])
+    Parms$DynamMargParm  = cbind(exp(mod$Regressor%*%Parms$MargParms[1:(mod$nreg+1)]),
+                           exp(mod$Regressor%*%Parms$MargParms[(mod$nreg+2):(mod$nreg*2+2)]))
+  }
+  
+  if(mod$CountDist == "Zero Inflated Poisson" && mod$nreg>0){
+    Parms$ConstMargParm  = NULL
+    Parms$DynamMargParm  = cbind(exp(mod$Regressor%*%Parms$MargParms[1:(mod$nreg+1)]),
+                           1/(1+exp(-mod$Regressor%*%Parms$MargParms[(mod$nreg+2):(mod$nreg*2+2)])))
+  }
+  
+  Parms$DynamMargParm = as.matrix(Parms$DynamMargParm)
+  
   # Parms$AR = NULL
   if(mod$ARMAModel[1]>0) Parms$AR = theta[(mod$nMargParms+1):(mod$nMargParms + mod$ARMAModel[1])]
 
@@ -1520,8 +1653,8 @@ ParticleFilter_Res_AR_Old = function(theta, mod){
     a       = rep( qnorm(mod$mycdf(mod$DependentVar[1]-1,t(MargParms)),0,1), N)
     b       = rep( qnorm(mod$mycdf(mod$DependentVar[1],t(MargParms)),0,1), N)
   }else{
-    a       = rep( qnorm(mod$mycdf(mod$DependentVar[1]-1,ConstMargParm, DynamMargParm[1]),0,1), N)
-    b       = rep( qnorm(mod$mycdf(mod$DependentVar[1],ConstMargParm, DynamMargParm[1]),0,1), N)
+    a       = rep( qnorm(mod$mycdf(mod$DependentVar[1]-1,ConstMargParm, DynamMargParm[1,]),0,1), N)
+    b       = rep( qnorm(mod$mycdf(mod$DependentVar[1],ConstMargParm, DynamMargParm[1,]),0,1), N)
   }
 
   Z[1,]   = qnorm(runif(length(a),0,1)*(pnorm(b,0,1)-pnorm(a,0,1))+pnorm(a,0,1),0,1)
