@@ -1,6 +1,7 @@
 #---------retrieve the model scheme
-ModelScheme = function(DependentVar, Regressor, EstMethod, ARMAModel, CountDist, ParticleNumber, epsilon,
-                       initialParam, TrueParam=NULL, Task, SampleSize, OptMethod, OutputType, ParamScheme, maxdiff){
+ModelScheme = function(DependentVar, Regressor=NULL, EstMethod="PFR", ARMAModel=c(0,0), CountDist="Poisson",
+                       ParticleNumber = 5, epsilon = 0.5, initialParam=NULL, TrueParam=NULL, Task="Optimization", SampleSize=NULL,
+                       OptMethod="bobyqa", OutputType="list", ParamScheme=1, maxdiff=10^(-8)){
 
   error = 0
   errorMsg = NULL
@@ -22,6 +23,7 @@ ModelScheme = function(DependentVar, Regressor, EstMethod, ARMAModel, CountDist,
                            "Binomial"              = 1:(2+nreg),
                            "Mixed Poisson"         = 1:(3+nreg*2),
                            "Zero Inflated Poisson" = 1:(2+nreg*2))
+
   if(nreg<1){
     # retrieve marginal cdf
     mycdf = switch(CountDist,
@@ -41,7 +43,7 @@ ModelScheme = function(DependentVar, Regressor, EstMethod, ARMAModel, CountDist,
                    "Binomial"              = dbinom,
                    "Mixed Poisson"         = function(x, theta){ dmixpois(x, theta[1], theta[2], theta[3])},
                    "Zero Inflated Poisson" = function(x, theta){ dzipois(x, theta[1], theta[2]) }
-                   
+
 
 
     )
@@ -54,7 +56,7 @@ ModelScheme = function(DependentVar, Regressor, EstMethod, ARMAModel, CountDist,
                       "Binomial"              = qbinom,
                       "Mixed Poisson"         = function(x, theta){ qmixpois(x, theta[1], theta[2], theta[3])},
                       "Zero Inflated Poisson" = function(x, theta){ qzipois(x, theta[1], theta[2]) }
-                      
+
     )
   }else{
     # retrieve marginal cdf
@@ -174,7 +176,7 @@ ModelScheme = function(DependentVar, Regressor, EstMethod, ARMAModel, CountDist,
       UB = c(rep(Inf, nreg+1), Inf, rep(Inf, sum(ARMAModel)))
     }
   }
-  
+
   if(CountDist == "Mixed Poisson"){
     if(nreg==0){
       LB = c(0.001, 0.001, 0.01,  rep(-Inf, sum(ARMAModel)))
@@ -184,7 +186,7 @@ ModelScheme = function(DependentVar, Regressor, EstMethod, ARMAModel, CountDist,
       UB = c(rep(Inf, 2*nreg+2), 0.99, rep(Inf, sum(ARMAModel)))
     }
   }
-  
+
   if(CountDist == "Zero Inflated Poisson"){
     if(nreg==0){
       LB = c(0.001, 0.001, rep(-Inf, sum(ARMAModel)))
@@ -194,6 +196,12 @@ ModelScheme = function(DependentVar, Regressor, EstMethod, ARMAModel, CountDist,
       UB = c(rep(Inf, 2*nreg+2), rep(Inf, sum(ARMAModel)))
     }
   }
+
+  # value I wil set the loglik when things go bad (e.g. non invetible ARMA)
+  loglik_BadValue1 = 10^8
+
+  # value I wil set the loglik when things go bad (e.g. non invetible ARMA)
+  loglik_BadValue2 = 10^9
 
   out = list(
     mycdf           = mycdf,
@@ -231,7 +239,9 @@ ModelScheme = function(DependentVar, Regressor, EstMethod, ARMAModel, CountDist,
     OptMethod       = OptMethod,
     OutputType      = OutputType,
     ParamScheme     = ParamScheme,
-    maxdiff         = maxdiff
+    maxdiff         = maxdiff,
+    loglik_BadValue1 = loglik_BadValue1,
+    loglik_BadValue2 = loglik_BadValue2
   )
   return(out)
 
@@ -265,12 +275,15 @@ ParticleFilter_Res_AR = function(theta, mod){
   Parms = RetrieveParameters(theta,mod)
 
     # check for causality
-  if( CheckStability(Parms$AR,Parms$MA) ) return(10^(8))
+  if( CheckStability(Parms$AR,Parms$MA) ){
+    message(sprintf('WARNING: The ARMA polynomial must be causal and invertible.'))
+    return(mod$loglik_BadValue1)
+  }
 
   # Initialize the negative log likelihood computation
   nloglik = ifelse(mod$nreg==0,  - log(mod$mypdf(mod$DependentVar[1],Parms$MargParms)),
                    - log(mod$mypdf(mod$DependentVar[1], Parms$ConstMargParm, Parms$DynamMargParm[1,])))
-  
+
   # Compute the theoretical covariance for the AR model for current estimate
   gt    = ARMAacf(ar = Parms$AR, ma = Parms$MA,lag.max = mod$n)
 
@@ -313,7 +326,7 @@ ParticleFilter_Res_AR = function(theta, mod){
     # check me: break if I got NA weight
     if (any(is.na(w[t,]))| sum(w[t,])==0 ){
       message(sprintf('WARNING: Some of the weights are either too small or sum to 0'))
-      return(10^8)
+      return(mod$loglik_BadValue2)
     }
 
     # Resample the particles using common random numbers
@@ -367,7 +380,11 @@ ParticleFilter_Res_MA = function(theta, mod){
   Parms = RetrieveParameters(theta,mod)
 
   # check for causality
-  if( CheckStability(Parms$AR,Parms$MA) ) return(10^(8))
+  if( CheckStability(Parms$AR,Parms$MA) ){
+    message(sprintf('WARNING: The ARMA polynomial must be causal and invertible.'))
+    return(mod$loglik_BadValue1)
+  }
+
 
   # Initialize the negative log likelihood computation
   nloglik = ifelse(mod$nreg==0,  - log(mod$mypdf(mod$DependentVar[1],Parms$MargParms)),
@@ -428,7 +445,7 @@ ParticleFilter_Res_MA = function(theta, mod){
     # check me: break if I got NA weight
     if (any(is.na(w[t,]))| sum(w[t,])==0 ){
       message(sprintf('WARNING: Some of the weights are either too small or sum to 0'))
-      return(10^8)
+      return(mod$loglik_BadValue2)
     }
 
     # Resample the particles using common random numbers
@@ -493,8 +510,11 @@ ParticleFilter_Res_ARMA = function(theta, mod){
   # Retrieve parameters and save them in a list called Parms
   Parms = RetrieveParameters(theta,mod)
 
-  # check for causality
-  if( CheckStability(Parms$AR,Parms$MA) ) return(10^(8))
+  # check for causality and invertibility
+  if( CheckStability(Parms$AR,Parms$MA) ){
+    message(sprintf('WARNING: The ARMA polynomial must be causal and invertible.'))
+    return(mod$loglik_BadValue1)
+    }
 
   # Initialize the negative log likelihood computation
   nloglik = ifelse(mod$nreg==0,  - log(mod$mypdf(mod$DependentVar[1],Parms$MargParms)),
@@ -564,7 +584,7 @@ ParticleFilter_Res_ARMA = function(theta, mod){
       # print(t)
       # print(w[t,])
       message(sprintf('WARNING: Some of the weights are either too small or sum to 0'))
-      return(10^8)
+      return(mod$loglik_BadValue2)
     }
 
     # Resample the particles using common random numbers
@@ -700,14 +720,14 @@ FitMultiplePF_Res = function(theta, mod){
                                 "value",  "fevals", "gevals", "niter", "convcode",  "kkt1", "kkt2", "xtime")
 
         optim.output[,1:length(theta)] = theta
-        t1 = tic()
+        t4 = tic()
         loglikelihood = ParticleFilter_Res(theta,mod)
-        t2 = tic()
+        t4 = tic()-t4
         optim.output[,(length(theta)+1)] = loglikelihood
         optim.output[,(length(theta)+2)] = 1
         optim.output[,(length(theta)+3)] = 1
         optim.output[,(length(theta)+4)] = 0
-        optim.output[,(length(theta)+8)] = as.numeric(t2-t1)
+        optim.output[,(length(theta)+8)] = as.numeric(t4)
       }
 
 
@@ -720,37 +740,42 @@ FitMultiplePF_Res = function(theta, mod){
 
 
       # compute Hessian
-      H = gHgen(par            = ParmEst[nfit*(k-1)+j,],
+        # t5 = tic()
+      if(mod$Task == "Optimization"){
+        H = gHgen(par          = ParmEst[nfit*(k-1)+j,],
                 fn             = ParticleFilter_Res,
                 mod            = mod)
+        # t5 = tic()-t5
+        # print(t5)
+        # if I get all na for one row and one col of H remove it
+        # H$Hn[rowSums(is.na(H$Hn)) != ncol(H$Hn), colSums(is.na(H$Hn)) != nrow(H$Hn)]
 
-      # if I get all na for one row and one col of H remove it
-      # H$Hn[rowSums(is.na(H$Hn)) != ncol(H$Hn), colSums(is.na(H$Hn)) != nrow(H$Hn)]
-
-      if (!any(is.na(rowSums(H$Hn)))){
-        # save standard errors from Hessian
-        if(H$hessOK && det(H$Hn)>10^(-8)){
-          se[nfit*(k-1)+j,]   = sqrt(abs(diag(solve(H$Hn))))
+        # t6 = tic()
+        if (!any(is.na(rowSums(H$Hn)))){
+          # save standard errors from Hessian
+          if(H$hessOK && det(H$Hn)>10^(-8)){
+            se[nfit*(k-1)+j,]   = sqrt(abs(diag(solve(H$Hn))))
+          }else{
+            se[nfit*(k-1)+j,] = rep(NA, nparms)
+          }
         }else{
-          se[nfit*(k-1)+j,] = rep(NA, nparms)
+          # remove the NA rows and columns from H
+          Hnew = H$Hn[rowSums(is.na(H$Hn)) != ncol(H$Hn), colSums(is.na(H$Hn)) != nrow(H$Hn)]
+
+          # find which rows are missing and which are not
+          NAIndex = which(colSums(is.na(H$Hn))==nparms)
+          NonNAIndex = which(colSums(is.na(H$Hn))==1)
+
+          #repeat the previous ifelse for the reduced H matrix
+          if(det(Hnew)>10^(-8)){
+            se[nfit*(k-1)+j,NonNAIndex]   = sqrt(abs(diag(solve(Hnew))))
+          }else{
+            se[nfit*(k-1)+j,NAIndex] = rep(NA, length(NAindex))
+          }
         }
-      }else{
-        # remove the NA rows and columns from H
-        Hnew = H$Hn[rowSums(is.na(H$Hn)) != ncol(H$Hn), colSums(is.na(H$Hn)) != nrow(H$Hn)]
-
-        # find which rows are missing and which are not
-        NAIndex = which(colSums(is.na(H$Hn))==nparms)
-        NonNAIndex = which(colSums(is.na(H$Hn))==1)
-
-        #repeat the previous ifelse for the reduced H matrix
-        if(det(Hnew)>10^(-8)){
-          se[nfit*(k-1)+j,NonNAIndex]   = sqrt(abs(diag(solve(Hnew))))
-        }else{
-          se[nfit*(k-1)+j,NAIndex] = rep(NA, length(NAindex))
-        }
-
       }
-
+        # t6 = tic()-t6
+        # print(t6)
 
     }
   }
@@ -761,27 +786,25 @@ FitMultiplePF_Res = function(theta, mod){
 
   if(mod$OutputType=="list"){
     #  save the results in a list
-    ModelOutput = list(data.frame(matrix(rep(NA,nparms),nrow=1)),
-                       data.frame(matrix(rep(NA,nparms),nrow=1)),
-                       data.frame(matrix(rep(NA,4),     nrow=1)),
-                       data.frame(matrix(rep(NA,3),     nrow=1))
-    )
+    ModelOutput = list()
+
     # specify output list names
-    names(ModelOutput)         = c("ParamEstimates", "StdErrors", "FitStatistics", "OptimOutput")
+    # names(ModelOutput)         = c("ParamEstimates", "StdErrors", "FitStatistics", "OptimOutput")
     ModelOutput$ParamEstimates = ParmEst
-    ModelOutput$StdErrors      = se
+    if(Task=="Optimization")ModelOutput$StdErrors      = se
     ModelOutput$FitStatistics  = c(loglik, Criteria)
-    ModelOutput$OptimOutput    = c(convcode,kkt1,kkt2)
-    ModelOutput$CountDist      = mod$CountDist
+    if(Task=="Optimization")ModelOutput$OptimOutput    = c(convcode,kkt1,kkt2)
+    #ModelOutput$CountDist      = mod$CountDist
     ModelOutput$EstMethod      = mod$EstMethod
-    ModelOutput$ARMAModel      = paste("ARMA(",mod$ARMAModel[1],",",mod$ARMAModel[2],")",sep="")
+    #ModelOutput$ARMAModel      = paste("ARMA(",mod$ARMAModel[1],",",mod$ARMAModel[2],")",sep="")
+    ModelOutput$Model          = paste(mod$CountDist,  paste("ARMA(",mod$ARMAModel[1],",",mod$ARMAModel[2],")",sep=""), sep= "-")
     ModelOutput$Task           = mod$Task
 
     # assign names to all output elements
     colnames(ModelOutput$ParamEstimates) = mod$parmnames
-    colnames(ModelOutput$StdErrors)      = paste("se(", mod$parmnames,")", sep="")
+    if(Task=="Optimization")colnames(ModelOutput$StdErrors)      = paste("se(", mod$parmnames,")", sep="")
     names(ModelOutput$FitStatistics)     = c("loglik", "AIC", "BIC", "AICc")
-    names(ModelOutput$OptimOutput)       = c("ConvergeStatus", "kkt1", "kkt2")
+    if(Task=="Optimization")names(ModelOutput$OptimOutput)       = c("ConvergeStatus", "kkt1", "kkt2")
 
   }else{
     ModelOutput  = data.frame(matrix(ncol = 4*mod$nparms+16, nrow = 1))
@@ -980,22 +1003,22 @@ InitialEstimates = function(mod){
   if(mod$CountDist=="Mixed Poisson"){
     if(mod$nreg==0){
       # pmle for marginal parameters
-      MixPois_PMLE <- pmle.pois(x,2)
-      
+      MixPois_PMLE <- pmle.pois(mod$DependentVar,2)
+
       pEst  = MixPois_PMLE[[1]][1]
       l1Est = MixPois_PMLE[[2]][1]
       l2Est = MixPois_PMLE[[2]][2]
-      
-      
+
+
       # correct estimates if they are outside the feasible region
-      if(pEst<LB[1]){pEst = 1.1*mod$LB[1]}
-      if(pEst>UB[1]){pEst = 0.9*mod$UB[1]}
-      
-      if(l1Est<LB[2]){l1Est = 1.1*mod$LB[2]}
-      if(l2Est<LB[3]){l2Est = 1.1*mod$LB[3]}
-      
-      est[1:3] = c(l1Est, l1Est, pEst)
-      
+      # if(pEst<mod$LB[1]){pEst = 1.1*mod$LB[1]}
+      # if(pEst>mod$UB[1]){pEst = 0.9*mod$UB[1]}
+      #
+      # if(l1Est<mod$LB[2]){l1Est = 1.1*mod$LB[2]}
+      # if(l2Est<mod$LB[3]){l2Est = 1.1*mod$LB[3]}
+
+      est[1:3] = c(l1Est, l2Est, pEst)
+
       if(mod$ARMAModel[1]) est[(mod$nMargParms+1):(mod$nMargParms+mod$ARMAModel[1])] = itsmr::arma(mod$DependentVar,mod$ARMAModel[1],mod$ARMAModel[2])$phi
       if(mod$ARMAModel[2]) est[(1+mod$nMargParms+mod$ARMAModel[1]):(mod$nMargParms+sum(mod$ARMAModel))] = itsmr::arma(mod$DependentVar,mod$ARMAModel[1],mod$ARMAModel[2])$theta
     }else{
@@ -1027,13 +1050,13 @@ InitialEstimates = function(mod){
       if(mod$nMA) est[(1+mod$nAR+mod$nMargParms):(1+mod$nMargParms+sum(mod$ARMAModel))] = itsmr::arma(mod$DependentVar,mod$nAR,mod$nMA)$theta
     }
   }
-  
+
   #-----Binomial case
   if(mod$CountDist=="Binomial"){
     if(mod$nreg==0){
       xbar = mean(mod$DependentVar)
       sSquare = var(mod$DependentVar)
-      
+
       # Method of Moments for Binomial E(X)=np, Var(X)=np(1-p), 1-p = Var(X)/E(X)
       pEst = 1 - sSquare/xbar
       nEst = xbar/pEst
@@ -1049,26 +1072,26 @@ InitialEstimates = function(mod){
       if(mod$ARMAModel[2]) est[(1+mod$ARMAModel[1]+mod$nMargParms):(mod$nMargParms+sum(mod$ARMAModel))] = itsmr::arma(mod$DependentVar,mod$ARMAModel[1],mod$ARMAModel[2])$theta
     }
   }
-  
+
   #-----Zero Inflation Poisson
   if(mod$CountDist=="Zero Inflated Poisson"){
     if(mod$nreg==0){
       # pmle for marginal parameters
-      ZIP_PMLE <- poisson.zihmle(mod$DependentVar, type = c("zi"), 
+      ZIP_PMLE <- poisson.zihmle(mod$DependentVar, type = c("zi"),
                                  lowerbound = LB,
                                  upperbound = 10000)
-      
+
       lEst = ZIP_PMLE[1]
       pEst = ZIP_PMLE[2]
-      
+
       # correct estimates if they are outside the feasible region
       if(pEst<LB[1]){pEst = 1.1*mod$LB[1]}
       if(pEst>UB[1]){pEst = 0.9*mod$UB[1]}
-      
+
       if(lEst<LB[2]){l1Est = 1.1*mod$LB[2]}
-      
+
       est[1:2] = c(lEst, pEst)
-      
+
       if(mod$ARMAModel[1]) est[(mod$nMargParms+1):(mod$nMargParms+mod$ARMAModel[1])] = itsmr::arma(mod$DependentVar,mod$ARMAModel[1],mod$ARMAModel[2])$phi
       if(mod$ARMAModel[2]) est[(1+mod$nMargParms+mod$ARMAModel[1]):(1+mod$nMargParms+sum(mod$ARMAModel))] = itsmr::arma(mod$DependentVar,mod$ARMAModel[1],mod$ARMAModel[2])$theta
     }else{
@@ -1150,7 +1173,7 @@ InnovAlg = function(Parms,gamma, maxdiff) {
 
 
   while(!StopCondition && n<N ) {
-    Theta[[n]] <- rep(0,q)
+    Theta[[n]] <- rep(0,n)
     Theta[[n]][n] = kappa(n+1,1)/v[1]
     if(n>q && mod$nAR==0) Theta[[n]][n]= 0
     if(n>1){
@@ -1161,8 +1184,14 @@ InnovAlg = function(Parms,gamma, maxdiff) {
     }
     js     = 0:(n-1)
     v[n+1] = kappa(n+1,n+1) - sum(Theta[[n]][n-js]^2*v[js+1])
+    # pure MA stopping criterion
     if(mod$nAR==0 && mod$nMA>0) StopCondition = (abs(v[n+1]-v[n])< maxdiff)
+
+    # pure AR stopping criterion
     if(mod$nAR>0 && mod$nMA==0) StopCondition = (n>3*m)
+
+    # mixed ARMA stopping criterion
+    if(mod$nAR>0 && mod$nMA>0)  StopCondition = (n>4*(p+q))
     n      = n+1
   }
   v = v/v[1]
@@ -1170,7 +1199,7 @@ InnovAlg = function(Parms,gamma, maxdiff) {
   StopCondition = (abs(v[n+1]-v[n])< maxdiff)
 
 
-  return(list(n=n-1,thetas=lapply(Theta[ ][1:(n-1)], function(x) {x[1:q]}),v=v[1:(n-1)]))
+  return(list(n=n-1,thetas=lapply(Theta[ ][1:(n-1)], function(x) {x[1:m]}),v=v[1:(n-1)]))
 }
 
 # simulate from our model
@@ -1190,6 +1219,7 @@ sim_lgc = function(n, CountDist, MargParm, ARParm, MAParm, Regressor=NULL){
                       "Binomial"              = qbinom,
                       "Mixed Poisson"         = function(x, theta){ qmixpois(x, theta[1], theta[2], theta[3])},
                       "Zero Inflated Poisson" = function(x, theta){ qzipois(x, theta[1], theta[2]) }
+    )
 
     x = myinvcdf(pnorm(z), MargParm)
   }else{
@@ -1221,18 +1251,18 @@ sim_lgc = function(n, CountDist, MargParm, ARParm, MAParm, Regressor=NULL){
       ConstMargParm  = MargParms[nreg+2]
       DynamMargParm  = m
     }
-    
+
     if(mod$CountDist == "Binomial" && mod$nreg>0){
       ConstMargParm  = MargParms[nreg+2]
       DynamMargParm  = 1/(1+m)
     }
-    
+
     if(mod$CountDist == "Mixed Poisson" && mod$nreg>0){
       ConstMargParm  = c(MargParms[nreg*2+3], 1 - MargParms[nreg*2+3])
       DynamMargParm  = cbind(exp(Regressor%*%MargParms[1:(nreg+1)]),
                              exp(Regressor%*%MargParms[(nreg+2):(nreg*2+2)]))
     }
-    
+
     if(mod$CountDist == "Zero Inflated Poisson" && mod$nreg>0){
       ConstMargParm  = NULL
       DynamMargParm  = cbind(exp(Regressor%*%MargParms[1:(nreg+1)]),
@@ -1371,44 +1401,6 @@ SampleTruncNormParticles = function(mod, a, b, t, Zhat, Rt){
   return(z)
 }
 
-ComputeZhat = function(mod, Inn, Z, t, Parms, Theta){
-
-  # Implementing 5.3.9 in Brockwell Davis book.
-  m = max(mod$ARMAModel)
-  if(mod$nAR==0){
-    if(t==2){
-      Zhat  =         Inn[1:(min(t-1,mod$nMA)),] * Theta[[min(t-1,length(Theta))]][1:(min(t-1,mod$nMA))]
-    }else{
-      Zhat  = colSums(Inn[1:(min(t-1,mod$nMA)),] * Theta[[min(t-1,length(Theta))]][1:(min(t-1,mod$nMA))])
-    }
-  }else{
-    # apply AR filter to the series
-    if(t<=m){
-      if(t==2){
-        Zhat  =         Inn[1:(t-1),] * Theta[[t-1]][1:(t-1)]
-      }else{
-        Zhat  = colSums(Inn[1:(t-1),] * Theta[[t-1]][1:(t-1)])
-      }
-    }else{
-      if(mod$nMA==0){
-        if(t==2){
-          Zhat  = Z[1:mod$nAR,]*Parms$AR
-        }else{
-          Zhat  = colSums(Z[1:mod$nAR,]*Parms$AR)
-        }
-      }else{
-        if(t==2){
-          Zhat  = Z[1:mod$nAR,]*Parms$AR +         Inn[1:mod$nMA,] * Theta[[t-1]][1:mod$nMA]
-        }else{
-          Zhat  = colSums(Z[1:mod$nAR,]*Parms$AR + Inn[1:mod$nMA,] * Theta[[t-1]][1:mod$nMA])
-        }
-      }
-    }
-  }
-
-  return(Zhat)
-}
-
 ComputeZhat_t = function(m,Theta,Z,Zhat,t, Parms,p,q,nTheta, Theta_n){
 
   if(m>1 && t<=m) Zhat_t = Theta[[t-1]][1:(t-1)]%*%(Z[(t-1):1,]-Zhat[(t-1):1,])
@@ -1429,30 +1421,6 @@ ComputeZhat_t = function(m,Theta,Z,Zhat,t, Parms,p,q,nTheta, Theta_n){
   return(Zhat_t)
 }
 
-
-
-ComputeInnAlgPred = function (Theta,x,Parms){
-  #  compute one-step ahead prediction
-  # given ARMA paramaters, Innovation Algorithm coeffcients and data
-  # adapted from ITSMR innovation.algorithm
-
-  N = length(x)+1
-  p = ifelse(is.null(Parms$AR),0,length(Parms$AR))
-  q = ifelse(is.null(Parms$MA),0,length(Parms$MA))
-  m = max(p,q)
-
-  xhat = numeric(N)
-  if (m > 1)
-    for (n in 1:(m-1))
-      xhat[n+1] = sum(Theta[[n]][1:n]*(x[n:1]-xhat[n:1]))
-  for (n in m:(N-1)) {
-    A = sum(Parms$AR*x[n:(n-p+1)])
-    B = sum(Theta[[n]][1:q]*(x[n:(n-q+1)]-xhat[n:(n-q+1)]))
-    xhat[n+1] = A + B
-  }
-
-  return(xhat)
-}
 
 ComputeWeights = function(mod, a, b, t, PreviousWeights){
   # equation (21) in JASA paper
@@ -1518,21 +1486,21 @@ RetrieveParameters = function(theta,mod){
     Parms$ConstMargParm  = Parms$MargParms[mod$nreg+2]
     Parms$DynamMargParm  = 1/(1+m)
   }
-  
+
   if(mod$CountDist == "Mixed Poisson" && mod$nreg>0){
     Parms$ConstMargParm  = c(Parms$MargParms[mod$nreg*2+3], 1 - Parms$MargParms[mod$nreg*2+3])
     Parms$DynamMargParm  = cbind(exp(mod$Regressor%*%Parms$MargParms[1:(mod$nreg+1)]),
                            exp(mod$Regressor%*%Parms$MargParms[(mod$nreg+2):(mod$nreg*2+2)]))
   }
-  
+
   if(mod$CountDist == "Zero Inflated Poisson" && mod$nreg>0){
     Parms$ConstMargParm  = NULL
     Parms$DynamMargParm  = cbind(exp(mod$Regressor%*%Parms$MargParms[1:(mod$nreg+1)]),
                            1/(1+exp(-mod$Regressor%*%Parms$MargParms[(mod$nreg+2):(mod$nreg*2+2)])))
   }
-  
-  Parms$DynamMargParm = as.matrix(Parms$DynamMargParm)
-  
+
+  #Parms$DynamMargParm = as.matrix(Parms$DynamMargParm)
+
   # Parms$AR = NULL
   if(mod$ARMAModel[1]>0) Parms$AR = theta[(mod$nMargParms+1):(mod$nMargParms + mod$ARMAModel[1])]
 
@@ -1542,14 +1510,6 @@ RetrieveParameters = function(theta,mod){
 
 
   return(Parms)
-}
-
-mycolSums = function(x){
-  if(nrow(x)>1){
-    return(colSums(x))
-  }else{
-    return(x)
-  }
 }
 
 # PF likelihood with resampling for AR(p)
@@ -1950,45 +1910,29 @@ ParticleFilter_Res_MA_Old = function(theta, mod){
 }
 
 
-ComputeWacvf = function(g,Parms,m){
-
-  m= max(mod$ARMAModel)
-  # implement (5.3.5) in Brockwell Davis for stationary series
-  phi = Parms$AR
-  theta = Parms$MA
-
-  k = rep(0,length(g))
-
-  k[1:m] = g[1:m]
-
-  k[(m+1):2*m ]
-
+# Mixed Poisson inverse cdf
+qmixpois = function(y, p, lam1, lam2){
+  yl = length(y)
+  x  = rep(0,yl)
+  for (n in 1:yl){
+    while(pmixpois(x[n], p, lam1, lam2) <= y[n]){ # R qpois would use <y; this choice makes the function right-continuous; this does not really matter for our model
+      x[n] = x[n]+1
+    }
+  }
+  return(x)
 }
 
+# Mixed Poisson cdf
+pmixpois = function(x, lam1, lam2,p){
+  y = p*ppois(x,lam1) + (1-p)*ppois(x,lam2)
+  return(y)
+}
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+# mass of Mixed Poisson
+dmixpois = function(x, p, lam1, lam2){
+  y = p*dpois(x,lam1) + (1-p)*dpois(x,lam2)
+  return(y)
+}
 
 
 

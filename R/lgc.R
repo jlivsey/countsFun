@@ -26,10 +26,10 @@ lgc = function(DependentVar   = NULL,
                ParamScheme    = NULL,
                maxdiff        = 10^(-8) ){
 
+
   # parse all the parameters and the data into a list called mod
   mod = ModelScheme(DependentVar, Regressor, EstMethod, ARMAModel, CountDist,ParticleNumber, epsilon,
                     initialParam, TrueParam, Task,SampleSize, OptMethod, OutputType, ParamScheme, maxdiff)
-
 
   # fix me: we need to do implement error checking
   if(mod$error) stop(mod$errorMsg)
@@ -69,6 +69,7 @@ lgc = function(DependentVar   = NULL,
   }
 
   if(Task %in% c('Evaluation', 'Optimization')){
+# t1 = tic()
     # compute initial parameters if they haven't been provided and save them in mod
     if (is.null(initialParam)){
       theta  = InitEst = InitialEstimates(mod)
@@ -76,10 +77,15 @@ lgc = function(DependentVar   = NULL,
     }else{
       theta  = InitEst = mod$initialParam
     }
+# t1 = tic()-t1
+# print(t1)
 
     # fit the model using PF
     if(EstMethod=="PFR"){
+      # t2 = tic()
       out = FitMultiplePF_Res(theta, mod)
+      # t2 = tic()-t2
+      # print(t2)
     }
 
   }

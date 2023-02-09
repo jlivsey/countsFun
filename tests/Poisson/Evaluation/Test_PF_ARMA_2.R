@@ -47,13 +47,13 @@ if (is.null(initialParam)){
 
 
 t1 = tic()
-for (i in 1:100){
+for (i in 1:50){
   a1 = ParticleFilter_Res_ARMA(theta,mod)
 }
 t1 = tic() - t1
 
 t2 = tic()
-for (i in 1:100){
+for (i in 1:50){
   a2 = ParticleFilter_Res_AR(theta,mod)
 }
 t2 = tic() - t2

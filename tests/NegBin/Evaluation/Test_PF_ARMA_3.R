@@ -50,11 +50,11 @@ a1 = ParticleFilter_Res_ARMA(theta,mod)
 }
 t1 = tic() - t1
 
-t2 = tic()
-for (i in 1:100){
-a2 = ParticleFilter_Res_MA(theta,mod)
-}
-t2 = tic() - t2
+# t2 = tic()
+# for (i in 1:50){
+# a2 = ParticleFilter_Res_MA(theta,mod)
+# }
+# t2 = tic() - t2
 
 t3 = tic()
 for (i in 1:100){
@@ -63,10 +63,10 @@ for (i in 1:100){
 t3 = tic() - t3
 
 t1
-t2
+#t2
 t3
 a1
-a2
+#a2
 a3
 
 
