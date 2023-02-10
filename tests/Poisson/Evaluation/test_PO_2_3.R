@@ -33,6 +33,12 @@ maxdiff        = 10^(-8)
 set.seed(2)
 DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor)
 
+# parse all the parameters and the data into a list called mod
+mod = ModelScheme(DependentVar, Regressor, EstMethod, ARMAModel, CountDist,ParticleNumber, epsilon,
+                  initialParam, TrueParam, Task,SampleSize, OptMethod, OutputType, ParamScheme, maxdiff)
+
+
+
 # Run the wrapper
 mylgc = lgc(DependentVar   = DependentVar,
             Regressor      = Regressor,

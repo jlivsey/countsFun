@@ -11,11 +11,9 @@ library(MixtureInf)
 n              = 200
 Regressor      = NULL
 CountDist      = "Mixed Poisson"
-MargParm       = c(2,5, 0.7)
+MargParm       = c(2, 5, 0.7)
 ARParm         = 0.75
-# MAParm         = c(0.3, 0.5, -0.2, 0.1)
-#ARparm = NULL
-MAParm = NULL
+MAParm         = NULL
 ARMAModel      = c(length(ARParm),length(MAParm))
 ParticleNumber = 5
 epsilon        = 0.5
