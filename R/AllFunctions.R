@@ -12,114 +12,177 @@ ModelScheme = function(DependentVar, Regressor=NULL, EstMethod="PFR", ARMAModel=
   # retrieve sample size
   n = ifelse(!is.null(DependentVar), length(DependentVar), SampleSize)
 
-
-  # FIX ME: When I add the function in LGC the following can happen in LGC and pass here as arguments
-
-  # retrieve indices of marginal distribution parameters-the regressor is assumed to have an intercept
-  MargParmIndices = switch(CountDist,
-                           "Poisson"             = 1:(1+nreg),
-                           "Negative Binomial"   = 1:(2+nreg),
-                           "Generalized Poisson" = 1:(2+nreg),
-                           "Binomial"            = 1:(2+nreg),
-                           "Mixed Poisson"       = 1:(3+nreg*2),
-                           "ZIP"                 = 1:(2+nreg*2))
-
-  if(nreg<1){
-    # retrieve marginal cdf
-    mycdf = switch(CountDist,
-                   "Poisson"               = ppois,
-                   "Negative Binomial"     = function(x, theta){ pnbinom (x, theta[1], 1-theta[2])},
-                   "Generalized Poisson"   = function(x, theta) { pGpois  (x, theta[1], theta[2])},
-                   "Binomial"              = pbinom,
-                   "Mixed Poisson"         = function(x, theta){ pmixpois(x, theta[1], theta[2], theta[3])},
-                   "ZIP"                   = function(x, theta){ pzipois(x, theta[1], theta[2]) }
-    )
-
-    # retrieve marginal pdf
-    mypdf = switch(CountDist,
-                   "Poisson"               = dpois,
-                   "Negative Binomial"     = function(x, theta){ dnbinom (x, theta[1], 1-theta[2]) },
-                   "Generalized Poisson"   = function(x, theta){ dGpois  (x, theta[1], theta[2])},
-                   "Binomial"              = dbinom,
-                   "Mixed Poisson"         = function(x, theta){ dmixpois(x, theta[1], theta[2], theta[3])},
-                   "ZIP"                   = function(x, theta){ dzipois(x, theta[1], theta[2]) }
-    )
-
-    # retrieve marginal inverse cdf
-    myinvcdf = switch(CountDist,
-                      "Poisson"               = qpois,
-                      "Negative Binomial"     = function(x, theta){ qnbinom (x, theta[1], 1-theta[2]) },
-                      "Generalized Poisson"   = function(x, theta){ qGpois  (x, theta[1], theta[2])},
-                      "Binomial"              = qbinom,
-                      "Mixed Poisson"         = function(x, theta){ qmixpois(x, theta[1], theta[2], theta[3])},
-                      "ZIP"                   = function(x, theta){ qzipois(x, theta[1], theta[2]) }
-
-    )
-  }else{
-    # retrieve marginal cdf
-    mycdf = switch(CountDist,
-                   "Poisson"             = function(x, ConstMargParm, DynamMargParm){ ppois   (x, DynamMargParm)},
-                   "Negative Binomial"   = function(x, ConstMargParm, DynamMargParm){ pnbinom (x, ConstMargParm, 1-DynamMargParm)},
-                   "Generalized Poisson" = function(x, ConstMargParm, DynamMargParm){ pGpois  (x, ConstMargParm, DynamMargParm)},
-                   "Binomial"            = function(x, ConstMargParm, DynamMargParm){ pbinom(x, ConstMargParm, DynamMargParm)},
-                   "Mixed Poisson"       = function(x, ConstMargParm, DynamMargParm){ pmixpois(x, DynamMargParm, ConstMargParm)},
-                   "ZIP"                 = function(x, ConstMargParm, DynamMargParm){ pzipois(x, DynamMargParm[1], DynamMargParm[2]) }
-    )
-    # retrieve marginal pdf
-    mypdf = switch(CountDist,
-                   "Poisson"             = function(x, ConstMargParm, DynamMargParm){             dpois   (x, DynamMargParm)},
-                   "Negative Binomial"   = function(x, ConstMargParm, DynamMargParm){ dnbinom (x, ConstMargParm, 1-DynamMargParm)},
-                   "Generalized Poisson" = function(x, ConstMargParm, DynamMargParm){ dGpois  (x, ConstMargParm, DynamMargParm)},
-                   "Binomial"            = function(x, ConstMargParm, DynamMargParm){   dbinom(x, ConstMargParm, DynamMargParm)},
-                   "Mixed Poisson"       = function(x, ConstMargParm, DynamMargParm){ dmixpois(x, DynamMargParm, ConstMargParm)},
-                   "ZIP"                 = function(x, ConstMargParm, DynamMargParm){ dzipois(x, DynamMargParm[1], DynamMargParm[2]) }
-    )
-
-    # retrieve marginal inverse cdf
-    myinvcdf = switch(CountDist,
-                      "Poisson"             = function(x, ConstMargParm, DynamMargParm){             qpois   (x, DynamMargParm)},
-                      "Negative Binomial"   = function(x, ConstMargParm, DynamMargParm){ qnbinom (x, ConstMargParm, 1-DynamMargParm)},
-                      "Generalized Poisson" = function(x, ConstMargParm, DynamMargParm){ qGpois  (x, ConstMargParm, DynamMargParm)},
-                      "Binomial"            = function(x, ConstMargParm, DynamMargParm){   qbinom(x, ConstMargParm, DynamMargParm)},
-                      "Mixed Poisson"       = function(x, ConstMargParm, DynamMargParm){ qmixpois(x, DynamMargParm, ConstMargParm)},
-                      "ZIP"                 = function(x, ConstMargParm, DynamMargParm){ qzipois(x, DynamMargParm[1], DynamMargParm[2]) }
-    )
-
-
-  }
-
   # retrieve marginal distribution parameters
   nMargParms = length(MargParmIndices)
   nparms     = nMargParms + sum(ARMAModel)
   nAR        = ARMAModel[1]
   nMA        = ARMAModel[2]
 
-  # if(!is.null(initialParam) && length(initialParam)!=nparms) {
-  #   error = 1
-  #   errorMsg = "The length of the initial parameter doesn't match the model specifications."
-  # }
-
-  # create names of parameters that will be used for output - start with marginal parameters
+  # parse all information in the case without Regressors or i nthe case with Regressors
   if(nreg<1){
+    # retrieve marginal cdf
+    mycdf = switch(CountDist,
+                "Poisson"             = ppois,
+                "Negative Binomial"   = function(x, theta){ pnbinom (x, theta[1], 1-theta[2])},
+                "Generalized Poisson" = function(x, theta) { pGpois  (x, theta[1], theta[2])},
+                "Binomial"            = pbinom,
+                "Mixed Poisson"       = function(x, theta){ pmixpois(x, theta[1], theta[2], theta[3])},
+                "ZIP"                 = function(x, theta){ pzipois(x, theta[1], theta[2])},
+                stop("The specified distribution is not supported. Please select a distribution from the following list:
+                     Poisson, Generalized Poisson, Negative Binomial, Generalized Poisson, Binomial, Mixed Poisson,
+                     or ZIP.")
+    )
+
+    # retrieve marginal pdf
+    mypdf = switch(CountDist,
+                "Poisson"             = dpois,
+                "Negative Binomial"   = function(x, theta){ dnbinom (x, theta[1], 1-theta[2]) },
+                "Generalized Poisson" = function(x, theta){ dGpois  (x, theta[1], theta[2])},
+                "Binomial"            = dbinom,
+                "Mixed Poisson"       = function(x, theta){ dmixpois(x, theta[1], theta[2], theta[3])},
+                "ZIP"                 = function(x, theta){ dzipois(x, theta[1], theta[2]) },
+                stop("The specified distribution is not supported. Please select a distribution from the following list:
+                     Poisson, Generalized Poisson, Negative Binomial, Generalized Poisson, Binomial, Mixed Poisson,
+                     or ZIP.")
+    )
+
+    # retrieve marginal inverse cdf
+    myinvcdf = switch(CountDist,
+                "Poisson"             = qpois,
+                "Negative Binomial"   = function(x, theta){ qnbinom (x, theta[1], 1-theta[2]) },
+                "Generalized Poisson" = function(x, theta){ qGpois  (x, theta[1], theta[2])},
+                "Binomial"            = qbinom,
+                "Mixed Poisson"       = function(x, theta){ qmixpois(x, theta[1], theta[2], theta[3])},
+                "ZIP"                 = function(x, theta){ qzipois(x, theta[1], theta[2]) },
+                stop("The specified distribution is not supported. Please select a distribution from the following list:
+                     Poisson, Generalized Poisson, Negative Binomial, Generalized Poisson, Binomial, Mixed Poisson,
+                     or ZIP.")
+    )
+
+    # lower bound constraints
+    LB = switch(CountDist,
+                "Poisson"              = c(0.01,              rep(-Inf, sum(ARMAModel))),
+                "Negative Binomial"    = c(0.01,  0.01,       rep(-Inf, sum(ARMAModel))),
+                "Generalized Poisson"  = c(0.01, 0.01,        rep(-Inf, sum(ARMAModel))),
+                "Binomial"             = c(0.01,  0.01,       rep(-Inf, sum(ARMAModel))),
+                "Mixed Poisson"        = c(0.01, 0.01, 0.01,  rep(-Inf, sum(ARMAModel))),
+                "ZIP"                  = c(0.01, 0.01,        rep(-Inf, sum(ARMAModel))),
+                stop("The specified distribution is not supported. Please select a distribution from the following list:
+                     Poisson, Generalized Poisson, Negative Binomial, Generalized Poisson, Binomial, Mixed Poisson,
+                     or ZIP.")
+    )
+    # upper bound constraints
+    UB = switch(CountDist,
+                "Poisson"              = c(Inf,            rep( Inf, sum(ARMAModel))),
+                "Negative Binomial"    = c(Inf, 0.99,      rep( Inf, sum(ARMAModel))),
+                "Generalized Poisson"  = c(Inf, Inf,       rep( Inf, sum(ARMAModel))),
+                "Binomial"             = c(Inf, 0.99,      rep( Inf, sum(ARMAModel))),
+                "Mixed Poisson"        = c(Inf, Inf, 0.99, rep( Inf, sum(ARMAModel))),
+                "ZIP"                  = c(Inf, 0.99,      rep( Inf, sum(ARMAModel))),
+                stop("The specified distribution is not supported. Please select a distribution from the following list:
+                     Poisson, Generalized Poisson, Negative Binomial, Generalized Poisson, Binomial, Mixed Poisson,
+                     or ZIP.")
+    )
+    # names of marginal parameters
     MargParmsNames = switch(CountDist,
-                            "Poisson"             = c("lambda"),
-                            "Negative Binomial"   = c("r","p"),
-                            "Mixed Poisson"       = c("lambda_1", "lambda_2", "p"),
-                            "Generalized Poisson" = c("lambda", "a"),
-                            "Binomial"            = c("n", "p"),
-                            "ZIP"                 = c("lambda", "p")
+                "Poisson"              = c("lambda"),
+                "Negative Binomial"    = c("r","p"),
+                "Mixed Poisson"        = c("lambda_1", "lambda_2", "p"),
+                "Generalized Poisson"  = c("lambda", "a"),
+                "Binomial"             = c("n", "p"),
+                "ZIP"                  = c("lambda", "p"),
+                stop("The specified distribution is not supported. Please select a distribution from the following list:
+                Poisson, Generalized Poisson, Negative Binomial, Generalized Poisson, Binomial, Mixed Poisson,
+                or ZIP.")
     )
   }else{
-    # fix me: check mixed poisson case
+    # retrieve marginal cdf
+    mycdf = switch(CountDist,
+                "Poisson"              = function(x, ConstMargParm, DynamMargParm){ ppois   (x, DynamMargParm)},
+                "Negative Binomial"    = function(x, ConstMargParm, DynamMargParm){ pnbinom (x, ConstMargParm, 1-DynamMargParm)},
+                "Generalized Poisson"  = function(x, ConstMargParm, DynamMargParm){ pGpois  (x, ConstMargParm, DynamMargParm)},
+                "Binomial"             = function(x, ConstMargParm, DynamMargParm){ pbinom  (x, ConstMargParm, DynamMargParm)},
+                "Mixed Poisson"        = function(x, ConstMargParm, DynamMargParm){ pmixpois(x, DynamMargParm, ConstMargParm)},
+                "ZIP"                  = function(x, ConstMargParm, DynamMargParm){ pzipois (x, DynamMargParm[1], DynamMargParm[2]) },
+                stop("The specified distribution is not supported. Please select a distribution from the following list:
+                     Poisson, Generalized Poisson, Negative Binomial, Generalized Poisson, Binomial, Mixed Poisson,
+                     or ZIP.")
+    )
+    # retrieve marginal pdf
+    mypdf = switch(CountDist,
+                "Poisson"              = function(x, ConstMargParm, DynamMargParm){ dpois   (x, DynamMargParm)},
+                "Negative Binomial"    = function(x, ConstMargParm, DynamMargParm){ dnbinom (x, ConstMargParm, 1-DynamMargParm)},
+                "Generalized Poisson"  = function(x, ConstMargParm, DynamMargParm){ dGpois  (x, ConstMargParm, DynamMargParm)},
+                "Binomial"             = function(x, ConstMargParm, DynamMargParm){ dbinom  (x, ConstMargParm, DynamMargParm)},
+                "Mixed Poisson"        = function(x, ConstMargParm, DynamMargParm){ dmixpois(x, DynamMargParm, ConstMargParm)},
+                "ZIP"                  = function(x, ConstMargParm, DynamMargParm){ dzipois (x, DynamMargParm[1], DynamMargParm[2]) },
+                stop("The specified distribution is not supported. Please select a distribution from the following list:
+                     Poisson, Generalized Poisson, Negative Binomial, Generalized Poisson, Binomial, Mixed Poisson,
+                     or ZIP.")
+    )
+    # retrieve marginal inverse cdf
+    myinvcdf = switch(CountDist,
+                 "Poisson"             = function(x, ConstMargParm, DynamMargParm){ qpois   (x, DynamMargParm)},
+                 "Negative Binomial"   = function(x, ConstMargParm, DynamMargParm){ qnbinom (x, ConstMargParm, 1-DynamMargParm)},
+                 "Generalized Poisson" = function(x, ConstMargParm, DynamMargParm){ qGpois  (x, ConstMargParm, DynamMargParm)},
+                 "Binomial"            = function(x, ConstMargParm, DynamMargParm){ qbinom  (x, ConstMargParm, DynamMargParm)},
+                 "Mixed Poisson"       = function(x, ConstMargParm, DynamMargParm){ qmixpois(x, DynamMargParm, ConstMargParm)},
+                 "ZIP"                 = function(x, ConstMargParm, DynamMargParm){ qzipois (x, DynamMargParm[1], DynamMargParm[2]) },
+                 stop("The specified distribution is not supported. Please select a distribution from the following list:
+                     Poisson, Generalized Poisson, Negative Binomial, Generalized Poisson, Binomial, Mixed Poisson,
+                     or ZIP.")
+    )
+    # lower bound contraints
+    LB = switch(CountDist,
+                "Poisson"             = rep(-Inf, sum(ARMAModel)+nreg+1),
+                "Negative Binomial"   = c(rep(-Inf, nreg+1), 0.001, rep(-Inf, sum(ARMAModel))),
+                "Generalized Poisson" = c(rep(-Inf, nreg+1), 0.001, rep(-Inf, sum(ARMAModel))),
+                "Binomial"            = c(rep(-Inf, nreg+1), 0.01, rep(-Inf, sum(ARMAModel))),
+                "Mixed Poisson"       = c(rep(-Inf, 2*nreg+2), 0.001, rep(-Inf, sum(ARMAModel))),
+                "ZIP"                 = c(rep(-Inf, 2*nreg+2), rep(-Inf, sum(ARMAModel))),
+                stop("The specified distribution is not supported. Please select a distribution from the following list:
+                     Poisson, Generalized Poisson, Negative Binomial, Generalized Poisson, Binomial, Mixed Poisson,
+                     or ZIP.")
+    )
+    # upper bound constraints
+    UB = switch(CountDist,
+                "Poisson"             = rep(Inf, sum(ARMAModel)+nreg+1),
+                "Negative Binomial"   = c(rep(Inf, nreg+1), Inf, rep(Inf, sum(ARMAModel))),
+                "Generalized Poisson" = c(rep(Inf, nreg+1), Inf, rep(Inf, sum(ARMAModel))),
+                "Binomial"            = c(rep(Inf, nreg+1), Inf, rep(Inf, sum(ARMAModel))),
+                "Mixed Poisson"       = c(rep(Inf, 2*nreg+2), 0.99, rep(Inf, sum(ARMAModel))),
+                "ZIP"                 = c(rep(Inf, 2*nreg+2), rep(Inf, sum(ARMAModel))),
+                stop("The specified distribution is not supported. Please select a distribution from the following list:
+                     Poisson, Generalized Poisson, Negative Binomial, Generalized Poisson, Binomial, Mixed Poisson,
+                     or ZIP.")
+    )
+    # retrieve names of marginal parameters
     MargParmsNames = switch(CountDist,
-                            "Poisson"               =   paste(rep("b_",nreg),0:nreg,sep=""),
-                            "Negative Binomial"     = c(paste(rep("b_",nreg),0:nreg,sep=""), "k"),
-                            "Mixed Poisson"         = c(paste(rep("b_1",nreg),0:nreg,sep=""),paste(rep("b_2",nreg),0:nreg,sep=""), "p"),
-                            "Generalized Poisson"   = c(paste(rep("b_",nreg),0:nreg,sep=""), "a"),
-                            "Binomial"              = c(paste(rep("b_",nreg),0:nreg,sep=""), "n"),
-                            "ZIP"                   = c(paste(rep("b_",nreg),0:nreg, sep=""), paste(rep("c_",nreg),0:nreg, sep=""))
+                "Poisson"             = paste(rep("b_",nreg),0:nreg,sep=""),
+                "Negative Binomial"   = c(paste(rep("b_",nreg),0:nreg,sep=""), "k"),
+                "Mixed Poisson"       = c(paste(rep("b_1",nreg),0:nreg,sep=""),paste(rep("b_2",nreg),0:nreg,sep=""), "p"),
+                "Generalized Poisson" = c(paste(rep("b_",nreg),0:nreg,sep=""), "a"),
+                "Binomial"            = c(paste(rep("b_",nreg),0:nreg,sep=""), "n"),
+                "ZIP"                 = c(paste(rep("b_",nreg),0:nreg, sep=""), paste(rep("c_",nreg),0:nreg, sep="")),
+                stop("The specified distribution is not supported. Please select a distribution from the following list:
+                     Poisson, Generalized Poisson, Negative Binomial, Generalized Poisson, Binomial, Mixed Poisson,
+                     or ZIP.")
     )
   }
+
+
+  # retrieve indices of marginal distribution parameters-the regressor is assumed to have an intercept
+  MargParmIndices = switch(CountDist,
+                "Poisson"             = 1:(1+nreg),
+                "Negative Binomial"   = 1:(2+nreg),
+                "Generalized Poisson" = 1:(2+nreg),
+                "Binomial"            = 1:(2+nreg),
+                "Mixed Poisson"       = 1:(3+nreg*2),
+                "ZIP"                 = 1:(2+nreg*2),
+                stop("The specified distribution is not supported. Please select a distribution from the following list:
+                     Poisson, Generalized Poisson, Negative Binomial, Generalized Poisson, Binomial, Mixed Poisson,
+                     or ZIP.")
+  )
 
   # create names of the ARMA parameters
   if(nAR>0) ARNames = paste("AR_",1:ARMAModel[1], sep="")
@@ -132,67 +195,6 @@ ModelScheme = function(DependentVar, Regressor=NULL, EstMethod="PFR", ARMAModel=
 
   # add the parmnames on theta fix me: does this affect performance?
   if(!is.null(initialParam)) names(initialParam) = parmnames
-
-  # create the constraints
-  if(CountDist =="Poisson"){
-    if(nreg==0){
-      LB = c(0.001, rep(-Inf, sum(ARMAModel)))
-      UB = rep(Inf, sum(ARMAModel)+1)
-    }else{
-      LB = rep(-Inf, sum(ARMAModel)+nreg+1)
-      UB = rep(Inf, sum(ARMAModel)+nreg+1)
-    }
-  }
-
-  if(CountDist == "Negative Binomial"){
-    if(nreg==0){
-      LB = c(0.01, 0.01, rep(-Inf, sum(ARMAModel)))
-      UB = c(Inf, 0.99,   rep( Inf, sum(ARMAModel)))
-    }else{
-      LB = c(rep(-Inf, nreg+1), 0.001, rep(-Inf, sum(ARMAModel)))
-      UB = c(rep(Inf, nreg+1), Inf, rep(Inf, sum(ARMAModel)))
-    }
-  }
-
-  if(CountDist == "Generalized Poisson"){
-    if(nreg==0){
-      LB = c(0.001, 0.001, rep(-Inf, sum(ARMAModel)))
-      UB = c(Inf, Inf,     rep( Inf, sum(ARMAModel)))
-    }else{
-      LB = c(rep(-Inf, nreg+1), 0.001, rep(-Inf, sum(ARMAModel)))
-      UB = c(rep(Inf, nreg+1), Inf, rep(Inf, sum(ARMAModel)))
-    }
-  }
-
-  if(CountDist == "Binomial"){
-    if(nreg==0){
-      LB = c(0.01, 0.01, rep(-Inf, sum(ARMAModel)))
-      UB = c(Inf, 0.99,     rep( Inf, sum(ARMAModel)))
-    }else{
-      LB = c(rep(-Inf, nreg+1), 0.01, rep(-Inf, sum(ARMAModel)))
-      UB = c(rep(Inf, nreg+1), Inf, rep(Inf, sum(ARMAModel)))
-    }
-  }
-
-  if(CountDist == "Mixed Poisson"){
-    if(nreg==0){
-      LB = c(0.001, 0.001, 0.01,  rep(-Inf, sum(ARMAModel)))
-      UB = c(Inf, Inf, 0.99,  rep( Inf, sum(ARMAModel)))
-    }else{
-      LB = c(rep(-Inf, 2*nreg+2), 0.001, rep(-Inf, sum(ARMAModel)))
-      UB = c(rep(Inf, 2*nreg+2), 0.99, rep(Inf, sum(ARMAModel)))
-    }
-  }
-
-  if(CountDist == "ZIP"){
-    if(nreg==0){
-      LB = c(0.001, 0.001, rep(-Inf, sum(ARMAModel)))
-      UB = c(Inf, 0.99,     rep( Inf, sum(ARMAModel)))
-    }else{
-      LB = c(rep(-Inf, 2*nreg+2), rep(-Inf, sum(ARMAModel)))
-      UB = c(rep(Inf, 2*nreg+2), rep(Inf, sum(ARMAModel)))
-    }
-  }
 
   # value I wil set the loglik when things go bad (e.g. non invetible ARMA)
   loglik_BadValue1 = 10^8
@@ -208,17 +210,11 @@ ModelScheme = function(DependentVar, Regressor=NULL, EstMethod="PFR", ARMAModel=
     initialParam    = initialParam,
     TrueParam       = TrueParam,
     parmnames       = parmnames,
-    # ARMAModel       = ARMAModel,
-    # MargParm        = MargParm,
-    # ARParm          = ARParm,
-    # MAParm          = MAParm,
     nMargParms      = nMargParms,
     nAR             = nAR,
     nMA             = nMA,
     n               = n,
     nreg            = nreg,
-    # MaxCdf          = MaxCdf,
-    # nHC             = nHC,
     CountDist       = CountDist,
     ARMAModel       = ARMAModel,
     ParticleNumber  = ParticleNumber,
@@ -229,7 +225,6 @@ ModelScheme = function(DependentVar, Regressor=NULL, EstMethod="PFR", ARMAModel=
     error           = error,
     errorMsg        = errorMsg,
     EstMethod       = EstMethod,
-    # maxit         = maxit,
     DependentVar    = DependentVar,
     Regressor       = Regressor,
     Task            = Task,
