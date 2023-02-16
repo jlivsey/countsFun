@@ -1245,10 +1245,7 @@ sim_lgc = function(n, CountDist, MargParm, ARParm, MAParm, Regressor=NULL){
     }
 
     x = myinvcdf(pnorm(z), ConstMargParm, DynamMargParm)
-
-  }
-
-  return(x)
+    return(x)
 }
 
 myppois = function(x, lambda){
