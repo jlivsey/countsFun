@@ -3,14 +3,37 @@ ModelScheme = function(DependentVar, Regressor=NULL, EstMethod="PFR", ARMAModel=
                        ParticleNumber = 5, epsilon = 0.5, initialParam=NULL, TrueParam=NULL, Task="Optimization", SampleSize=NULL,
                        OptMethod="bobyqa", OutputType="list", ParamScheme=1, maxdiff=10^(-8)){
 
-  error = 0
-  errorMsg = NULL
+  # retrieve sample size
+  n = ifelse(!is.null(DependentVar), length(DependentVar), SampleSize)
+
+  # Distribution list
+  if( !(CountDist %in% c("Poisson", "Negative Binomial", "Generalized Poisson", "Mixed Poisson", "ZIP", "Binomial")))
+    stop("The specified distribution in not supported.")
+  # Task
+  if( !(Task %in% c("Evaluation", "Optimization", "Simulation")))
+    stop("The specified distribution in not supported.")
+
+  # Estimation Method
+  if( !(EstMethod %in% c("PFR")))
+    stop("The specified estimation method in not supported.")
+
+  # check that the ARMA order has dimension 2, the ARMA orders are integers
+  if(length(ARMAModel)!=2 | !prod(ARMAModel %% 1 == c(0,0)) )
+    stop("The specified ARMA model is not supported.")
+
 
   # number of regressors assuming there is an intercept
   nreg = ifelse(is.null(Regressor), 0,dim(Regressor)[2]-1)
 
-  # retrieve sample size
-  n = ifelse(!is.null(DependentVar), length(DependentVar), SampleSize)
+  # retrieve indices of marginal distribution parameters-the regressor is assumed to have an intercept
+  MargParmIndices = switch(CountDist,
+                           "Poisson"             = 1:(1+nreg),
+                           "Negative Binomial"   = 1:(2+nreg),
+                           "Generalized Poisson" = 1:(2+nreg),
+                           "Binomial"            = 1:(2+nreg),
+                           "Mixed Poisson"       = 1:(3+nreg*2),
+                           "ZIP"                 = 1:(2+nreg*2)
+  )
 
   # retrieve marginal distribution parameters
   nMargParms = length(MargParmIndices)
@@ -18,45 +41,40 @@ ModelScheme = function(DependentVar, Regressor=NULL, EstMethod="PFR", ARMAModel=
   nAR        = ARMAModel[1]
   nMA        = ARMAModel[2]
 
-  # parse all information in the case without Regressors or i nthe case with Regressors
+  # check if initial param length is wrong
+  if(!is.null(initialParam) & length(initialParam)!=nparms)
+    stop("The specified initial parameter has wrong length.")
+
+  # parse all information in the case without Regressors or in the case with Regressors
   if(nreg<1){
     # retrieve marginal cdf
     mycdf = switch(CountDist,
-                "Poisson"             = ppois,
-                "Negative Binomial"   = function(x, theta){ pnbinom (x, theta[1], 1-theta[2])},
-                "Generalized Poisson" = function(x, theta) { pGpois  (x, theta[1], theta[2])},
-                "Binomial"            = pbinom,
-                "Mixed Poisson"       = function(x, theta){ pmixpois(x, theta[1], theta[2], theta[3])},
-                "ZIP"                 = function(x, theta){ pzipois(x, theta[1], theta[2])},
-                stop("The specified distribution is not supported. Please select a distribution from the following list:
-                     Poisson, Generalized Poisson, Negative Binomial, Generalized Poisson, Binomial, Mixed Poisson,
-                     or ZIP.")
+                   "Poisson"             = ppois,
+                   "Negative Binomial"   = function(x, theta){ pnbinom (x, theta[1], 1-theta[2])},
+                   "Generalized Poisson" = function(x, theta) { pGpois  (x, theta[1], theta[2])},
+                   "Binomial"            = pbinom,
+                   "Mixed Poisson"       = function(x, theta){ pmixpois(x, theta[1], theta[2], theta[3])},
+                   "ZIP"                 = function(x, theta){ pzipois(x, theta[1], theta[2])}
     )
 
     # retrieve marginal pdf
     mypdf = switch(CountDist,
-                "Poisson"             = dpois,
-                "Negative Binomial"   = function(x, theta){ dnbinom (x, theta[1], 1-theta[2]) },
-                "Generalized Poisson" = function(x, theta){ dGpois  (x, theta[1], theta[2])},
-                "Binomial"            = dbinom,
-                "Mixed Poisson"       = function(x, theta){ dmixpois(x, theta[1], theta[2], theta[3])},
-                "ZIP"                 = function(x, theta){ dzipois(x, theta[1], theta[2]) },
-                stop("The specified distribution is not supported. Please select a distribution from the following list:
-                     Poisson, Generalized Poisson, Negative Binomial, Generalized Poisson, Binomial, Mixed Poisson,
-                     or ZIP.")
+                   "Poisson"             = dpois,
+                   "Negative Binomial"   = function(x, theta){ dnbinom (x, theta[1], 1-theta[2]) },
+                   "Generalized Poisson" = function(x, theta){ dGpois  (x, theta[1], theta[2])},
+                   "Binomial"            = dbinom,
+                   "Mixed Poisson"       = function(x, theta){ dmixpois(x, theta[1], theta[2], theta[3])},
+                   "ZIP"                 = function(x, theta){ dzipois(x, theta[1], theta[2]) }
     )
 
     # retrieve marginal inverse cdf
     myinvcdf = switch(CountDist,
-                "Poisson"             = qpois,
-                "Negative Binomial"   = function(x, theta){ qnbinom (x, theta[1], 1-theta[2]) },
-                "Generalized Poisson" = function(x, theta){ qGpois  (x, theta[1], theta[2])},
-                "Binomial"            = qbinom,
-                "Mixed Poisson"       = function(x, theta){ qmixpois(x, theta[1], theta[2], theta[3])},
-                "ZIP"                 = function(x, theta){ qzipois(x, theta[1], theta[2]) },
-                stop("The specified distribution is not supported. Please select a distribution from the following list:
-                     Poisson, Generalized Poisson, Negative Binomial, Generalized Poisson, Binomial, Mixed Poisson,
-                     or ZIP.")
+                      "Poisson"             = qpois,
+                      "Negative Binomial"   = function(x, theta){ qnbinom (x, theta[1], 1-theta[2]) },
+                      "Generalized Poisson" = function(x, theta){ qGpois  (x, theta[1], theta[2])},
+                      "Binomial"            = qbinom,
+                      "Mixed Poisson"       = function(x, theta){ qmixpois(x, theta[1], theta[2], theta[3])},
+                      "ZIP"                 = function(x, theta){ qzipois(x, theta[1], theta[2]) }
     )
 
     # lower bound constraints
@@ -66,10 +84,7 @@ ModelScheme = function(DependentVar, Regressor=NULL, EstMethod="PFR", ARMAModel=
                 "Generalized Poisson"  = c(0.01, 0.01,        rep(-Inf, sum(ARMAModel))),
                 "Binomial"             = c(0.01,  0.01,       rep(-Inf, sum(ARMAModel))),
                 "Mixed Poisson"        = c(0.01, 0.01, 0.01,  rep(-Inf, sum(ARMAModel))),
-                "ZIP"                  = c(0.01, 0.01,        rep(-Inf, sum(ARMAModel))),
-                stop("The specified distribution is not supported. Please select a distribution from the following list:
-                     Poisson, Generalized Poisson, Negative Binomial, Generalized Poisson, Binomial, Mixed Poisson,
-                     or ZIP.")
+                "ZIP"                  = c(0.01, 0.01,        rep(-Inf, sum(ARMAModel)))
     )
     # upper bound constraints
     UB = switch(CountDist,
@@ -78,59 +93,44 @@ ModelScheme = function(DependentVar, Regressor=NULL, EstMethod="PFR", ARMAModel=
                 "Generalized Poisson"  = c(Inf, Inf,       rep( Inf, sum(ARMAModel))),
                 "Binomial"             = c(Inf, 0.99,      rep( Inf, sum(ARMAModel))),
                 "Mixed Poisson"        = c(Inf, Inf, 0.99, rep( Inf, sum(ARMAModel))),
-                "ZIP"                  = c(Inf, 0.99,      rep( Inf, sum(ARMAModel))),
-                stop("The specified distribution is not supported. Please select a distribution from the following list:
-                     Poisson, Generalized Poisson, Negative Binomial, Generalized Poisson, Binomial, Mixed Poisson,
-                     or ZIP.")
+                "ZIP"                  = c(Inf, 0.99,      rep( Inf, sum(ARMAModel)))
     )
     # names of marginal parameters
     MargParmsNames = switch(CountDist,
-                "Poisson"              = c("lambda"),
-                "Negative Binomial"    = c("r","p"),
-                "Mixed Poisson"        = c("lambda_1", "lambda_2", "p"),
-                "Generalized Poisson"  = c("lambda", "a"),
-                "Binomial"             = c("n", "p"),
-                "ZIP"                  = c("lambda", "p"),
-                stop("The specified distribution is not supported. Please select a distribution from the following list:
-                Poisson, Generalized Poisson, Negative Binomial, Generalized Poisson, Binomial, Mixed Poisson,
-                or ZIP.")
+                            "Poisson"              = c("lambda"),
+                            "Negative Binomial"    = c("r","p"),
+                            "Mixed Poisson"        = c("lambda_1", "lambda_2", "p"),
+                            "Generalized Poisson"  = c("lambda", "a"),
+                            "Binomial"             = c("n", "p"),
+                            "ZIP"                  = c("lambda", "p")
     )
   }else{
     # retrieve marginal cdf
     mycdf = switch(CountDist,
-                "Poisson"              = function(x, ConstMargParm, DynamMargParm){ ppois   (x, DynamMargParm)},
-                "Negative Binomial"    = function(x, ConstMargParm, DynamMargParm){ pnbinom (x, ConstMargParm, 1-DynamMargParm)},
-                "Generalized Poisson"  = function(x, ConstMargParm, DynamMargParm){ pGpois  (x, ConstMargParm, DynamMargParm)},
-                "Binomial"             = function(x, ConstMargParm, DynamMargParm){ pbinom  (x, ConstMargParm, DynamMargParm)},
-                "Mixed Poisson"        = function(x, ConstMargParm, DynamMargParm){ pmixpois(x, DynamMargParm, ConstMargParm)},
-                "ZIP"                  = function(x, ConstMargParm, DynamMargParm){ pzipois (x, DynamMargParm[1], DynamMargParm[2]) },
-                stop("The specified distribution is not supported. Please select a distribution from the following list:
-                     Poisson, Generalized Poisson, Negative Binomial, Generalized Poisson, Binomial, Mixed Poisson,
-                     or ZIP.")
+                   "Poisson"              = function(x, ConstMargParm, DynamMargParm){ ppois   (x, DynamMargParm)},
+                   "Negative Binomial"    = function(x, ConstMargParm, DynamMargParm){ pnbinom (x, ConstMargParm, 1-DynamMargParm)},
+                   "Generalized Poisson"  = function(x, ConstMargParm, DynamMargParm){ pGpois  (x, ConstMargParm, DynamMargParm)},
+                   "Binomial"             = function(x, ConstMargParm, DynamMargParm){ pbinom  (x, ConstMargParm, DynamMargParm)},
+                   "Mixed Poisson"        = function(x, ConstMargParm, DynamMargParm){ pmixpois(x, DynamMargParm, ConstMargParm)},
+                   "ZIP"                  = function(x, ConstMargParm, DynamMargParm){ pzipois (x, DynamMargParm[1], DynamMargParm[2]) }
     )
     # retrieve marginal pdf
     mypdf = switch(CountDist,
-                "Poisson"              = function(x, ConstMargParm, DynamMargParm){ dpois   (x, DynamMargParm)},
-                "Negative Binomial"    = function(x, ConstMargParm, DynamMargParm){ dnbinom (x, ConstMargParm, 1-DynamMargParm)},
-                "Generalized Poisson"  = function(x, ConstMargParm, DynamMargParm){ dGpois  (x, ConstMargParm, DynamMargParm)},
-                "Binomial"             = function(x, ConstMargParm, DynamMargParm){ dbinom  (x, ConstMargParm, DynamMargParm)},
-                "Mixed Poisson"        = function(x, ConstMargParm, DynamMargParm){ dmixpois(x, DynamMargParm, ConstMargParm)},
-                "ZIP"                  = function(x, ConstMargParm, DynamMargParm){ dzipois (x, DynamMargParm[1], DynamMargParm[2]) },
-                stop("The specified distribution is not supported. Please select a distribution from the following list:
-                     Poisson, Generalized Poisson, Negative Binomial, Generalized Poisson, Binomial, Mixed Poisson,
-                     or ZIP.")
+                   "Poisson"              = function(x, ConstMargParm, DynamMargParm){ dpois   (x, DynamMargParm)},
+                   "Negative Binomial"    = function(x, ConstMargParm, DynamMargParm){ dnbinom (x, ConstMargParm, 1-DynamMargParm)},
+                   "Generalized Poisson"  = function(x, ConstMargParm, DynamMargParm){ dGpois  (x, ConstMargParm, DynamMargParm)},
+                   "Binomial"             = function(x, ConstMargParm, DynamMargParm){ dbinom  (x, ConstMargParm, DynamMargParm)},
+                   "Mixed Poisson"        = function(x, ConstMargParm, DynamMargParm){ dmixpois(x, DynamMargParm, ConstMargParm)},
+                   "ZIP"                  = function(x, ConstMargParm, DynamMargParm){ dzipois (x, DynamMargParm[1], DynamMargParm[2]) }
     )
     # retrieve marginal inverse cdf
     myinvcdf = switch(CountDist,
-                 "Poisson"             = function(x, ConstMargParm, DynamMargParm){ qpois   (x, DynamMargParm)},
-                 "Negative Binomial"   = function(x, ConstMargParm, DynamMargParm){ qnbinom (x, ConstMargParm, 1-DynamMargParm)},
-                 "Generalized Poisson" = function(x, ConstMargParm, DynamMargParm){ qGpois  (x, ConstMargParm, DynamMargParm)},
-                 "Binomial"            = function(x, ConstMargParm, DynamMargParm){ qbinom  (x, ConstMargParm, DynamMargParm)},
-                 "Mixed Poisson"       = function(x, ConstMargParm, DynamMargParm){ qmixpois(x, DynamMargParm, ConstMargParm)},
-                 "ZIP"                 = function(x, ConstMargParm, DynamMargParm){ qzipois (x, DynamMargParm[1], DynamMargParm[2]) },
-                 stop("The specified distribution is not supported. Please select a distribution from the following list:
-                     Poisson, Generalized Poisson, Negative Binomial, Generalized Poisson, Binomial, Mixed Poisson,
-                     or ZIP.")
+                      "Poisson"             = function(x, ConstMargParm, DynamMargParm){ qpois   (x, DynamMargParm)},
+                      "Negative Binomial"   = function(x, ConstMargParm, DynamMargParm){ qnbinom (x, ConstMargParm, 1-DynamMargParm)},
+                      "Generalized Poisson" = function(x, ConstMargParm, DynamMargParm){ qGpois  (x, ConstMargParm, DynamMargParm)},
+                      "Binomial"            = function(x, ConstMargParm, DynamMargParm){ qbinom  (x, ConstMargParm, DynamMargParm)},
+                      "Mixed Poisson"       = function(x, ConstMargParm, DynamMargParm){ qmixpois(x, DynamMargParm, ConstMargParm)},
+                      "ZIP"                 = function(x, ConstMargParm, DynamMargParm){ qzipois (x, DynamMargParm[1], DynamMargParm[2]) }
     )
     # lower bound contraints
     LB = switch(CountDist,
@@ -139,10 +139,7 @@ ModelScheme = function(DependentVar, Regressor=NULL, EstMethod="PFR", ARMAModel=
                 "Generalized Poisson" = c(rep(-Inf, nreg+1), 0.001, rep(-Inf, sum(ARMAModel))),
                 "Binomial"            = c(rep(-Inf, nreg+1), 0.01, rep(-Inf, sum(ARMAModel))),
                 "Mixed Poisson"       = c(rep(-Inf, 2*nreg+2), 0.001, rep(-Inf, sum(ARMAModel))),
-                "ZIP"                 = c(rep(-Inf, 2*nreg+2), rep(-Inf, sum(ARMAModel))),
-                stop("The specified distribution is not supported. Please select a distribution from the following list:
-                     Poisson, Generalized Poisson, Negative Binomial, Generalized Poisson, Binomial, Mixed Poisson,
-                     or ZIP.")
+                "ZIP"                 = c(rep(-Inf, 2*nreg+2), rep(-Inf, sum(ARMAModel)))
     )
     # upper bound constraints
     UB = switch(CountDist,
@@ -151,38 +148,26 @@ ModelScheme = function(DependentVar, Regressor=NULL, EstMethod="PFR", ARMAModel=
                 "Generalized Poisson" = c(rep(Inf, nreg+1), Inf, rep(Inf, sum(ARMAModel))),
                 "Binomial"            = c(rep(Inf, nreg+1), Inf, rep(Inf, sum(ARMAModel))),
                 "Mixed Poisson"       = c(rep(Inf, 2*nreg+2), 0.99, rep(Inf, sum(ARMAModel))),
-                "ZIP"                 = c(rep(Inf, 2*nreg+2), rep(Inf, sum(ARMAModel))),
-                stop("The specified distribution is not supported. Please select a distribution from the following list:
-                     Poisson, Generalized Poisson, Negative Binomial, Generalized Poisson, Binomial, Mixed Poisson,
-                     or ZIP.")
+                "ZIP"                 = c(rep(Inf, 2*nreg+2), rep(Inf, sum(ARMAModel)))
     )
     # retrieve names of marginal parameters
     MargParmsNames = switch(CountDist,
-                "Poisson"             = paste(rep("b_",nreg),0:nreg,sep=""),
-                "Negative Binomial"   = c(paste(rep("b_",nreg),0:nreg,sep=""), "k"),
-                "Mixed Poisson"       = c(paste(rep("b_1",nreg),0:nreg,sep=""),paste(rep("b_2",nreg),0:nreg,sep=""), "p"),
-                "Generalized Poisson" = c(paste(rep("b_",nreg),0:nreg,sep=""), "a"),
-                "Binomial"            = c(paste(rep("b_",nreg),0:nreg,sep=""), "n"),
-                "ZIP"                 = c(paste(rep("b_",nreg),0:nreg, sep=""), paste(rep("c_",nreg),0:nreg, sep="")),
-                stop("The specified distribution is not supported. Please select a distribution from the following list:
-                     Poisson, Generalized Poisson, Negative Binomial, Generalized Poisson, Binomial, Mixed Poisson,
-                     or ZIP.")
+                            "Poisson"             = paste(rep("b_",nreg),0:nreg,sep=""),
+                            "Negative Binomial"   = c(paste(rep("b_",nreg),0:nreg,sep=""), "k"),
+                            "Mixed Poisson"       = c(paste(rep("b_1",nreg),0:nreg,sep=""),paste(rep("b_2",nreg),0:nreg,sep=""), "p"),
+                            "Generalized Poisson" = c(paste(rep("b_",nreg),0:nreg,sep=""), "a"),
+                            "Binomial"            = c(paste(rep("b_",nreg),0:nreg,sep=""), "n"),
+                            "ZIP"                 = c(paste(rep("b_",nreg),0:nreg, sep=""), paste(rep("c_",nreg),0:nreg, sep=""))
     )
   }
 
 
-  # retrieve indices of marginal distribution parameters-the regressor is assumed to have an intercept
-  MargParmIndices = switch(CountDist,
-                "Poisson"             = 1:(1+nreg),
-                "Negative Binomial"   = 1:(2+nreg),
-                "Generalized Poisson" = 1:(2+nreg),
-                "Binomial"            = 1:(2+nreg),
-                "Mixed Poisson"       = 1:(3+nreg*2),
-                "ZIP"                 = 1:(2+nreg*2),
-                stop("The specified distribution is not supported. Please select a distribution from the following list:
-                     Poisson, Generalized Poisson, Negative Binomial, Generalized Poisson, Binomial, Mixed Poisson,
-                     or ZIP.")
-  )
+  # check whether the provided initial estimates make sense
+  if (!is.null(initialParam) & (prod(initialParam<=LB) | prod(initialParam>=UB)))
+    stop("The specified initial parameter is outside thew feasible region.")
+
+
+
 
   # create names of the ARMA parameters
   if(nAR>0) ARNames = paste("AR_",1:ARMAModel[1], sep="")
@@ -222,8 +207,6 @@ ModelScheme = function(DependentVar, Regressor=NULL, EstMethod="PFR", ARMAModel=
     nparms          = nparms,
     UB              = UB,
     LB              = LB,
-    error           = error,
-    errorMsg        = errorMsg,
     EstMethod       = EstMethod,
     DependentVar    = DependentVar,
     Regressor       = Regressor,
@@ -237,234 +220,6 @@ ModelScheme = function(DependentVar, Regressor=NULL, EstMethod="PFR", ARMAModel=
   )
   return(out)
 
-}
-
-# PF likelihood with resampling for AR(p) - written more concicely
-ParticleFilter_Res_AR = function(theta, mod){
-  #--------------------------------------------------------------------------#
-  # PURPOSE:  Use particle filtering with resampling
-  #           to approximate the likelihood of the
-  #           a specified count time series model with an underlying AR(p)
-  #           dependence structure.
-  #
-  #
-  # INPUTS:
-  #    theta: parameter vector
-  #      mod: a list containing all t he information for the model, such as
-  #           count distribution. ARMA model, etc
-  # OUTPUT:
-  #    loglik: approximate log-likelihood
-  #
-  # AUTHORS: James Livsey, Vladas Pipiras, Stefanos Kechagias
-  # DATE:    July  2020
-  #--------------------------------------------------------------------------#
-
-  # keep track of the random seed to use common random numbers
-  old_state <- get_rand_state()
-  on.exit(set_rand_state(old_state))
-
-  # Retrieve parameters ans save them in a li
-  Parms = RetrieveParameters(theta,mod)
-
-    # check for causality
-  if( CheckStability(Parms$AR,Parms$MA) ){
-    message(sprintf('WARNING: The ARMA polynomial must be causal and invertible.'))
-    return(mod$loglik_BadValue1)
-  }
-
-  # Initialize the negative log likelihood computation
-  nloglik = ifelse(mod$nreg==0,  - log(mod$mypdf(mod$DependentVar[1],Parms$MargParms)),
-                   - log(mod$mypdf(mod$DependentVar[1], Parms$ConstMargParm, Parms$DynamMargParm[1,])))
-
-  # Compute the theoretical covariance for the AR model for current estimate
-  gt    = ARMAacf(ar = Parms$AR, ma = Parms$MA,lag.max = mod$n)
-
-  # Compute the best linear predictor coefficients and errors using Durbin Levinson
-  Phi = list()
-  for (t in 2:mod$n){
-    CurrentDL     = DLAcfToAR(gt[2:t])
-    Phi[[t-1]] = CurrentDL[,1]
-  }
-  Rt           = c(1,sqrt(as.numeric(CurrentDL[,3])))
-
-  # allocate memory for particle weights and the latent Gaussian Series particles, check me: do I weights for 1:T or only 2?
-  w     = matrix(0, mod$n, mod$ParticleNumber)
-  Z     = matrix(0, max(mod$ARMAModel), mod$ParticleNumber)
-
-  #======================   Start the SIS algorithm   ======================#
-  # Initialize the weights
-  w[1,] = rep(1,mod$ParticleNumber)
-
-  # Compute the first integral limits Limit$ a and Limit$b
-  Limit = ComputeLimits(mod, Parms, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
-
-  # Initialize particles from truncated normal distribution
-  Z[1,] = SampleTruncNormParticles(mod, Limit$a, Limit$b, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
-
-  # =================== Loop over t ===================== #
-  for (t in 2:mod$n){
-    # Compute the latent Gaussian predictions Zhat_t using Innovations Algorithm
-    Zhat  =         Phi[[t-1]]%*%Z[1:(t-1),]
-
-    # Compute integral limits
-    Limit = ComputeLimits(mod, Parms, t, Zhat, Rt)
-
-    # Sample truncated normal particles
-    Znew  = SampleTruncNormParticles(mod, Limit$a, Limit$b,t, Zhat, Rt)
-
-    # update weights
-    w[t,] = ComputeWeights(mod, Limit$a, Limit$b, t, w[(t-1),])
-
-    # check me: break if I got NA weight
-    if (any(is.na(w[t,]))| sum(w[t,])==0 ){
-      message(sprintf('WARNING: Some of the weights are either too small or sum to 0'))
-      return(mod$loglik_BadValue2)
-    }
-
-    # Resample the particles using common random numbers
-    old_state1 = get_rand_state()
-    Znew = ResampleParticles(mod, w, t, Znew)
-    set_rand_state(old_state1)
-
-    # Combine current particles, with particles from previous iterations
-    Z = rbind(Znew, matrix(Z[1:(t-1),],ncol = mod$ParticleNumber))
-
-    # update log-likelihood
-    nloglik = nloglik - log(mean(w[t,]))
-  }
-
-  return(nloglik)
-}
-
-# PF likelihood with resampling for MA(q)
-ParticleFilter_Res_MA = function(theta, mod){
-  #------------------------------------------------------------------------------------#
-  # PURPOSE:  Use particle filtering with resampling to approximate the likelihood
-  #           of the a specified count time series model with an underlying MA(1)
-  #           dependence structure.
-  #
-  # NOTES:    1. See "Latent Gaussian Count Time Series Modeling" for  more
-  #           details. A first version of the paper can be found at:
-  #           https://arxiv.org/abs/1811.00203
-  #           2. This function is very similar to LikSISGenDist_ARp but here
-  #           I have a resampling step.
-  #
-  # INPUTS:
-  #    theta:            parameter vector
-  #    data:             data
-  #    ParticleNumber:   number of particles to be used.
-  #    Regressor:        independent variable
-  #    CountDist:        count marginal distribution
-  #    epsilon           resampling when ESS<epsilon*N
-  #
-  # OUTPUT:
-  #    loglik:           approximate log-likelihood
-  #
-  #
-  # AUTHORS: James Livsey, Vladas Pipiras, Stefanos Kechagias,
-  # DATE:    July 2020
-  #------------------------------------------------------------------------------------#
-
-  old_state <- get_rand_state()
-  on.exit(set_rand_state(old_state))
-
-  # Retrieve parameters and save them in a list called Parms
-  Parms = RetrieveParameters(theta,mod)
-
-  # check for causality
-  if( CheckStability(Parms$AR,Parms$MA) ){
-    message(sprintf('WARNING: The ARMA polynomial must be causal and invertible.'))
-    return(mod$loglik_BadValue1)
-  }
-
-
-  # Initialize the negative log likelihood computation
-  nloglik = ifelse(mod$nreg==0,  - log(mod$mypdf(mod$DependentVar[1],Parms$MargParms)),
-                   - log(mod$mypdf(mod$DependentVar[1], Parms$ConstMargParm, Parms$DynamMargParm[1,])))
-
-  # Compute covariance up to lag n-1
-  gt    = as.vector(ARMAacf(ar = Parms$AR, ma = Parms$MA, lag.max = mod$n))
-
-  # Compute coefficients of Innovations Algorithm see 5.2.16 and 5.3.9 in in Brockwell Davis book
-  IA    = innovations.algorithm(gt)
-  Theta = IA$thetas
-  Rt    = sqrt(IA$vs)
-
-  # allocate matrices for weights, particles and innovations which are equal to Z-Zhat
-  w     = matrix(0, mod$n, mod$ParticleNumber)
-  Z     = matrix(0, max(mod$ARMAModel), mod$ParticleNumber)
-  Inn   = matrix(0, max(mod$ARMAModel), mod$ParticleNumber)
-
-  # particle filter weights
-  w[1,]   = rep(1,mod$ParticleNumber)
-
-  # Compute the first integral limits Limit$ a and Limit$b
-  Limit = ComputeLimits(mod, Parms, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
-
-  # Generate N(0,1) variables restricted to (ai,bi),i=1,...n
-  Z[1,]   = SampleTruncNormParticles(mod, Limit$a, Limit$b, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
-
-  # Compute the first innovation (Zhat_1=0)
-  Inn[1,] = Z[1,]
-
-
-  for (t in 2:mod$n){
-
-    # Compute the latent Gaussian predictions Zhat_t using Innovations Algorithm - see 5.3.9 in Brockwell Davis book
-    if(mod$ParticleNumber==1){
-      if(t==2){
-        Zhat  =         Inn[1:(min(t-1,mod$nMA)),] %*% Theta[[t-1]][1:(min(t-1,mod$nMA))]
-      }else{
-        Zhat  = colSums(Inn[1:(min(t-1,mod$nMA)),] %*% Theta[[t-1]][1:(min(t-1,mod$nMA))])
-      }
-    }else{
-      if(t==2){
-        Zhat  =         Inn[1:(min(t-1,mod$nMA)),] * Theta[[t-1]][1:(min(t-1,mod$nMA))]
-      }else{
-        Zhat  = colSums(Inn[1:(min(t-1,mod$nMA)),] * Theta[[t-1]][1:(min(t-1,mod$nMA))])
-      }
-    }
-
-    # Compute integral limits
-    Limit = ComputeLimits(mod, Parms, t, Zhat, Rt)
-
-    # Sample truncated normal particles
-    Znew  = SampleTruncNormParticles(mod, Limit$a, Limit$b, t, Zhat, Rt)
-
-    # update weights
-    w[t,] = ComputeWeights(mod, Limit$a, Limit$b, t, w[(t-1),])
-
-    # check me: break if I got NA weight
-    if (any(is.na(w[t,]))| sum(w[t,])==0 ){
-      message(sprintf('WARNING: Some of the weights are either too small or sum to 0'))
-      return(mod$loglik_BadValue2)
-    }
-
-    # Resample the particles using common random numbers
-    old_state1 = get_rand_state()
-    Znew = ResampleParticles(mod, w, t, Znew)
-    set_rand_state(old_state1)
-
-    # Compute the new Innovation
-    InnNew = Znew - Zhat
-
-    # Combine current particles, with particles from previous iterations
-    Inn[1:min(t,mod$nMA),] = rbind(matrix(InnNew,ncol=mod$ParticleNumber), matrix(Inn[1:min(t-1,mod$nMA-1),],ncol = mod$ParticleNumber))
-
-    # update likelihood
-    nloglik = nloglik - log(mean(w[t,]))
-
-  }
-
-  # for log-likelihood we use a bias correction--see par2.3 in Durbin Koopman, 1997
-  # nloglik = nloglik- (1/(2*N))*(var(na.omit(wgh[T1,]))/mean(na.omit(wgh[T1,])))/mean(na.omit(wgh[T1,]))
-
-  # if (nloglik==Inf | is.na(nloglik)){
-  #   nloglik = 10^8
-  # }
-
-
-  return(nloglik)
 }
 
 # PF likelihood with resampling for MA(q)
@@ -504,7 +259,8 @@ ParticleFilter_Res_ARMA = function(theta, mod){
 
   # check for causality and invertibility
   if( CheckStability(Parms$AR,Parms$MA) ){
-    message(sprintf('WARNING: The ARMA polynomial must be causal and invertible.'))
+    mod$ErrorMsg = sprintf('WARNING: The ARMA polynomial must be causal and invertible.')
+    warning(mod$ErrorMsg)
     return(mod$loglik_BadValue1)
     }
 
@@ -534,7 +290,7 @@ ParticleFilter_Res_ARMA = function(theta, mod){
   gamma    = itsmr::aacvf(a,mod$n)
 
   # Compute coefficients of Innovations Algorithm see 5.2.16 and 5.3.9 in in Brockwell Davis book
-  IA       = InnovAlg(Parms, gamma, mod$maxdiff)
+  IA       = InnovAlg(Parms, gamma, mod)
   Theta    = IA$thetas
   Rt       = sqrt(IA$v)
 
@@ -603,49 +359,6 @@ ParticleFilter_Res_ARMA = function(theta, mod){
   return(nloglik)
 }
 
-# PF likelihood with resampling
-ParticleFilter_Res = function(theta, mod){
-  #--------------------------------------------------------------------------#
-  # PURPOSE:  Use particle filtering with resampling
-  #           to approximate the likelihood of the
-  #           a specified count time series model with an underlying AR(p)
-  #           dependence structure or MA(q) structure.
-  #
-  # NOTES:    1. See "Latent Gaussian Count Time Series Modeling" for  more
-  #           details. A first version of the paer can be found at:
-  #           https://arxiv.org/abs/1811.00203
-
-  #
-  # INPUTS:
-  #    theta:            parameter vector
-  #    data:             dependent variable
-  #    Regressor:        independent variables
-  #    ParticleNumber:   number of particles to be used in likelihood approximation
-  #    CountDist:        count marginal distribution
-  #    epsilon           resampling when ESS<epsilon*N
-  #
-  # OUTPUT:
-  #    loglik:           approximate log-likelihood
-  #
-  #
-  # AUTHORS: James Livsey, Vladas Pipiras, Stefanos Kechagias,
-  # DATE:    July 2020
-  #--------------------------------------------------------------------------#
-
-  loglik = ParticleFilter_Res_ARMA(theta, mod)
-
-  # # Pure AR model - uses DL
-  # if(mod$ARMAModel[1]>0 && mod$ARMAModel[2]==0 )  loglik = ParticleFilter_Res_AR(theta, mod)
-  #
-  # # Pure MA model - uses a non optimized INALg
-  # if(mod$ARMAModel[1]==0 && mod$ARMAModel[2]>=0 ) loglik = ParticleFilter_Res_MA(theta, mod)
-  #
-  # # ARMA model - uses optimized InAlg
-  # if(mod$ARMAModel[1]>0 && mod$ARMAModel[2]>0 )   loglik = ParticleFilter_Res_ARMA(theta, mod)
-
-  return(loglik)
-}
-
 # Optimization wrapper to fit PF likelihood with resampling
 FitMultiplePF_Res = function(theta, mod){
   #====================================================================================#
@@ -701,7 +414,7 @@ FitMultiplePF_Res = function(theta, mod){
         # run optimization for our model --no ARMA model allowed
         optim.output <- optimx(
           par     = theta,
-          fn      = ParticleFilter_Res,
+          fn      = ParticleFilter_Res_ARMA,
           lower   = mod$LB,
           upper   = mod$UB,
           hessian = TRUE,
@@ -714,7 +427,7 @@ FitMultiplePF_Res = function(theta, mod){
 
         optim.output[,1:length(theta)] = theta
         t4 = tic()
-        loglikelihood = ParticleFilter_Res(theta,mod)
+        loglikelihood = ParticleFilter_Res_ARMA(theta,mod)
         t4 = tic()-t4
         optim.output[,(length(theta)+1)] = loglikelihood
         optim.output[,(length(theta)+2)] = 1
@@ -736,7 +449,7 @@ FitMultiplePF_Res = function(theta, mod){
         # t5 = tic()
       if(mod$Task == "Optimization"){
         H = gHgen(par          = ParmEst[nfit*(k-1)+j,],
-                fn             = ParticleFilter_Res,
+                fn             = ParticleFilter_Res_ARMA,
                 mod            = mod)
         # t5 = tic()-t5
         # print(t5)
@@ -783,18 +496,22 @@ FitMultiplePF_Res = function(theta, mod){
 
     # specify output list names
     # names(ModelOutput)         = c("ParamEstimates", "StdErrors", "FitStatistics", "OptimOutput")
-    ModelOutput$ParamEstimates = ParmEst
-    if(Task=="Optimization")ModelOutput$StdErrors      = se
-    ModelOutput$FitStatistics  = c(loglik, Criteria)
-    if(Task=="Optimization")ModelOutput$OptimOutput    = c(convcode,kkt1,kkt2)
-    #ModelOutput$CountDist      = mod$CountDist
-    ModelOutput$EstMethod      = mod$EstMethod
-    #ModelOutput$ARMAModel      = paste("ARMA(",mod$ARMAModel[1],",",mod$ARMAModel[2],")",sep="")
     ModelOutput$Model          = paste(mod$CountDist,  paste("ARMA(",mod$ARMAModel[1],",",mod$ARMAModel[2],")",sep=""), sep= "-")
+    ModelOutput$ParamEstimates = ParmEst
     ModelOutput$Task           = mod$Task
-
+    if(!is.null(mod$TrueParam)) ModelOutput$TrueParam      = mod$TrueParam
+    if(!is.null(mod$initialParam)) ModelOutput$initialParam   = mod$initialParam
+    if(Task=="Optimization") ModelOutput$StdErrors      = se
+    ModelOutput$FitStatistics  = c(loglik, Criteria)
+    if(Task=="Optimization") ModelOutput$OptimOutput    = c(convcode,kkt1,kkt2)
+    ModelOutput$EstMethod      = mod$EstMethod
+    ModelOutput$SampleSize     = mod$n
+    if(loglikelihood==mod$loglik_BadValue1) ModelOutput$WarnMessage = "WARNING: The ARMA polynomial must be causal and invertible."
+    if(loglikelihood==mod$loglik_BadValue2) ModelOutput$WarnMessage = "WARNING: Some of the weights are either too small or sum to 0."
     # assign names to all output elements
+    if(!is.null(mod$TrueParam)) names(ModelOutput$TrueParam)      = mod$parmnames
     colnames(ModelOutput$ParamEstimates) = mod$parmnames
+
     if(Task=="Optimization")colnames(ModelOutput$StdErrors)      = paste("se(", mod$parmnames,")", sep="")
     names(ModelOutput$FitStatistics)     = c("loglik", "AIC", "BIC", "AICc")
     if(Task=="Optimization")names(ModelOutput$OptimOutput)       = c("ConvergeStatus", "kkt1", "kkt2")
@@ -901,13 +618,46 @@ FitMultiplePF_Res = function(theta, mod){
     ModelOutput$ConvergeStatus = convcode
     ModelOutput$kkt1           = kkt1
     ModelOutput$kkt2           = kkt2
-
   }
-
-
 
   return(ModelOutput)
 }
+
+# --what to reru +
+ErrorOutput =function(mod){
+
+  # create messages for Error Codes
+  ErrorMsg = switch(mod$ErrorCode,
+                    "1"  = "The specified distribution in not supported.",
+                    "2"  = "The specified Task is not supported.",
+                    "3"  = "The specified Estimation method is not supported.",
+                    "4"  = "The specified ARMA model is not supported.",
+                    "5"  = "The initial parameter length does not match the specified model.",
+                    "6"  = "The specified initial parameter isn't feasible."
+  )
+
+  ModelOutput = list()
+  ModelOutput$ErrorMsg       = ErrorMsg
+
+  # create final output list when we have an error
+  # if(mod$OutputType=="list"){
+  #   ModelOutput = list()
+  #   ModelOutput$ErrorMsg       = ErrorMsg
+  #   ModelOutput$Model          = paste(mod$CountDist,  paste("ARMA(",mod$ARMAModel[1],",",mod$ARMAModel[2],")",sep=""), sep= "-")
+  #   ModelOutput$ParamEstimates = NULL
+  #   ModelOutput$Task           = mod$Task
+  #   if(!is.null(mod$TrueParam))    ModelOutput$TrueParam      = mod$TrueParam
+  #   if(!is.null(mod$initialParam)) ModelOutput$initialParam   = mod$initialParam
+  #   ModelOutput$EstMethod      = mod$EstMethod
+  #   ModelOutput$SampleSize     = mod$n
+  #   # assign names to all output elements
+  #   if(!is.null(mod$TrueParam)) names(ModelOutput$TrueParam)      = mod$parmnames
+  # }
+
+  return(ModelOutput)
+
+}
+
 
 # Add some functions that I will need
 get_rand_state <- function() {
@@ -1108,28 +858,7 @@ NegBinMoM = function(data, GLMMeanEst){
   return(PhiMomEst)
 }
 
-# innovations algorithm code
-innovations.algorithm <- function(acvf,n.max=length(acvf)-1){
-  # I found this implementation of IA online, I need to check it
-  # http://faculty.washington.edu/dbp/s519/R-code/innovations-algorithm.R
-  thetas <- vector(mode="list",length=n.max)
-  vs <- rep(acvf[1],n.max+1)
-  for(n in 1:n.max){
-    thetas[[n]] <- rep(0,n)
-    thetas[[n]][n] <- acvf[n+1]/vs[1]
-    if(n>1){
-      for(k in 1:(n-1)){
-        js <- 0:(k-1)
-        thetas[[n]][n-k] <- (acvf[n-k+1] - sum(thetas[[k]][k-js]*thetas[[n]][n-js]*vs[js+1]))/vs[k+1]
-      }
-    }
-    js <- 0:(n-1)
-    vs[n+1] <- vs[n+1] - sum(thetas[[n]][n-js]^2*vs[js+1])
-  }
-  return(structure(list(vs=vs,thetas=thetas)))
-}
-
-InnovAlg = function(Parms,gamma, maxdiff) {
+InnovAlg = function(Parms,gamma, mod) {
   # adapt the Innovation.algorithm if ITSMR
 
   # Compute autocovariance kappa(i,j) per equation (3.3.3)
@@ -1178,7 +907,7 @@ InnovAlg = function(Parms,gamma, maxdiff) {
     js     = 0:(n-1)
     v[n+1] = kappa(n+1,n+1) - sum(Theta[[n]][n-js]^2*v[js+1])
     # pure MA stopping criterion
-    if(mod$nAR==0 && mod$nMA>0) StopCondition = (abs(v[n+1]-v[n])< maxdiff)
+    if(mod$nAR==0 && mod$nMA>0) StopCondition = (abs(v[n+1]-v[n])< mod$maxdiff)
 
     # pure AR stopping criterion
     if(mod$nAR>0 && mod$nMA==0) StopCondition = (n>3*m)
@@ -1189,7 +918,7 @@ InnovAlg = function(Parms,gamma, maxdiff) {
   }
   v = v/v[1]
 
-  StopCondition = (abs(v[n+1]-v[n])< maxdiff)
+  StopCondition = (abs(v[n+1]-v[n])<mod$maxdiff)
 
 
   return(list(n=n-1,thetas=lapply(Theta[ ][1:(n-1)], function(x) {x[1:m]}),v=v[1:(n-1)]))
@@ -1203,12 +932,37 @@ sim_lgc = function(n, CountDist, MargParm, ARParm, MAParm, Regressor=NULL){
   z  =arima.sim(model = list( ar = ARParm, ma=MAParm  ), n = n)
   z = z/sd(z) # standardize the data
 
-  x = mod$myinvcdf(pnorm(z), MargParm)
-  # select the correct count model
+  # number of regressors assuming there is an intercept, fix me: check the case with not intercept
+  nreg = ifelse(is.null(Regressor), 0, dim(Regressor)[2]-1)
 
+  if(nreg==0){
+    # retrieve marginal inverse cdf
+    myinvcdf = switch(CountDist,
+                      "Poisson"             = qpois,
+                      "Negative Binomial"   = function(x, theta){ qnbinom (x, theta[1], 1-theta[2]) },
+                      "Generalized Poisson" = function(x, theta){ qGpois  (x, theta[1], theta[2])},
+                      "Binomial"            = qbinom,
+                      "Mixed Poisson"       = function(x, theta){ qmixpois(x, theta[1], theta[2], theta[3])},
+                      "ZIP"                 = function(x, theta){ qzipois(x, theta[1], theta[2]) },
+                      stop("The specified distribution is not supported.")
+    )
 
-    # number of regressors assuming there is an intercept, fix me: check the case with not intercept
-    nreg = ifelse(is.null(Regressor), 0,dim(Regressor)[2]-1)
+    # get the final counts
+    x = myinvcdf(pnorm(z), MargParm)
+
+  }else{
+    # retrieve inverse count cdf
+    myinvcdf = switch(CountDist,
+                      "Poisson"             = function(x, ConstMargParm, DynamMargParm){ qpois   (x, DynamMargParm)},
+                      "Negative Binomial"   = function(x, ConstMargParm, DynamMargParm){ qnbinom (x, ConstMargParm, 1-DynamMargParm)},
+                      "Generalized Poisson" = function(x, ConstMargParm, DynamMargParm){ qGpois  (x, ConstMargParm, DynamMargParm)},
+                      "Binomial"            = function(x, ConstMargParm, DynamMargParm){ qbinom  (x, ConstMargParm, DynamMargParm)},
+                      "Mixed Poisson"       = function(x, ConstMargParm, DynamMargParm){ qmixpois(x, DynamMargParm, ConstMargParm)},
+                      "ZIP"                 = function(x, ConstMargParm, DynamMargParm){ qzipois (x, DynamMargParm[1], DynamMargParm[2]) },
+                      stop("The specified distribution is not supported.")
+    )
+
+    # regression parameters
     beta  = MargParm[1:(nreg+1)]
     m     = exp(Regressor%*%beta)
 
@@ -1218,36 +972,39 @@ sim_lgc = function(n, CountDist, MargParm, ARParm, MAParm, Regressor=NULL){
     }
 
     if(CountDist == "Negative Binomial" && nreg>0){
-      ConstMargParm  = 1/MargParms[nreg+2]
-      DynamMargParm  = MargParms[nreg+2]*m/(1+MargParms[nreg+2]*m)
+      ConstMargParm  = 1/MargParm[nreg+2]
+      DynamMargParm  = MargParm[nreg+2]*m/(1+MargParm[nreg+2]*m)
     }
 
     if(CountDist == "Generalized Poisson" && nreg>0){
-      ConstMargParm  = MargParms[nreg+2]
+      ConstMargParm  = MargParm[nreg+2]
       DynamMargParm  = m
     }
 
-    if(mod$CountDist == "Binomial" && mod$nreg>0){
-      ConstMargParm  = MargParms[nreg+2]
+    if(CountDist == "Binomial" && nreg>0){
+      ConstMargParm  = MargParm[nreg+2]
       DynamMargParm  = 1/(1+m)
     }
 
-    if(mod$CountDist == "Mixed Poisson" && mod$nreg>0){
-      ConstMargParm  = c(MargParms[nreg*2+3], 1 - MargParms[nreg*2+3])
-      DynamMargParm  = cbind(exp(Regressor%*%MargParms[1:(nreg+1)]),
-                             exp(Regressor%*%MargParms[(nreg+2):(nreg*2+2)]))
+    if(CountDist == "Mixed Poisson" && nreg>0){
+      ConstMargParm  = c(MargParm[nreg*2+3], 1 - MargParm[nreg*2+3])
+      DynamMargParm  = cbind(exp(Regressor%*%MargParm[1:(nreg+1)]),
+                             exp(Regressor%*%MargParm[(nreg+2):(nreg*2+2)]))
     }
 
-    if(mod$CountDist == "ZIP" && mod$nreg>0){
+    if(CountDist == "ZIP" && nreg>0){
       ConstMargParm  = NULL
-      DynamMargParm  = cbind(exp(Regressor%*%MargParms[1:(nreg+1)]),
-                             1/(1+exp(-Regressor%*%MargParms[(nreg+2):(nreg*2+2)])))
+      DynamMargParm  = cbind(exp(Regressor%*%MargParm[1:(nreg+1)]),
+                             1/(1+exp(-Regressor%*%MargParm[(nreg+2):(nreg*2+2)])))
     }
 
+    # get the final counts
     x = myinvcdf(pnorm(z), ConstMargParm, DynamMargParm)
+  }
     return(x)
 }
 
+# poisson cdf using incomplete gamma and its derivative wrt to lambda
 myppois = function(x, lambda){
   # compute poisson cdf as the ratio of an incomplete gamma function over the standard gamma function
   # I will also compute the derivative of the poisson cdf wrt lambda
@@ -1263,8 +1020,6 @@ myppois = function(x, lambda){
   z_d = (v1_d*v2 - v2_d*v1)/v2^2
   return(c(z,z_d))
 }
-
-
 
 #---------Compute AIC, BIC, AICc
 Criteria.lgc = function(loglik, mod){
@@ -1483,6 +1238,197 @@ RetrieveParameters = function(theta,mod){
 
 
   return(Parms)
+}
+
+
+# Mixed Poisson inverse cdf
+qmixpois = function(y, lam1, lam2, p){
+  yl = length(y)
+  x  = rep(0,yl)
+  for (n in 1:yl){
+    while(pmixpois(x[n], lam1, lam2,p) <= y[n]){ # R qpois would use <y; this choice makes the function right-continuous; this does not really matter for our model
+      x[n] = x[n]+1
+    }
+  }
+  return(x)
+}
+
+# Mixed Poisson cdf
+pmixpois = function(x, lam1, lam2,p){
+  y = p*ppois(x,lam1) + (1-p)*ppois(x,lam2)
+  return(y)
+}
+
+# mass of Mixed Poisson
+dmixpois = function(x, lam1, lam2, p){
+  y = p*dpois(x,lam1) + (1-p)*dpois(x,lam2)
+  return(y)
+}
+
+# Generalized Poisson pdfs
+dGpois = function(y,a,m){
+  k = m/(1+a*m)
+  return( k^y * (1+a*y)^(y-1) * exp(-k*(1+a*y)-lgamma(y+1)))
+}
+
+# Generalized Poisson cdf for one m---------#
+pgpois1 = function(x,a,m){
+  M = max(x,0)
+  bb = dGpois(0:M,a,m)
+  cc = cumsum(bb)
+  g = rep(0,length(x))
+  g[x>=0] = cc[x+1]
+  return(g)
+}
+
+#--------- Generalized Poisson pdf for multiple m---------#
+pGpois = function(x,a,m){
+
+  if (length(m)>1){
+    r = mapply(pgpois1, x=x, a, m = m)
+  }else{
+    r = pgpois1(x, a, m)
+  }
+  return(r)
+}
+
+#--------- Generalized Poisson icdf for 1 m---------#
+qgpois1 <- function(p,a,m) {
+  check.list <- pGpois(0:100,a,m)
+  quantile.vec <- rep(-99,length(p))
+
+  for (i in 1:length(p)) {
+    x <- which(check.list>=p[i],arr.ind = T)[1]
+    quantile.vec[i] <- x-1
+  }
+  return(quantile.vec)
+}
+
+#--------- Generalized Poisson icdf for many m---------#
+qGpois = function(p,a,m){
+
+  if (length(m)>1){
+    r = mapply(qgpois1, p=p, a, m = m)
+  }else{
+    r = qgpois1(p,a,m)
+  }
+  return(r)
+}
+
+#--------- Generate Gen Poisson datas---------#
+rGpois = function(n, a,m){
+  u = runif(n)
+  x = qGpois(u,a, m)
+  return(x)
+}
+
+# function that generates random marginal parameter values
+GenModelParam = function(CountDist,BadParamProb, AROrder, MAOrder, Regressor){
+
+  #-----------------Marginal Parameters
+
+  if(CountDist=="Poisson"){
+    # create some "bad" Poisson parameter choices
+    BadLambda = c(-1,500)
+
+    # sample with high probability from "good" choices for lambda and with low prob the "bad" choices
+    prob = rbinom(1,1,BadParamProb)
+
+    # Marginal Parameter
+    if (is.null(Regressor)){
+      MargParm = prob*runif(1,0,100) + (1-prob)*sample(BadLambda,1)
+    }else{
+      # fix me: I am hard coding 1.2 here but we should probably make this an argument
+      b0 = runif(1,0,1.2)
+      b1 = runif(1,0,1.2)
+      MargParm = c(b0,b1)
+    }
+  }
+
+
+  if(CountDist=="Negative Binomial"){
+    # create some "bad" Poisson parameter choices
+    Badr_r = c(-1,500)
+
+    # sample a probability
+    p =  runif(1,0,1)
+
+    # sample with high probability from "good" choices for lambda and with low prob the "bad" choices
+    prob = rbinom(1,1,BadParamProb)
+
+    # Marginal Parameter
+    if (is.null(Regressor)){
+      r = prob*runif(1,0,100) + (1-prob)*sample(Badr_r,1)
+      MargParm = c(r,p)
+    }else{
+      # fix me: I am hard coding 1.2 here but we should probably make this an argument
+      b0 = runif(1,0,1.2)
+      b1 = runif(1,0,1.2)
+      k  = runif(1,0,1)
+      MargParm = c(b0,b1,k)
+    }
+  }
+
+
+  #------------------ARMA Parameters
+
+  # create some "bad" AR parameter choices
+  BadAR = c(0, -10, 0.99, 1.2)
+
+  # create some "bad" MA parameter choices
+  BadMA = c(0, 10, -0.99, -1.2)
+
+  # set the AR Parameters
+  ARParm = NULL
+  MAParm = NULL
+  p = rbinom(1,1,BadParamProb)
+
+  if(AROrder) ARParm = p*runif(1,-1, 1)+ (1-p)*sample(BadAR,1)
+  if(MAOrder) MAParm = p*runif(1,-1, 1)+ (1-p)*sample(BadMA,1)
+
+  AllParms = list(MargParm, ARParm, MAParm)
+  names(AllParms) = c("MargParm", "ARParm", "MAParm")
+  return(AllParms)
+
+}
+
+GenInitVal = function(AllParms, perturbation){
+
+  # select negative or postive perturbation based on a  coin flip
+  #sign = 1-2*rbinom(1,1,0.5)
+  # adding only negative sign now to ensure stability
+  sign  = -1
+
+  MargParm = AllParms$MargParm*(1+sign*perturbation)
+
+  PerturbedValues = list(MargParm,NULL,NULL)
+  names(PerturbedValues) = c("MargParm", "ARParm", "MAParm")
+
+  if(!is.null(AllParms$ARParm))  PerturbedValues$ARParm = AllParms$ARParm*(1+sign*perturbation)
+  if(!is.null(AllParms$MAParm))  PerturbedValues$MAParm = AllParms$MAParm*(1+sign*perturbation)
+
+  return(PerturbedValues)
+}
+
+# innovations algorithm code
+innovations.algorithm <- function(acvf,n.max=length(acvf)-1){
+  # I found this implementation of IA online, I need to check it
+  # http://faculty.washington.edu/dbp/s519/R-code/innovations-algorithm.R
+  thetas <- vector(mode="list",length=n.max)
+  vs <- rep(acvf[1],n.max+1)
+  for(n in 1:n.max){
+    thetas[[n]] <- rep(0,n)
+    thetas[[n]][n] <- acvf[n+1]/vs[1]
+    if(n>1){
+      for(k in 1:(n-1)){
+        js <- 0:(k-1)
+        thetas[[n]][n-k] <- (acvf[n-k+1] - sum(thetas[[k]][k-js]*thetas[[n]][n-js]*vs[js+1]))/vs[k+1]
+      }
+    }
+    js <- 0:(n-1)
+    vs[n+1] <- vs[n+1] - sum(thetas[[n]][n-js]^2*vs[js+1])
+  }
+  return(structure(list(vs=vs,thetas=thetas)))
 }
 
 # PF likelihood with resampling for AR(p)
@@ -1883,88 +1829,277 @@ ParticleFilter_Res_MA_Old = function(theta, mod){
 }
 
 
-# Mixed Poisson inverse cdf
-qmixpois = function(y, lam1, lam2, p){
-  yl = length(y)
-  x  = rep(0,yl)
-  for (n in 1:yl){
-    while(pmixpois(x[n], lam1, lam2,p) <= y[n]){ # R qpois would use <y; this choice makes the function right-continuous; this does not really matter for our model
-      x[n] = x[n]+1
+# PF likelihood with resampling for AR(p) - written more concicely
+ParticleFilter_Res_AR = function(theta, mod){
+  #--------------------------------------------------------------------------#
+  # PURPOSE:  Use particle filtering with resampling
+  #           to approximate the likelihood of the
+  #           a specified count time series model with an underlying AR(p)
+  #           dependence structure.
+  #
+  #
+  # INPUTS:
+  #    theta: parameter vector
+  #      mod: a list containing all t he information for the model, such as
+  #           count distribution. ARMA model, etc
+  # OUTPUT:
+  #    loglik: approximate log-likelihood
+  #
+  # AUTHORS: James Livsey, Vladas Pipiras, Stefanos Kechagias
+  # DATE:    July  2020
+  #--------------------------------------------------------------------------#
+
+  # keep track of the random seed to use common random numbers
+  old_state <- get_rand_state()
+  on.exit(set_rand_state(old_state))
+
+  # Retrieve parameters ans save them in a li
+  Parms = RetrieveParameters(theta,mod)
+
+  # check for causality
+  if( CheckStability(Parms$AR,Parms$MA) ){
+    message(sprintf('WARNING: The ARMA polynomial must be causal and invertible.'))
+    return(mod$loglik_BadValue1)
+  }
+
+  # Initialize the negative log likelihood computation
+  nloglik = ifelse(mod$nreg==0,  - log(mod$mypdf(mod$DependentVar[1],Parms$MargParms)),
+                   - log(mod$mypdf(mod$DependentVar[1], Parms$ConstMargParm, Parms$DynamMargParm[1,])))
+
+  # Compute the theoretical covariance for the AR model for current estimate
+  gt    = ARMAacf(ar = Parms$AR, ma = Parms$MA,lag.max = mod$n)
+
+  # Compute the best linear predictor coefficients and errors using Durbin Levinson
+  Phi = list()
+  for (t in 2:mod$n){
+    CurrentDL     = DLAcfToAR(gt[2:t])
+    Phi[[t-1]] = CurrentDL[,1]
+  }
+  Rt           = c(1,sqrt(as.numeric(CurrentDL[,3])))
+
+  # allocate memory for particle weights and the latent Gaussian Series particles, check me: do I weights for 1:T or only 2?
+  w     = matrix(0, mod$n, mod$ParticleNumber)
+  Z     = matrix(0, max(mod$ARMAModel), mod$ParticleNumber)
+
+  #======================   Start the SIS algorithm   ======================#
+  # Initialize the weights
+  w[1,] = rep(1,mod$ParticleNumber)
+
+  # Compute the first integral limits Limit$ a and Limit$b
+  Limit = ComputeLimits(mod, Parms, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
+
+  # Initialize particles from truncated normal distribution
+  Z[1,] = SampleTruncNormParticles(mod, Limit$a, Limit$b, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
+
+  # =================== Loop over t ===================== #
+  for (t in 2:mod$n){
+    # Compute the latent Gaussian predictions Zhat_t using Innovations Algorithm
+    Zhat  =         Phi[[t-1]]%*%Z[1:(t-1),]
+
+    # Compute integral limits
+    Limit = ComputeLimits(mod, Parms, t, Zhat, Rt)
+
+    # Sample truncated normal particles
+    Znew  = SampleTruncNormParticles(mod, Limit$a, Limit$b,t, Zhat, Rt)
+
+    # update weights
+    w[t,] = ComputeWeights(mod, Limit$a, Limit$b, t, w[(t-1),])
+
+    # check me: break if I got NA weight
+    if (any(is.na(w[t,]))| sum(w[t,])==0 ){
+      message(sprintf('WARNING: Some of the weights are either too small or sum to 0'))
+      return(mod$loglik_BadValue2)
     }
+
+    # Resample the particles using common random numbers
+    old_state1 = get_rand_state()
+    Znew = ResampleParticles(mod, w, t, Znew)
+    set_rand_state(old_state1)
+
+    # Combine current particles, with particles from previous iterations
+    Z = rbind(Znew, matrix(Z[1:(t-1),],ncol = mod$ParticleNumber))
+
+    # update log-likelihood
+    nloglik = nloglik - log(mean(w[t,]))
   }
-  return(x)
+
+  return(nloglik)
 }
 
-# Mixed Poisson cdf
-pmixpois = function(x, lam1, lam2,p){
-  y = p*ppois(x,lam1) + (1-p)*ppois(x,lam2)
-  return(y)
-}
+# PF likelihood with resampling for MA(q)
+ParticleFilter_Res_MA = function(theta, mod){
+  #------------------------------------------------------------------------------------#
+  # PURPOSE:  Use particle filtering with resampling to approximate the likelihood
+  #           of the a specified count time series model with an underlying MA(1)
+  #           dependence structure.
+  #
+  # NOTES:    1. See "Latent Gaussian Count Time Series Modeling" for  more
+  #           details. A first version of the paper can be found at:
+  #           https://arxiv.org/abs/1811.00203
+  #           2. This function is very similar to LikSISGenDist_ARp but here
+  #           I have a resampling step.
+  #
+  # INPUTS:
+  #    theta:            parameter vector
+  #    data:             data
+  #    ParticleNumber:   number of particles to be used.
+  #    Regressor:        independent variable
+  #    CountDist:        count marginal distribution
+  #    epsilon           resampling when ESS<epsilon*N
+  #
+  # OUTPUT:
+  #    loglik:           approximate log-likelihood
+  #
+  #
+  # AUTHORS: James Livsey, Vladas Pipiras, Stefanos Kechagias,
+  # DATE:    July 2020
+  #------------------------------------------------------------------------------------#
 
-# mass of Mixed Poisson
-dmixpois = function(x, lam1, lam2, p){
-  y = p*dpois(x,lam1) + (1-p)*dpois(x,lam2)
-  return(y)
-}
+  old_state <- get_rand_state()
+  on.exit(set_rand_state(old_state))
 
-# Generalized Poisson pdfs
-dGpois = function(y,a,m){
-  k = m/(1+a*m)
-  return( k^y * (1+a*y)^(y-1) * exp(-k*(1+a*y)-lgamma(y+1)))
-}
+  # Retrieve parameters and save them in a list called Parms
+  Parms = RetrieveParameters(theta,mod)
 
-# Generalized Poisson cdf for one m---------#
-pgpois1 = function(x,a,m){
-  M = max(x,0)
-  bb = dGpois(0:M,a,m)
-  cc = cumsum(bb)
-  g = rep(0,length(x))
-  g[x>=0] = cc[x+1]
-  return(g)
-}
-
-#--------- Generalized Poisson pdf for multiple m---------#
-pGpois = function(x,a,m){
-
-  if (length(m)>1){
-    r = mapply(pgpois1, x=x, a, m = m)
-  }else{
-    r = pgpois1(x, a, m)
+  # check for causality
+  if( CheckStability(Parms$AR,Parms$MA) ){
+    message(sprintf('WARNING: The ARMA polynomial must be causal and invertible.'))
+    return(mod$loglik_BadValue1)
   }
-  return(r)
-}
 
-#--------- Generalized Poisson icdf for 1 m---------#
-qgpois1 <- function(p,a,m) {
-  check.list <- pGpois(0:100,a,m)
-  quantile.vec <- rep(-99,length(p))
 
-  for (i in 1:length(p)) {
-    x <- which(check.list>=p[i],arr.ind = T)[1]
-    quantile.vec[i] <- x-1
+  # Initialize the negative log likelihood computation
+  nloglik = ifelse(mod$nreg==0,  - log(mod$mypdf(mod$DependentVar[1],Parms$MargParms)),
+                   - log(mod$mypdf(mod$DependentVar[1], Parms$ConstMargParm, Parms$DynamMargParm[1,])))
+
+  # Compute covariance up to lag n-1
+  gt    = as.vector(ARMAacf(ar = Parms$AR, ma = Parms$MA, lag.max = mod$n))
+
+  # Compute coefficients of Innovations Algorithm see 5.2.16 and 5.3.9 in in Brockwell Davis book
+  IA    = innovations.algorithm(gt)
+  Theta = IA$thetas
+  Rt    = sqrt(IA$vs)
+
+  # allocate matrices for weights, particles and innovations which are equal to Z-Zhat
+  w     = matrix(0, mod$n, mod$ParticleNumber)
+  Z     = matrix(0, max(mod$ARMAModel), mod$ParticleNumber)
+  Inn   = matrix(0, max(mod$ARMAModel), mod$ParticleNumber)
+
+  # particle filter weights
+  w[1,]   = rep(1,mod$ParticleNumber)
+
+  # Compute the first integral limits Limit$ a and Limit$b
+  Limit = ComputeLimits(mod, Parms, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
+
+  # Generate N(0,1) variables restricted to (ai,bi),i=1,...n
+  Z[1,]   = SampleTruncNormParticles(mod, Limit$a, Limit$b, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
+
+  # Compute the first innovation (Zhat_1=0)
+  Inn[1,] = Z[1,]
+
+
+  for (t in 2:mod$n){
+
+    # Compute the latent Gaussian predictions Zhat_t using Innovations Algorithm - see 5.3.9 in Brockwell Davis book
+    if(mod$ParticleNumber==1){
+      if(t==2){
+        Zhat  =         Inn[1:(min(t-1,mod$nMA)),] %*% Theta[[t-1]][1:(min(t-1,mod$nMA))]
+      }else{
+        Zhat  = colSums(Inn[1:(min(t-1,mod$nMA)),] %*% Theta[[t-1]][1:(min(t-1,mod$nMA))])
+      }
+    }else{
+      if(t==2){
+        Zhat  =         Inn[1:(min(t-1,mod$nMA)),] * Theta[[t-1]][1:(min(t-1,mod$nMA))]
+      }else{
+        Zhat  = colSums(Inn[1:(min(t-1,mod$nMA)),] * Theta[[t-1]][1:(min(t-1,mod$nMA))])
+      }
+    }
+
+    # Compute integral limits
+    Limit = ComputeLimits(mod, Parms, t, Zhat, Rt)
+
+    # Sample truncated normal particles
+    Znew  = SampleTruncNormParticles(mod, Limit$a, Limit$b, t, Zhat, Rt)
+
+    # update weights
+    w[t,] = ComputeWeights(mod, Limit$a, Limit$b, t, w[(t-1),])
+
+    # check me: break if I got NA weight
+    if (any(is.na(w[t,]))| sum(w[t,])==0 ){
+      message(sprintf('WARNING: Some of the weights are either too small or sum to 0'))
+      return(mod$loglik_BadValue2)
+    }
+
+    # Resample the particles using common random numbers
+    old_state1 = get_rand_state()
+    Znew = ResampleParticles(mod, w, t, Znew)
+    set_rand_state(old_state1)
+
+    # Compute the new Innovation
+    InnNew = Znew - Zhat
+
+    # Combine current particles, with particles from previous iterations
+    Inn[1:min(t,mod$nMA),] = rbind(matrix(InnNew,ncol=mod$ParticleNumber), matrix(Inn[1:min(t-1,mod$nMA-1),],ncol = mod$ParticleNumber))
+
+    # update likelihood
+    nloglik = nloglik - log(mean(w[t,]))
+
   }
-  return(quantile.vec)
-}
 
-#--------- Generalized Poisson icdf for many m---------#
-qGpois = function(p,a,m){
+  # for log-likelihood we use a bias correction--see par2.3 in Durbin Koopman, 1997
+  # nloglik = nloglik- (1/(2*N))*(var(na.omit(wgh[T1,]))/mean(na.omit(wgh[T1,])))/mean(na.omit(wgh[T1,]))
 
-  if (length(m)>1){
-    r = mapply(qgpois1, p=p, a, m = m)
-  }else{
-    r = qgpois1(p,a,m)
-  }
-  return(r)
-}
+  # if (nloglik==Inf | is.na(nloglik)){
+  #   nloglik = 10^8
+  # }
 
-#--------- Generate Gen Poisson datas---------#
-rGpois = function(n, a,m){
-  u = runif(n)
-  x = qGpois(u,a, m)
-  return(x)
+
+  return(nloglik)
 }
 
 
+# PF likelihood with resampling
+ParticleFilter_Res = function(theta, mod){
+  #--------------------------------------------------------------------------#
+  # PURPOSE:  Use particle filtering with resampling
+  #           to approximate the likelihood of the
+  #           a specified count time series model with an underlying AR(p)
+  #           dependence structure or MA(q) structure.
+  #
+  # NOTES:    1. See "Latent Gaussian Count Time Series Modeling" for  more
+  #           details. A first version of the paer can be found at:
+  #           https://arxiv.org/abs/1811.00203
+
+  #
+  # INPUTS:
+  #    theta:            parameter vector
+  #    data:             dependent variable
+  #    Regressor:        independent variables
+  #    ParticleNumber:   number of particles to be used in likelihood approximation
+  #    CountDist:        count marginal distribution
+  #    epsilon           resampling when ESS<epsilon*N
+  #
+  # OUTPUT:
+  #    loglik:           approximate log-likelihood
+  #
+  #
+  # AUTHORS: James Livsey, Vladas Pipiras, Stefanos Kechagias,
+  # DATE:    July 2020
+  #--------------------------------------------------------------------------#
+
+  loglik = ParticleFilter_Res_ARMA(theta, mod)
+
+  # # Pure AR model - uses DL
+  # if(mod$ARMAModel[1]>0 && mod$ARMAModel[2]==0 )  loglik = ParticleFilter_Res_AR(theta, mod)
+  #
+  # # Pure MA model - uses a non optimized INALg
+  # if(mod$ARMAModel[1]==0 && mod$ARMAModel[2]>=0 ) loglik = ParticleFilter_Res_MA(theta, mod)
+  #
+  # # ARMA model - uses optimized InAlg
+  # if(mod$ARMAModel[1]>0 && mod$ARMAModel[2]>0 )   loglik = ParticleFilter_Res_ARMA(theta, mod)
+
+  return(loglik)
+}
 
 
 

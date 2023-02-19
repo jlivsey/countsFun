@@ -26,13 +26,16 @@ lgc = function(DependentVar   = NULL,
                ParamScheme    = NULL,
                maxdiff        = 10^(-8) ){
 
-
   # parse all the parameters and the data into a list called mod
   mod = ModelScheme(DependentVar, Regressor, EstMethod, ARMAModel, CountDist,ParticleNumber, epsilon,
                     initialParam, TrueParam, Task,SampleSize, OptMethod, OutputType, ParamScheme, maxdiff)
 
-  # fix me: we need to do implement error checking
-  if(mod$error) stop(mod$errorMsg)
+
+  # # If we had error in parsing stop and return
+  # if(!is.null(mod$ErrorCode)){
+  #   out = ErrorOutput(mod)
+  #   return(out)
+  # }
 
   # if simulation task has been chosen simulate the data and compute initial estimates check me how fast is this?
   if(Task=='Simulation'){
@@ -58,18 +61,17 @@ lgc = function(DependentVar   = NULL,
 
     # run foreach
     out = foreach(index = 1:nsim,
-                  .combine = rbind,
-                  .packages = c("ltsa", "optimx", 'tictoc', 'countsFun'))  %dopar%  {
-                    mod$DependentVar =  AllSimulatedSeries[[index]]
-                    theta  = mod$initialParam = AllInitialParam[[index]]
-                    FitMultiplePF_Res(theta,mod)
-                  }
+                .combine = rbind,
+                .packages = c("ltsa", "optimx", 'tictoc', 'countsFun'))  %dopar%  {
+                  mod$DependentVar =  AllSimulatedSeries[[index]]
+                  theta  = mod$initialParam = AllInitialParam[[index]]
+                  FitMultiplePF_Res(theta,mod)
+                }
 
     stopCluster(cl)
   }
 
   if(Task %in% c('Evaluation', 'Optimization')){
-# t1 = tic()
     # compute initial parameters if they haven't been provided and save them in mod
     if (is.null(initialParam)){
       theta  = InitEst = InitialEstimates(mod)
@@ -77,23 +79,17 @@ lgc = function(DependentVar   = NULL,
     }else{
       theta  = InitEst = mod$initialParam
     }
-# t1 = tic()-t1
-# print(t1)
-
     # fit the model using PF
     if(EstMethod=="PFR"){
-      # t2 = tic()
       out = FitMultiplePF_Res(theta, mod)
-      # t2 = tic()-t2
-      # print(t2)
     }
-
   }
 
-  # create an lgc object and save the initial estimate
-  class(out) = "lgc"
 
-  return(out)
+# create an lgc object and save the initial estimate
+class(out) = "lgc"
+
+return(out)
 
 }
 
