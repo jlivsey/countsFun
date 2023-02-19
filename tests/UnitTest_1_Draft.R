@@ -46,6 +46,7 @@ OutputType        = "list"
 ParamScheme       = NULL
 maxdiff           = 10^(-8)
 
+# initialize the data frame where I will save the model specs and the results
 df$Errors   = rep("", nrow(df))
 df$Warnings = rep("", nrow(df))
 df$RunTime  = rep(NA, nrow(df))
@@ -60,13 +61,14 @@ df$MA_1   = rep(NA, nrow(df))
 
 for(i in 1:nrow(df)){
 
+  # take count data for current iteration
   Sample = df[i,]
 
-  # generate a regressor if the model scheme has regressor present
+  # generate a regressor variable if the model scheme has regressor present
   Regressor         = NULL
   if(Sample$Regressor) Regressor = cbind(rep(1,Sample$SampleSize), rnorm(Sample$SampleSize,0,1))
 
-  # generate model Parameters according to model scheme
+  # generate model Parameters according to model scheme - currently workd for Poisson and Neg Bin
   set.seed(i)
   AllParms = GenModelParam(Sample$CountDist, BadParamProb, Sample$AROrder, Sample$MAOrder, Regressor)
 
@@ -74,7 +76,7 @@ for(i in 1:nrow(df)){
   PertubedInitParam = NULL
   if(Sample$InitialVal) PertubedInitParam = GenInitVal(AllParms, perturbation)
 
-  # Specify model and methods
+  # Specify model and method variables that need to be uses as inoputs in the wrapper
   n              = Sample$SampleSize
   CountDist      = Sample$CountDist
   MargParm       = AllParms$MargParm
@@ -85,21 +87,21 @@ for(i in 1:nrow(df)){
   TrueParam      = unlist(AllParms)
   initialParam   = unlist(PertubedInitParam)
 
-  # simulate count data
+  # simulate count data from current model specifications
   set.seed(5200+i)
   DependentVar   = sim_lgc(Sample$SampleSize, Sample$CountDist, AllParms$MargParm, AllParms$ARParm, AllParms$MAParm, Regressor)
 
-  # add a non-existent distribution
+  # add a non-existent distribution so that we create some errors
   if(i<=3){
     CountDist = "Bozo"
   }
 
-  # make one iteration non-causal ARMA
+  # make one iteration non-causal ARMA so that we induce the non-causality error
   if(i==6){
     initialParam[3] = 1.2
   }
 
-  # make one iniital parameter have wrong length
+  # make one initial parameter have wrong length to see if we will catch the error
   if(i==7){
     initialParam = 1
   }
@@ -153,7 +155,7 @@ for(i in 1:nrow(df)){
       }
     }
 
-    # save marginal parameters if Poisson
+    # save marginal parameters if NegBin
     if(df$CountDist[i]=="Negative Binomial"){
       if (df$Regressor[i]){
         df$b_0[i] = r$ParamEstimates[,"b_0"]
