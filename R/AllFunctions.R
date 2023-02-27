@@ -426,14 +426,15 @@ FitMultiplePF_Res = function(theta, mod){
                                 "value",  "fevals", "gevals", "niter", "convcode",  "kkt1", "kkt2", "xtime")
 
         optim.output[,1:length(theta)] = theta
-        t4 = tic()
+        startTime = Sys.time()
         loglikelihood = ParticleFilter_Res_ARMA(theta,mod)
-        t4 = tic()-t4
+        endTime = Sys.time()
+        runTime = difftime(endTime, startTime, units = 'secs')
         optim.output[,(length(theta)+1)] = loglikelihood
         optim.output[,(length(theta)+2)] = 1
         optim.output[,(length(theta)+3)] = 1
         optim.output[,(length(theta)+4)] = 0
-        optim.output[,(length(theta)+8)] = as.numeric(t4)
+        optim.output[,(length(theta)+8)] = as.numeric(runTime)
       }
 
 
