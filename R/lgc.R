@@ -31,12 +31,6 @@ lgc = function(DependentVar   = NULL,
                     initialParam, TrueParam, Task,SampleSize, OptMethod, OutputType, ParamScheme, maxdiff)
 
 
-  # # If we had error in parsing stop and return
-  # if(!is.null(mod$ErrorCode)){
-  #   out = ErrorOutput(mod)
-  #   return(out)
-  # }
-
   # if simulation task has been chosen simulate the data and compute initial estimates check me how fast is this?
   if(Task=='Simulation'){
     AllSimulatedSeries <- vector(mode='list', length=nsim)

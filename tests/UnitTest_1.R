@@ -60,7 +60,7 @@ df$b_1    = rep(NA, nrow(df))
 df$AR_1   = rep(NA, nrow(df))
 df$MA_1   = rep(NA, nrow(df))
 
-for(i in 1:30){
+for(i in 1:nrow(df)){
 
   # take count data for current iteration
   Sample = df[i,]
@@ -92,43 +92,29 @@ for(i in 1:30){
   set.seed(5200+i)
   DependentVar   = sim_lgc(Sample$SampleSize, Sample$CountDist, AllParms$MargParm, AllParms$ARParm, AllParms$MAParm, Regressor)
 
-  # add a non-existent distribution so that we create some errors
-  if(i<=3){
-    CountDist = "Bozo"
-  }
-
-  # make one iteration non-causal ARMA so that we induce the non-causality error
-  if(i==6){
-    initialParam[3] = 1.2
-  }
-
-  # make one initial parameter have wrong length to see if we will catch the error
-  if(i==7){
-    initialParam = 1
-  }
 
   # Run the wrapper
   startTime = Sys.time()
   r = tryCatch(
     lgc(DependentVar = DependentVar,
-            Regressor      = Regressor,
-            EstMethod      = EstMethod,
-            CountDist      = CountDist,
-            ARMAModel      = ARMAModel,
-            ParticleNumber = ParticleNumber,
-            epsilon        = epsilon,
-            initialParam   = initialParam,
-            TrueParam      = TrueParam,
-            Task           = Task,
-            SampleSize     = SampleSize,
-            nsim           = nsim,
-            no_cores       = no_cores,
-            OptMethod      = OptMethod,
-            OutputType     = OutputType,
-            ParamScheme    = ParamScheme,
-            maxdiff        = maxdiff),
+        Regressor      = Regressor,
+        EstMethod      = EstMethod,
+        CountDist      = CountDist,
+        ARMAModel      = ARMAModel,
+        ParticleNumber = ParticleNumber,
+        epsilon        = epsilon,
+        initialParam   = initialParam,
+        TrueParam      = TrueParam,
+        Task           = Task,
+        SampleSize     = SampleSize,
+        nsim           = nsim,
+        no_cores       = no_cores,
+        OptMethod      = OptMethod,
+        OutputType     = OutputType,
+        ParamScheme    = ParamScheme,
+        maxdiff        = maxdiff),
     error   = function(e) list(Errors = e$message)
-    )
+  )
   endTime = Sys.time()
 
   # save the runtime
@@ -169,7 +155,7 @@ for(i in 1:30){
 
     # save the likelihood
     df$loglik[i] = r$FitStatistics["loglik"]
-    }
+  }
 
 }
 

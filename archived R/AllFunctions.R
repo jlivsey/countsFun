@@ -1345,3 +1345,706 @@
 # }
 #
 #
+
+#
+#
+#
+# # Feb 25 Archiving old version of PArticle fityler functions.
+#
+# # PF likelihood with resampling for AR(p)
+# ParticleFilter_Res_AR_Old = function(theta, mod){
+#   #--------------------------------------------------------------------------#
+#   # PURPOSE:  Use particle filtering with resampling
+#   #           to approximate the likelihood of the
+#   #           a specified count time series model with an underlying AR(p)
+#   #           dependence structure. A singloe dummy regression is added here.
+#   #
+#   # NOTES:    1. See "Latent Gaussian Count Time Series Modeling" for  more
+#   #           details. A first version of the paer can be found at:
+#   #           https://arxiv.org/abs/1811.00203
+#   #           2. This function is very similar to LikSISGenDist_ARp but here
+#   #           I have a resampling step.
+#   #
+#   # INPUTS:
+#   #    theta:            parameter vector
+#   #    data:             data
+#   #    ParticleNumber:   number of particles to be used.
+#   #    CountDist:        count marginal distribution
+#   #    epsilon           resampling when ESS<epsilon*N
+#   #
+#   # OUTPUT:
+#   #    loglik:           approximate log-likelihood
+#   #
+#   #
+#   # AUTHORS: James Livsey, Vladas Pipiras, Stefanos Kechagias,
+#   # DATE:    July  2020
+#   #--------------------------------------------------------------------------#
+#
+#   old_state <- get_rand_state()
+#   on.exit(set_rand_state(old_state))
+#
+#
+#   #-----------  Step 0: Retrieve values from the mod Structure --------------#
+#
+#   # marginal parameters
+#   MargParms        = theta[mod$MargParmIndices]
+#
+#   # regressor parameters
+#   if(mod$nreg>0){
+#     beta  = MargParms[1:(mod$nreg+1)]
+#     m     = exp(mod$Regressor%*%beta)
+#   }
+#
+#   # GLM type parameters
+#   if(mod$CountDist == "Negative Binomial" && mod$nreg>0){
+#     ConstMargParm  = 1/MargParms[mod$nreg+2]
+#     DynamMargParm  = MargParms[mod$nreg+2]*m/(1+MargParms[mod$nreg+2]*m)
+#   }
+#
+#   if(mod$CountDist == "Generalized Poisson" && mod$nreg>0){
+#     ConstMargParm  = MargParms[mod$nreg+2]
+#     DynamMargParm  = m
+#   }
+#
+#   if(mod$CountDist == "Poisson" && mod$nreg>0){
+#     ConstMargParm  = NULL
+#     DynamMargParm  = m
+#   }
+#
+#   # ARMA parameters
+#   AR = NULL
+#   if(mod$ARMAModel[1]>0) AR = theta[(mod$nMargParms+1):(mod$nMargParms + mod$ARMAModel[1])]
+#
+#   MA = NULL
+#   if(mod$ARMAModel[2]>0) MA = theta[(mod$nMargParms+mod$ARMAModel[1]+1) :
+#                                       (mod$nMargParms + mod$ARMAModel[1] + mod$ARMAModel[2]) ]
+#
+#   # check for causality
+#   if( CheckStability(AR,MA) ) return(10^(8))
+#
+#
+#   # sample size and number of particles
+#   T1      = length(mod$DependentVar)
+#   N       = mod$ParticleNumber
+#
+#   # Initialize the negative log likelihood computation
+#   nloglik = ifelse(mod$nreg==0,  - log(mod$mypdf(mod$DependentVar[1],MargParms)),
+#                    - log(mod$mypdf(mod$DependentVar[1], ConstMargParm, DynamMargParm[1])))
+#
+#   # Compute the theoretical covariance for the AR model for current estimate
+#   gt      = ARMAacf(ar = AR, ma = MA)[2:(max(mod$ARMAModel)+1)]
+#
+#   # Compute the best linear predictor coefficients and errors using Durbin Levinson
+#   DL      = DLAcfToAR(gt)
+#   phit    = DL[,1]
+#   Rt      = sqrt(DL[,3])
+#
+#
+#   # allocate memory for particle weights and the latent Gaussian Series particles
+#   wgh     = matrix(0,T1,N)
+#   Z       = matrix(0,mod$ARMAModel[1],N)
+#
+#   #======================   Start the SIS algorithm   ======================#
+#   # Initialize the weights and the latent Gaussian series particles
+#   wgh[1,] = rep(1,N)
+#
+#   if(mod$nreg==0){
+#     a       = rep( qnorm(mod$mycdf(mod$DependentVar[1]-1,t(MargParms)),0,1), N)
+#     b       = rep( qnorm(mod$mycdf(mod$DependentVar[1],t(MargParms)),0,1), N)
+#   }else{
+#     a       = rep( qnorm(mod$mycdf(mod$DependentVar[1]-1,ConstMargParm, DynamMargParm[1,]),0,1), N)
+#     b       = rep( qnorm(mod$mycdf(mod$DependentVar[1],ConstMargParm, DynamMargParm[1,]),0,1), N)
+#   }
+#
+#   Z[1,]   = qnorm(runif(length(a),0,1)*(pnorm(b,0,1)-pnorm(a,0,1))+pnorm(a,0,1),0,1)
+#
+#   # =================== Loop from 2 to AR order===================== #
+#   if (mod$ARMAModel[1]>=2){
+#     for (t in 2: (mod$ARMAModel[1])){
+#       # STEP 1 in SIS: Compute the latent Gaussian predictions Zhat using Durbin Levinson
+#       if (t==2) {
+#         Zhat = Z[1,]*phit[1]
+#       } else{
+#         Zhat = colSums(Z[1:(t-1),]*phit[1:(t-1)])
+#       }
+#
+#       # STEP 2 is SIS: Update the latent Gaussian series Z and the importance weights w
+#       if(mod$nreg==0){
+#         a = (qnorm(mod$mycdf(mod$DependentVar[t]-1,t(MargParms)),0,1) - Zhat)/Rt[t]
+#         b = (qnorm(mod$mycdf(mod$DependentVar[t],t(MargParms)),0,1) - Zhat)/Rt[t]
+#       }else{
+#         a = (qnorm(mod$mycdf(mod$DependentVar[t]-1,ConstMargParm, DynamMargParm[t]),0,1) - Zhat)/Rt[t]
+#         b = (qnorm(mod$mycdf(mod$DependentVar[t],ConstMargParm, DynamMargParm[t]),0,1) - Zhat)/Rt[t]
+#       }
+#
+#       Z[1:t,] = rbind(qnorm(runif(length(a),0,1)*(pnorm(b,0,1)-pnorm(a,0,1))+pnorm(a,0,1),0,1)*Rt[t] + Zhat, Z[1:(t-1),])
+#       wgh[t,] = wgh[t-1,]*(pnorm(b,0,1) - pnorm(a,0,1))
+#
+#       # update likelihood
+#       nloglik = nloglik - log(mean(wgh[t,]))
+#       # print(t)
+#       # print(nloglik)
+#     }
+#   }
+#   # =================== Loop from AR order + 1  to T ===================== #
+#   # From p to T1 I don't need to estimate phi anymore
+#   for (t in (mod$ARMAModel[1]+1):T1){
+#
+#     # STEP 1 in SIS: Compute the latent Gaussian predictions Zhat using Durbin Levinson
+#     if(mod$ARMAModel[1]>1){# colsums doesnt work for 1-dimensional matrix
+#       Zhat = colSums(Z*phit)
+#     }else{
+#       Zhat =  Z*phit
+#     }
+#
+#     # STEP 2 is SISR: Update the latent Gaussian series Z
+#     if(mod$nreg==0){
+#       a = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t]-1,t(MargParms)),0,1)) - Zhat)/Rt[mod$ARMAModel[1]]
+#       b = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t],t(MargParms)),0,1)) - Zhat)/Rt[mod$ARMAModel[1]]
+#     }else{
+#       a = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t]-1,ConstMargParm, DynamMargParm[t]),0,1)) - Zhat)/Rt[mod$ARMAModel[1]]
+#       b = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t],ConstMargParm, DynamMargParm[t]),0,1)) - Zhat)/Rt[mod$ARMAModel[1]]
+#     }
+#
+#     Znew = qnorm(runif(length(a),0,1)*(pnorm(b,0,1)-pnorm(a,0,1))+pnorm(a,0,1),0,1)*Rt[mod$ARMAModel[1]] + Zhat
+#
+#     # compute unnormalized weights
+#     # wgh[t,] = wgh[t-1,]*(pnorm(b,0,1) - pnorm(a,0,1))
+#     wgh[t,] = (pnorm(b,0,1) - pnorm(a,0,1))
+#     # break if I got NA weight
+#     if (any(is.na(wgh[t,]))| sum(wgh[t,])==0 ){
+#       message(sprintf('WARNING: Some of the weights are either too small or sum to 0'))
+#       return(10^8)
+#     }
+#
+#     # compute normalized weights
+#     wghn = wgh[t,]/sum(wgh[t,])
+#
+#     # STEP 3 is SISR: Resample
+#     old_state1 <- get_rand_state()
+#     ESS = 1/sum(wghn^2)
+#     if(ESS<mod$epsilon*N){
+#       ind = rmultinom(1,N,wghn)
+#       # sample particles
+#       Znew = rep(Znew,ind)
+#     }
+#     set_rand_state(old_state1)
+#
+#
+#     # save particles
+#     if (mod$ARMAModel[1]>1){
+#       Z = rbind(Znew, Z[1:(mod$ARMAModel[1]-1),])
+#     }else {
+#       Z[1,]=Znew
+#     }
+#     # update likelihood
+#     nloglik = nloglik - log(mean(wgh[t,]))
+#     # print(t)
+#     # print(nloglik)
+#   }
+#
+#   return(nloglik)
+# }
+#
+# # PF likelihood with resampling for MA(q)
+# ParticleFilter_Res_MA_Old = function(theta, mod){
+#   #------------------------------------------------------------------------------------#
+#   # PURPOSE:  Use particle filtering with resampling to approximate the likelihood
+#   #           of the a specified count time series model with an underlying MA(1)
+#   #           dependence structure.
+#   #
+#   # NOTES:    1. See "Latent Gaussian Count Time Series Modeling" for  more
+#   #           details. A first version of the paper can be found at:
+#   #           https://arxiv.org/abs/1811.00203
+#   #           2. This function is very similar to LikSISGenDist_ARp but here
+#   #           I have a resampling step.
+#   #
+#   # INPUTS:
+#   #    theta:            parameter vector
+#   #    data:             data
+#   #    ParticleNumber:   number of particles to be used.
+#   #    Regressor:        independent variable
+#   #    CountDist:        count marginal distribution
+#   #    epsilon           resampling when ESS<epsilon*N
+#   #
+#   # OUTPUT:
+#   #    loglik:           approximate log-likelihood
+#   #
+#   #
+#   # AUTHORS: James Livsey, Vladas Pipiras, Stefanos Kechagias,
+#   # DATE:    July 2020
+#   #------------------------------------------------------------------------------------#
+#
+#   old_state <- get_rand_state()
+#   on.exit(set_rand_state(old_state))
+#
+#   # retrieve marginal parameters
+#   MargParms        = theta[mod$MargParmIndices]
+#
+#   # retrieve regressor parameters
+#   if(mod$nreg>0){
+#     beta  = MargParms[1:(mod$nreg+1)]
+#     m     = exp(mod$Regressor%*%beta)
+#   }
+#
+#   # retrieve GLM type  parameters
+#   if(mod$CountDist == "Negative Binomial" && mod$nreg>0){
+#     ConstMargParm  = 1/MargParms[mod$nreg+2]
+#     DynamMargParm  = MargParms[mod$nreg+2]*m/(1+MargParms[mod$nreg+2]*m)
+#   }
+#
+#   if(mod$CountDist == "Generalized Poisson" && mod$nreg>0){
+#     ConstMargParm  = MargParms[mod$nreg+2]
+#     DynamMargParm  = m
+#   }
+#
+#   if(mod$CountDist == "Poisson" && mod$nreg>0){
+#     ConstMargParm  = NULL
+#     DynamMargParm  = m
+#   }
+#
+#   # retrieve ARMA parameters
+#   AR = NULL
+#   if(mod$ARMAModel[1]>0) AR = theta[(mod$nMargParms+1):(mod$nMargParms + mod$ARMAModel[1])]
+#
+#   MA = NULL
+#   if(mod$ARMAModel[2]>0) MA = theta[(mod$nMargParms+mod$ARMAModel[1]+1) : (mod$nMargParms + mod$ARMAModel[1] + mod$ARMAModel[2]) ]
+#
+#   # check for causality
+#   if( CheckStability(AR,MA) ) return(10^(-6))
+#
+#
+#   T1 = length(mod$DependentVar)
+#   N = mod$ParticleNumber          # number of particles
+#
+#
+#   # allocate matrix to collect all particle weights
+#   wgh = matrix(0,length(mod$DependentVar),N)
+#
+#   # Compute integral limits
+#   if(mod$nreg==0){
+#     a = rep( qnorm(mod$mycdf(mod$DependentVar[1]-1,t(MargParms)),0,1), N)
+#     b = rep( qnorm(mod$mycdf(mod$DependentVar[1],t(MargParms)),0,1), N)
+#   }else{
+#     a = rep( qnorm(mod$mycdf(mod$DependentVar[1]-1, ConstMargParm, DynamMargParm[1]) ,0,1), N)
+#     b = rep( qnorm(mod$mycdf(mod$DependentVar[1], ConstMargParm, DynamMargParm[1]) ,0,1), N)
+#   }
+#
+#   # Generate N(0,1) variables restricted to (ai,bi),i=1,...n
+#   zprev = qnorm(runif(length(a),0,1)*(pnorm(b,0,1)-pnorm(a,0,1))+pnorm(a,0,1),0,1)
+#
+#
+#   # run innovations Algorithm for MA models that are not WN
+#   if(mod$ARMAModel[2]>0) Inn = matrix(0,N,mod$ARMAModel[2])   # I will save here the q many innovations (Z - Zhat) --see (5.3.9) BD book
+#   if (is.null(MA) && is.null(AR)){
+#     v0   = 1
+#     zhat = 0
+#   }else{
+#     # FIX ME: Check if the code below is correct in terms of the ARMAacf
+#     MA.acvf <- as.vector(ARMAacf(ma = MA, lag.max=T1))
+#     ia = innovations.algorithm(MA.acvf)
+#     Theta = ia$thetas
+#     # first stage of Innovations
+#     v0    = ia$vs[1]
+#     # zhat = -Theta[[1]][1]*zprev
+#     zhat = Theta[[1]][1]*zprev
+#     Inn[,ARMAModel[2]] = zprev
+#   }
+#
+#   # particle filter weights
+#   wprev   = rep(1,N)
+#   wgh[1,] = wprev
+#   nloglik = 0 # initialize likelihood
+#
+#   for (t in 2:T1){
+#
+#     # update innovations quantities if not White noise
+#     if (is.null(MA) && is.null(AR)){
+#       vt=1
+#     }else{
+#       vt0 = ia$vs[t]
+#       vt  = sqrt(vt0/v0)
+#     }
+#
+#     # roll the old Innovations to earlier columns
+#     if(mod$ARMAModel[2]>1) Inn[,1:(mod$ARMAModel[2]-1)] = Inn[,2:(mod$ARMAModel[2])]
+#
+#     # compute limits of truncated normal distribution
+#     if(mod$nreg==0){
+#       a = as.numeric(qnorm(mod$mycdf(mod$DependentVar[t]-1,MargParms),0,1) - zhat)/vt
+#       b = as.numeric(qnorm(mod$mycdf(mod$DependentVar[t],MargParms),0,1) -   zhat)/vt
+#     }else{
+#       a = as.numeric(qnorm(mod$mycdf(mod$DependentVar[t]-1,ConstMargParm, DynamMargParm[t]),0,1) - zhat)/vt
+#       b = as.numeric(qnorm(mod$mycdf(mod$DependentVar[t],ConstMargParm, DynamMargParm[t]),0,1) -   zhat)/vt
+#     }
+#
+#     # draw errors from truncated normal
+#     err = qnorm(runif(length(a),0,1)*(pnorm(b,0,1)-pnorm(a,0,1))+pnorm(a,0,1),0,1)
+#
+#     # Update the underlying Gaussian series (see step 3 in SIS section in the paper)
+#     znew = zhat + vt*err
+#
+#     # compute unnormalized weights
+#     wgh[t,] = pnorm(b,0,1) - pnorm(a,0,1)
+#
+#     # break if I got NA weight
+#     if (any(is.na(wgh[t,]))| sum(wgh[t,])<10^(-8) ){
+#       nloglik = 10^8
+#       break
+#     }
+#
+#     # normalized weights
+#     wghn = wgh[t,]/sum(wgh[t,])
+#
+#
+#     # Resampling: sample indices from multinomial distribution-see Step 4 of SISR in paper
+#     ESS = 1/sum(wghn^2)
+#     old_state1 <- get_rand_state()
+#     if(ESS<mod$epsilon*N){
+#       ind = rmultinom(1,N,wghn)
+#       # sample particles
+#       znew = rep(znew,ind)
+#
+#       # use low variance resampling
+#       #znew = lowVarianceRS(znew, wghn, N)
+#     }
+#
+#     # compute new innovation
+#     Inn[,mod$ARMAModel[2]] = (znew-zhat)
+#
+#     # update zhat--fix me can probably be vectorized
+#     if (is.null(MA) && is.null(AR)){
+#       zhat = 0
+#     }else{
+#       S = 0
+#       for(j in 1:min(t,mod$ARMAModel[2])){
+#         S = S+Theta[[t]][j]*Inn[,mod$ARMAModel[2]-j+1]
+#       }
+#       zhat = S
+#     }
+#
+#     set_rand_state(old_state1)
+#
+#     # update likelihood
+#     nloglik = nloglik - log(mean(wgh[t,]))
+#   }
+#
+#   # likelihood approximation
+#   if(mod$nreg<1){
+#     nloglik = nloglik - log(mod$mypdf(mod$DependentVar[1],MargParms))
+#   }else{
+#     nloglik = nloglik - log(mod$mypdf(mod$DependentVar[1], ConstMargParm, DynamMargParm[1]))
+#   }
+#
+#   # for log-likelihood we use a bias correction--see par2.3 in Durbin Koopman, 1997
+#   # nloglik = nloglik- (1/(2*N))*(var(na.omit(wgh[T1,]))/mean(na.omit(wgh[T1,])))/mean(na.omit(wgh[T1,]))
+#
+#
+#   if (nloglik==Inf | is.na(nloglik)){
+#     nloglik = 10^8
+#   }
+#
+#
+#   return(nloglik)
+# }
+#
+#
+# # PF likelihood with resampling for AR(p) - written more concicely
+# ParticleFilter_Res_AR = function(theta, mod){
+#   #--------------------------------------------------------------------------#
+#   # PURPOSE:  Use particle filtering with resampling
+#   #           to approximate the likelihood of the
+#   #           a specified count time series model with an underlying AR(p)
+#   #           dependence structure.
+#   #
+#   #
+#   # INPUTS:
+#   #    theta: parameter vector
+#   #      mod: a list containing all t he information for the model, such as
+#   #           count distribution. ARMA model, etc
+#   # OUTPUT:
+#   #    loglik: approximate log-likelihood
+#   #
+#   # AUTHORS: James Livsey, Vladas Pipiras, Stefanos Kechagias
+#   # DATE:    July  2020
+#   #--------------------------------------------------------------------------#
+#
+#   # keep track of the random seed to use common random numbers
+#   old_state <- get_rand_state()
+#   on.exit(set_rand_state(old_state))
+#
+#   # Retrieve parameters ans save them in a li
+#   Parms = RetrieveParameters(theta,mod)
+#
+#   # check for causality
+#   if( CheckStability(Parms$AR,Parms$MA) ){
+#     message(sprintf('WARNING: The ARMA polynomial must be causal and invertible.'))
+#     return(mod$loglik_BadValue1)
+#   }
+#
+#   # Initialize the negative log likelihood computation
+#   nloglik = ifelse(mod$nreg==0,  - log(mod$mypdf(mod$DependentVar[1],Parms$MargParms)),
+#                    - log(mod$mypdf(mod$DependentVar[1], Parms$ConstMargParm, Parms$DynamMargParm[1,])))
+#
+#   # Compute the theoretical covariance for the AR model for current estimate
+#   gt    = ARMAacf(ar = Parms$AR, ma = Parms$MA,lag.max = mod$n)
+#
+#   # Compute the best linear predictor coefficients and errors using Durbin Levinson
+#   Phi = list()
+#   for (t in 2:mod$n){
+#     CurrentDL     = DLAcfToAR(gt[2:t])
+#     Phi[[t-1]] = CurrentDL[,1]
+#   }
+#   Rt           = c(1,sqrt(as.numeric(CurrentDL[,3])))
+#
+#   # allocate memory for particle weights and the latent Gaussian Series particles, check me: do I weights for 1:T or only 2?
+#   w     = matrix(0, mod$n, mod$ParticleNumber)
+#   Z     = matrix(0, max(mod$ARMAModel), mod$ParticleNumber)
+#
+#   #======================   Start the SIS algorithm   ======================#
+#   # Initialize the weights
+#   w[1,] = rep(1,mod$ParticleNumber)
+#
+#   # Compute the first integral limits Limit$ a and Limit$b
+#   Limit = ComputeLimits(mod, Parms, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
+#
+#   # Initialize particles from truncated normal distribution
+#   Z[1,] = SampleTruncNormParticles(mod, Limit$a, Limit$b, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
+#
+#   # =================== Loop over t ===================== #
+#   for (t in 2:mod$n){
+#     # Compute the latent Gaussian predictions Zhat_t using Innovations Algorithm
+#     Zhat  =         Phi[[t-1]]%*%Z[1:(t-1),]
+#
+#     # Compute integral limits
+#     Limit = ComputeLimits(mod, Parms, t, Zhat, Rt)
+#
+#     # Sample truncated normal particles
+#     Znew  = SampleTruncNormParticles(mod, Limit$a, Limit$b,t, Zhat, Rt)
+#
+#     # update weights
+#     w[t,] = ComputeWeights(mod, Limit$a, Limit$b, t, w[(t-1),])
+#
+#     # check me: break if I got NA weight
+#     if (any(is.na(w[t,]))| sum(w[t,])==0 ){
+#       message(sprintf('WARNING: Some of the weights are either too small or sum to 0'))
+#       return(mod$loglik_BadValue2)
+#     }
+#
+#     # Resample the particles using common random numbers
+#     old_state1 = get_rand_state()
+#     Znew = ResampleParticles(mod, w, t, Znew)
+#     set_rand_state(old_state1)
+#
+#     # Combine current particles, with particles from previous iterations
+#     Z = rbind(Znew, matrix(Z[1:(t-1),],ncol = mod$ParticleNumber))
+#
+#     # update log-likelihood
+#     nloglik = nloglik - log(mean(w[t,]))
+#   }
+#
+#   return(nloglik)
+# }
+#
+# # PF likelihood with resampling for MA(q)
+# ParticleFilter_Res_MA = function(theta, mod){
+#   #------------------------------------------------------------------------------------#
+#   # PURPOSE:  Use particle filtering with resampling to approximate the likelihood
+#   #           of the a specified count time series model with an underlying MA(1)
+#   #           dependence structure.
+#   #
+#   # NOTES:    1. See "Latent Gaussian Count Time Series Modeling" for  more
+#   #           details. A first version of the paper can be found at:
+#   #           https://arxiv.org/abs/1811.00203
+#   #           2. This function is very similar to LikSISGenDist_ARp but here
+#   #           I have a resampling step.
+#   #
+#   # INPUTS:
+#   #    theta:            parameter vector
+#   #    data:             data
+#   #    ParticleNumber:   number of particles to be used.
+#   #    Regressor:        independent variable
+#   #    CountDist:        count marginal distribution
+#   #    epsilon           resampling when ESS<epsilon*N
+#   #
+#   # OUTPUT:
+#   #    loglik:           approximate log-likelihood
+#   #
+#   #
+#   # AUTHORS: James Livsey, Vladas Pipiras, Stefanos Kechagias,
+#   # DATE:    July 2020
+#   #------------------------------------------------------------------------------------#
+#
+#   old_state <- get_rand_state()
+#   on.exit(set_rand_state(old_state))
+#
+#   # Retrieve parameters and save them in a list called Parms
+#   Parms = RetrieveParameters(theta,mod)
+#
+#   # check for causality
+#   if( CheckStability(Parms$AR,Parms$MA) ){
+#     message(sprintf('WARNING: The ARMA polynomial must be causal and invertible.'))
+#     return(mod$loglik_BadValue1)
+#   }
+#
+#
+#   # Initialize the negative log likelihood computation
+#   nloglik = ifelse(mod$nreg==0,  - log(mod$mypdf(mod$DependentVar[1],Parms$MargParms)),
+#                    - log(mod$mypdf(mod$DependentVar[1], Parms$ConstMargParm, Parms$DynamMargParm[1,])))
+#
+#   # Compute covariance up to lag n-1
+#   gt    = as.vector(ARMAacf(ar = Parms$AR, ma = Parms$MA, lag.max = mod$n))
+#
+#   # Compute coefficients of Innovations Algorithm see 5.2.16 and 5.3.9 in in Brockwell Davis book
+#   IA    = innovations.algorithm(gt)
+#   Theta = IA$thetas
+#   Rt    = sqrt(IA$vs)
+#
+#   # allocate matrices for weights, particles and innovations which are equal to Z-Zhat
+#   w     = matrix(0, mod$n, mod$ParticleNumber)
+#   Z     = matrix(0, max(mod$ARMAModel), mod$ParticleNumber)
+#   Inn   = matrix(0, max(mod$ARMAModel), mod$ParticleNumber)
+#
+#   # particle filter weights
+#   w[1,]   = rep(1,mod$ParticleNumber)
+#
+#   # Compute the first integral limits Limit$ a and Limit$b
+#   Limit = ComputeLimits(mod, Parms, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
+#
+#   # Generate N(0,1) variables restricted to (ai,bi),i=1,...n
+#   Z[1,]   = SampleTruncNormParticles(mod, Limit$a, Limit$b, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
+#
+#   # Compute the first innovation (Zhat_1=0)
+#   Inn[1,] = Z[1,]
+#
+#
+#   for (t in 2:mod$n){
+#
+#     # Compute the latent Gaussian predictions Zhat_t using Innovations Algorithm - see 5.3.9 in Brockwell Davis book
+#     if(mod$ParticleNumber==1){
+#       if(t==2){
+#         Zhat  =         Inn[1:(min(t-1,mod$nMA)),] %*% Theta[[t-1]][1:(min(t-1,mod$nMA))]
+#       }else{
+#         Zhat  = colSums(Inn[1:(min(t-1,mod$nMA)),] %*% Theta[[t-1]][1:(min(t-1,mod$nMA))])
+#       }
+#     }else{
+#       if(t==2){
+#         Zhat  =         Inn[1:(min(t-1,mod$nMA)),] * Theta[[t-1]][1:(min(t-1,mod$nMA))]
+#       }else{
+#         Zhat  = colSums(Inn[1:(min(t-1,mod$nMA)),] * Theta[[t-1]][1:(min(t-1,mod$nMA))])
+#       }
+#     }
+#
+#     # Compute integral limits
+#     Limit = ComputeLimits(mod, Parms, t, Zhat, Rt)
+#
+#     # Sample truncated normal particles
+#     Znew  = SampleTruncNormParticles(mod, Limit$a, Limit$b, t, Zhat, Rt)
+#
+#     # update weights
+#     w[t,] = ComputeWeights(mod, Limit$a, Limit$b, t, w[(t-1),])
+#
+#     # check me: break if I got NA weight
+#     if (any(is.na(w[t,]))| sum(w[t,])==0 ){
+#       message(sprintf('WARNING: Some of the weights are either too small or sum to 0'))
+#       return(mod$loglik_BadValue2)
+#     }
+#
+#     # Resample the particles using common random numbers
+#     old_state1 = get_rand_state()
+#     Znew = ResampleParticles(mod, w, t, Znew)
+#     set_rand_state(old_state1)
+#
+#     # Compute the new Innovation
+#     InnNew = Znew - Zhat
+#
+#     # Combine current particles, with particles from previous iterations
+#     Inn[1:min(t,mod$nMA),] = rbind(matrix(InnNew,ncol=mod$ParticleNumber), matrix(Inn[1:min(t-1,mod$nMA-1),],ncol = mod$ParticleNumber))
+#
+#     # update likelihood
+#     nloglik = nloglik - log(mean(w[t,]))
+#
+#   }
+#
+#   # for log-likelihood we use a bias correction--see par2.3 in Durbin Koopman, 1997
+#   # nloglik = nloglik- (1/(2*N))*(var(na.omit(wgh[T1,]))/mean(na.omit(wgh[T1,])))/mean(na.omit(wgh[T1,]))
+#
+#   # if (nloglik==Inf | is.na(nloglik)){
+#   #   nloglik = 10^8
+#   # }
+#
+#
+#   return(nloglik)
+# }
+#
+#
+# # PF likelihood with resampling
+# ParticleFilter_Res = function(theta, mod){
+#   #--------------------------------------------------------------------------#
+#   # PURPOSE:  Use particle filtering with resampling
+#   #           to approximate the likelihood of the
+#   #           a specified count time series model with an underlying AR(p)
+#   #           dependence structure or MA(q) structure.
+#   #
+#   # NOTES:    1. See "Latent Gaussian Count Time Series Modeling" for  more
+#   #           details. A first version of the paer can be found at:
+#   #           https://arxiv.org/abs/1811.00203
+#
+#   #
+#   # INPUTS:
+#   #    theta:            parameter vector
+#   #    data:             dependent variable
+#   #    Regressor:        independent variables
+#   #    ParticleNumber:   number of particles to be used in likelihood approximation
+#   #    CountDist:        count marginal distribution
+#   #    epsilon           resampling when ESS<epsilon*N
+#   #
+#   # OUTPUT:
+#   #    loglik:           approximate log-likelihood
+#   #
+#   #
+#   # AUTHORS: James Livsey, Vladas Pipiras, Stefanos Kechagias,
+#   # DATE:    July 2020
+#   #--------------------------------------------------------------------------#
+#
+#   loglik = ParticleFilter_Res_ARMA(theta, mod)
+#
+#   # # Pure AR model - uses DL
+#   # if(mod$ARMAModel[1]>0 && mod$ARMAModel[2]==0 )  loglik = ParticleFilter_Res_AR(theta, mod)
+#   #
+#   # # Pure MA model - uses a non optimized INALg
+#   # if(mod$ARMAModel[1]==0 && mod$ARMAModel[2]>=0 ) loglik = ParticleFilter_Res_MA(theta, mod)
+#   #
+#   # # ARMA model - uses optimized InAlg
+#   # if(mod$ARMAModel[1]>0 && mod$ARMAModel[2]>0 )   loglik = ParticleFilter_Res_ARMA(theta, mod)
+#
+#   return(loglik)
+# }
+#
+#
+#
+
+#
+# # innovations algorithm code
+# innovations.algorithm <- function(acvf,n.max=length(acvf)-1){
+#   # I found this implementation of IA online, I need to check it
+#   # http://faculty.washington.edu/dbp/s519/R-code/innovations-algorithm.R
+#   thetas <- vector(mode="list",length=n.max)
+#   vs <- rep(acvf[1],n.max+1)
+#   for(n in 1:n.max){
+#     thetas[[n]] <- rep(0,n)
+#     thetas[[n]][n] <- acvf[n+1]/vs[1]
+#     if(n>1){
+#       for(k in 1:(n-1)){
+#         js <- 0:(k-1)
+#         thetas[[n]][n-k] <- (acvf[n-k+1] - sum(thetas[[k]][k-js]*thetas[[n]][n-js]*vs[js+1]))/vs[k+1]
+#       }
+#     }
+#     js <- 0:(n-1)
+#     vs[n+1] <- vs[n+1] - sum(thetas[[n]][n-js]^2*vs[js+1])
+#   }
+#   return(structure(list(vs=vs,thetas=thetas)))
+# }
+
+
+
