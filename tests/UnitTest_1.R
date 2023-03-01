@@ -11,9 +11,10 @@ library(countsFun)
 library(itsmr)
 library(MASS)
 library(tictoc)
+library(mixtools)
 
 # to test things let us stick in the Poisson case, later we will expand for other distributions
-Distributions = c("Poisson", "Negative Binomial")
+Distributions = c("Poisson", "Negative Binomial", "Mixed Poisson" ,"ZIP")
 AROrder       = c(0,1)
 MAOrder       = c(1,0)
 SampleSizes   = c(50,100,200)
@@ -61,7 +62,8 @@ df$AR_1   = rep(NA, nrow(df))
 df$MA_1   = rep(NA, nrow(df))
 
 for(i in 1:nrow(df)){
-
+  
+  print(i)
   # take count data for current iteration
   Sample = df[i,]
 

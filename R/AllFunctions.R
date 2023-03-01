@@ -111,7 +111,7 @@ ModelScheme = function(DependentVar, Regressor=NULL, EstMethod="PFR", ARMAModel=
                    "Negative Binomial"    = function(x, ConstMargParm, DynamMargParm){ pnbinom (x, ConstMargParm, 1-DynamMargParm)},
                    "Generalized Poisson"  = function(x, ConstMargParm, DynamMargParm){ pGpois  (x, ConstMargParm, DynamMargParm)},
                    "Binomial"             = function(x, ConstMargParm, DynamMargParm){ pbinom  (x, ConstMargParm, DynamMargParm)},
-                   "Mixed Poisson"        = function(x, ConstMargParm, DynamMargParm){ pmixpois(x, DynamMargParm, ConstMargParm)},
+                   "Mixed Poisson"        = function(x, ConstMargParm, DynamMargParm){ pmixpois(x, DynamMargParm[1], DynamMargParm[2], ConstMargParm)},
                    "ZIP"                  = function(x, ConstMargParm, DynamMargParm){ pzipois (x, DynamMargParm[1], DynamMargParm[2]) }
     )
     # retrieve marginal pdf
@@ -120,7 +120,7 @@ ModelScheme = function(DependentVar, Regressor=NULL, EstMethod="PFR", ARMAModel=
                    "Negative Binomial"    = function(x, ConstMargParm, DynamMargParm){ dnbinom (x, ConstMargParm, 1-DynamMargParm)},
                    "Generalized Poisson"  = function(x, ConstMargParm, DynamMargParm){ dGpois  (x, ConstMargParm, DynamMargParm)},
                    "Binomial"             = function(x, ConstMargParm, DynamMargParm){ dbinom  (x, ConstMargParm, DynamMargParm)},
-                   "Mixed Poisson"        = function(x, ConstMargParm, DynamMargParm){ dmixpois(x, DynamMargParm, ConstMargParm)},
+                   "Mixed Poisson"        = function(x, ConstMargParm, DynamMargParm){ dmixpois(x, DynamMargParm[1], DynamMargParm[2], ConstMargParm)},
                    "ZIP"                  = function(x, ConstMargParm, DynamMargParm){ dzipois (x, DynamMargParm[1], DynamMargParm[2]) }
     )
     # retrieve marginal inverse cdf
@@ -129,7 +129,7 @@ ModelScheme = function(DependentVar, Regressor=NULL, EstMethod="PFR", ARMAModel=
                       "Negative Binomial"   = function(x, ConstMargParm, DynamMargParm){ qnbinom (x, ConstMargParm, 1-DynamMargParm)},
                       "Generalized Poisson" = function(x, ConstMargParm, DynamMargParm){ qGpois  (x, ConstMargParm, DynamMargParm)},
                       "Binomial"            = function(x, ConstMargParm, DynamMargParm){ qbinom  (x, ConstMargParm, DynamMargParm)},
-                      "Mixed Poisson"       = function(x, ConstMargParm, DynamMargParm){ qmixpois(x, DynamMargParm, ConstMargParm)},
+                      "Mixed Poisson"       = function(x, ConstMargParm, DynamMargParm){ qmixpois(x, DynamMargParm[1], DynamMargParm[2], ConstMargParm)},
                       "ZIP"                 = function(x, ConstMargParm, DynamMargParm){ qzipois (x, DynamMargParm[1], DynamMargParm[2]) }
     )
     # lower bound contraints
@@ -726,7 +726,7 @@ InitialEstimates = function(mod){
       if(mod$ARMAModel[1]) est[(mod$nMargParms+1):(mod$nMargParms+mod$ARMAModel[1])] = itsmr::arma(mod$DependentVar,mod$ARMAModel[1],mod$ARMAModel[2])$phi
       if(mod$ARMAModel[2]) est[(1+mod$nMargParms+mod$ARMAModel[1]):(mod$nMargParms+sum(mod$ARMAModel))] = itsmr::arma(mod$DependentVar,mod$ARMAModel[1],mod$ARMAModel[2])$theta
     }else{
-      # library(mixtools)
+      #library(mixtools)
       mix.reg = poisregmixEM(mod$DependentVar, mod$Regressor[,2:(mod$nreg+1)])
       est[1:mod$nMargParms] = c(mix.reg$beta, mix.reg$lambda[1])
       if(mod$ARMAModel[1]) est[(mod$nMargParms+1):(mod$nMargParms+mod$ARMAModel[1])] = itsmr::arma(mod$DependentVar,mod$ARMAModel[1],mod$ARMAModel[2])$phi
@@ -734,7 +734,7 @@ InitialEstimates = function(mod){
     }
   }
 
-
+  
 
   #-----Generalized Poisson case
   if(mod$CountDist=="Generalized Poisson"){
@@ -777,32 +777,40 @@ InitialEstimates = function(mod){
     }
   }
 
+  
   #-----Zero Inflation Poisson
   if(mod$CountDist=="ZIP"){
     if(mod$nreg==0){
       # pmle for marginal parameters
       ZIP_PMLE <- poisson.zihmle(mod$DependentVar, type = c("zi"),
-                                 lowerbound = LB,
+                                 lowerbound = 0.01,
                                  upperbound = 10000)
-
+      
       lEst = ZIP_PMLE[1]
       pEst = ZIP_PMLE[2]
-
+      
       # correct estimates if they are outside the feasible region
-      if(pEst<LB[1]){pEst = 1.1*mod$LB[1]}
-      if(pEst>UB[1]){pEst = 0.9*mod$UB[1]}
-
-      if(lEst<LB[2]){l1Est = 1.1*mod$LB[2]}
-
+      # if(pEst<mod$LB[1]){pEst = 1.1*mod$LB[1]}
+      # if(pEst>mod$UB[1]){pEst = 0.9*mod$UB[1]}
+      # 
+      # if(lEst<mod$LB[2]){l1Est = 1.1*mod$LB[2]}
+      
       est[1:2] = c(lEst, pEst)
-
-      if(mod$ARMAModel[1]) est[(mod$nMargParms+1):(mod$nMargParms+mod$ARMAModel[1])] = itsmr::arma(mod$DependentVar,mod$ARMAModel[1],mod$ARMAModel[2])$phi
-      if(mod$ARMAModel[2]) est[(1+mod$nMargParms+mod$ARMAModel[1]):(1+mod$nMargParms+sum(mod$ARMAModel))] = itsmr::arma(mod$DependentVar,mod$ARMAModel[1],mod$ARMAModel[2])$theta
+      
+      # Transform (1) in the JASA paper to retrieve the "observed" latent series and fit an ARMA
+      if(max(mod$ARMAModel)>0) armafit = itsmr::arma(qnorm(mod$mycdf(mod$DependentVar,est)),mod$nAR,mod$nMA)
+      if(mod$nAR>0) est[(mod$nMargParms+1):(mod$nMargParms+mod$nAR)]                    = armafit$phi
+      if(mod$nMA>0) est[(1+mod$nMargParms+mod$nAR):(mod$nMargParms+sum(mod$ARMAModel))] = armafit$theta
+      
+      # if(mod$ARMAModel[1]) est[(mod$nMargParms+1):(mod$nMargParms+mod$ARMAModel[1])] = itsmr::arma(mod$DependentVar,mod$ARMAModel[1],mod$ARMAModel[2])$phi
+      # if(mod$ARMAModel[2]) est[(1+mod$nMargParms+mod$ARMAModel[1]):(mod$nMargParms+sum(mod$ARMAModel))] = itsmr::arma(mod$DependentVar,mod$ARMAModel[1],mod$ARMAModel[2])$theta
     }else{
       zeroinfl_reg = zeroinfl(mod$DependentVar~mod$Regressor[,2:(mod$nreg+1)])$coefficients
       est[1:mod$nMargParms] = as.numeric(c(zeroinfl_reg$count, zeroinfl_reg$zero))
-      if(mod$ARMAModel[1]) est[(mod$nMargParms+1):(mod$nMargParms+mod$ARMAModel[1])] = itsmr::arma(mod$DependentVar,mod$ARMAModel[1],mod$ARMAModel[2])$phi
-      if(mod$ARMAModel[2]) est[(1+mod$ARMAModel[1]+mod$nMargParms):(mod$nMargParms+sum(mod$ARMAModel))] = itsmr::arma(mod$DependentVar,mod$ARMAModel[1],mod$ARMAModel[2])$theta
+      
+      if(max(mod$ARMAModel)>0) armafit = itsmr::arma(qnorm(mod$mycdf(mod$DependentVar,est)),mod$nAR,mod$nMA)
+      if(mod$nAR>0) est[(mod$nMargParms+1):(mod$nMargParms+mod$nAR)]                    = armafit$phi
+      if(mod$nMA>0) est[(1+mod$nMargParms+mod$nAR):(mod$nMargParms+sum(mod$ARMAModel))] = armafit$theta
     }
   }
   # add the parmnames on theta fix me: does this affect performance?
@@ -918,8 +926,8 @@ sim_lgc = function(n, CountDist, MargParm, ARParm, MAParm, Regressor=NULL){
                       "Negative Binomial"   = function(x, ConstMargParm, DynamMargParm){ qnbinom (x, ConstMargParm, 1-DynamMargParm)},
                       "Generalized Poisson" = function(x, ConstMargParm, DynamMargParm){ qGpois  (x, ConstMargParm, DynamMargParm)},
                       "Binomial"            = function(x, ConstMargParm, DynamMargParm){ qbinom  (x, ConstMargParm, DynamMargParm)},
-                      "Mixed Poisson"       = function(x, ConstMargParm, DynamMargParm){ qmixpois(x, DynamMargParm, ConstMargParm)},
-                      "ZIP"                 = function(x, ConstMargParm, DynamMargParm){ qzipois (x, DynamMargParm[1], DynamMargParm[2]) },
+                      "Mixed Poisson"       = function(x, ConstMargParm, DynamMargParm){ qmixpois(x, DynamMargParm[,1], DynamMargParm[,2],  ConstMargParm)},
+                      "ZIP"                 = function(x, ConstMargParm, DynamMargParm){ qzipois (x, DynamMargParm[,1], DynamMargParm[,2]) },
                       stop("The specified distribution is not supported.")
     )
 
@@ -1336,8 +1344,58 @@ GenModelParam = function(CountDist,BadParamProb, AROrder, MAOrder, Regressor){
       MargParm = c(b0,b1,k)
     }
   }
-
-
+  
+  
+  if(CountDist=="Mixed Poisson"){
+    # create some "bad" Poisson parameter choices
+    BadLambda = c(-1,500)
+    
+    # sample a probability
+    p =  runif(1,0,1)
+    
+    # sample with high probability from "good" choices for lambda and with low prob the "bad" choices
+    prob = rbinom(2,1,BadParamProb)
+    
+    # Marginal Parameter
+    if (is.null(Regressor)){
+      lambda1 = prob[1]*runif(1,0,100) + (1-prob[1])*sample(BadLambda,1)
+      lambda2 = prob[2]*runif(1,0,100) + (1-prob[2])*sample(BadLambda,1)
+      MargParm = c(lambda1, lambda2, p)
+    }else{
+      # fix me: I am hard coding 1.2 here but we should probably make this an argument
+      b0 = runif(1,0,1.2)
+      b1 = runif(1,0,1.2)
+      c0 = runif(1,0,1.2)
+      c1 = runif(1,0,1.2)
+      k  = runif(1,0,1)
+      MargParm = c(b0,b1,c0,c1,k)
+    }
+  }
+  
+  
+  if(CountDist=="ZIP"){
+    # create some "bad" ZIP parameter choices
+    BadLambda = c(-1,500)
+    
+    # sample a probability
+    p =  runif(1,0,1)
+    
+    # sample with high probability from "good" choices for lambda and with low prob the "bad" choices
+    prob = rbinom(1,1,BadParamProb)
+    
+    # Marginal Parameter
+    if (is.null(Regressor)){
+      lambda = prob*runif(1,0,100) + (1-prob)*sample(BadLambda,1)
+      MargParm = c(lambda, p)
+    }else{
+      # fix me: I am hard coding 1.2 here but we should probably make this an argument
+      b0 = runif(1,0,1.2)
+      b1 = runif(1,0,1.2)
+      c0 = runif(1,0,1.2)
+      c1 = runif(1,0,1.2)
+      MargParm = c(b0,b1,c0, c1)
+    }
+  }
   #------------------ARMA Parameters
 
   # create some "bad" AR parameter choices
