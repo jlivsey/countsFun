@@ -1,7 +1,7 @@
 # load necessary libraries
 library(optimx)
 library(ltsa)
-require(countsFun)
+library(countsFun)
 library(itsmr)
 library(tictoc)
 
@@ -61,15 +61,3 @@ t1
 t3
 a1
 a3
-
-
-
-
-
-
-
-
-
-
-
-

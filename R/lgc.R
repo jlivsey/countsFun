@@ -31,7 +31,8 @@ lgc = function(DependentVar   = NULL,
                     initialParam, TrueParam, Task,SampleSize, OptMethod, OutputType, ParamScheme, maxdiff)
 
 
-  # if simulation task has been chosen simulate the data and compute initial estimates check me how fast is this?
+  # if simulation task has been chosen simulate the data and compute initial estimates
+  # check me how fast is this?
   if(Task=='Simulation'){
     AllSimulatedSeries <- vector(mode='list', length=nsim)
     AllInitialParam    <- vector(mode='list', length=nsim)

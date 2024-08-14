@@ -166,9 +166,6 @@ ModelScheme = function(DependentVar, Regressor=NULL, EstMethod="PFR", ARMAModel=
   if (!is.null(initialParam) & (prod(initialParam<=LB) | prod(initialParam>=UB)))
     stop("The specified initial parameter is outside thew feasible region.")
 
-
-
-
   # create names of the ARMA parameters
   if(nAR>0) ARNames = paste("AR_",1:ARMAModel[1], sep="")
   if(nMA>0) MANames = paste("MA_",1:ARMAModel[2], sep="")
@@ -256,7 +253,7 @@ ParticleFilter_Res_ARMA = function(theta, mod){
 
   # Retrieve parameters and save them in a list called Parms
   Parms = RetrieveParameters(theta,mod)
-
+  #print(Parms$AR)
   # check for causality and invertibility
   if( CheckStability(Parms$AR,Parms$MA) ){
     mod$ErrorMsg = sprintf('WARNING: The ARMA polynomial must be causal and invertible.')
@@ -323,8 +320,8 @@ ParticleFilter_Res_ARMA = function(theta, mod){
 
     # check me: break if I got NA weight
     if (any(is.na(w[t,]))| sum(w[t,])==0 ){
-      # print(t)
-      # print(w[t,])
+      #print(t)
+      #print(w[t,])
       message(sprintf('WARNING: Some of the weights are either too small or sum to 0'))
       return(mod$loglik_BadValue2)
     }
@@ -734,7 +731,7 @@ InitialEstimates = function(mod){
     }
   }
 
-  
+
 
   #-----Generalized Poisson case
   if(mod$CountDist=="Generalized Poisson"){
@@ -777,7 +774,7 @@ InitialEstimates = function(mod){
     }
   }
 
-  
+
   #-----Zero Inflation Poisson
   if(mod$CountDist=="ZIP"){
     if(mod$nreg==0){
@@ -785,29 +782,29 @@ InitialEstimates = function(mod){
       ZIP_PMLE <- poisson.zihmle(mod$DependentVar, type = c("zi"),
                                  lowerbound = 0.01,
                                  upperbound = 10000)
-      
+
       lEst = ZIP_PMLE[1]
       pEst = ZIP_PMLE[2]
-      
+
       # correct estimates if they are outside the feasible region
       # if(pEst<mod$LB[1]){pEst = 1.1*mod$LB[1]}
       # if(pEst>mod$UB[1]){pEst = 0.9*mod$UB[1]}
-      # 
+      #
       # if(lEst<mod$LB[2]){l1Est = 1.1*mod$LB[2]}
-      
+
       est[1:2] = c(lEst, pEst)
-      
+
       # Transform (1) in the JASA paper to retrieve the "observed" latent series and fit an ARMA
       if(max(mod$ARMAModel)>0) armafit = itsmr::arma(qnorm(mod$mycdf(mod$DependentVar,est)),mod$nAR,mod$nMA)
       if(mod$nAR>0) est[(mod$nMargParms+1):(mod$nMargParms+mod$nAR)]                    = armafit$phi
       if(mod$nMA>0) est[(1+mod$nMargParms+mod$nAR):(mod$nMargParms+sum(mod$ARMAModel))] = armafit$theta
-      
+
       # if(mod$ARMAModel[1]) est[(mod$nMargParms+1):(mod$nMargParms+mod$ARMAModel[1])] = itsmr::arma(mod$DependentVar,mod$ARMAModel[1],mod$ARMAModel[2])$phi
       # if(mod$ARMAModel[2]) est[(1+mod$nMargParms+mod$ARMAModel[1]):(mod$nMargParms+sum(mod$ARMAModel))] = itsmr::arma(mod$DependentVar,mod$ARMAModel[1],mod$ARMAModel[2])$theta
     }else{
       zeroinfl_reg = zeroinfl(mod$DependentVar~mod$Regressor[,2:(mod$nreg+1)])$coefficients
       est[1:mod$nMargParms] = as.numeric(c(zeroinfl_reg$count, zeroinfl_reg$zero))
-      
+
       if(max(mod$ARMAModel)>0) armafit = itsmr::arma(qnorm(mod$mycdf(mod$DependentVar,est)),mod$nAR,mod$nMA)
       if(mod$nAR>0) est[(mod$nMargParms+1):(mod$nMargParms+mod$nAR)]                    = armafit$phi
       if(mod$nMA>0) est[(1+mod$nMargParms+mod$nAR):(mod$nMargParms+sum(mod$ARMAModel))] = armafit$theta
@@ -1344,18 +1341,18 @@ GenModelParam = function(CountDist,BadParamProb, AROrder, MAOrder, Regressor){
       MargParm = c(b0,b1,k)
     }
   }
-  
-  
+
+
   if(CountDist=="Mixed Poisson"){
     # create some "bad" Poisson parameter choices
     BadLambda = c(-1,500)
-    
+
     # sample a probability
     p =  runif(1,0,1)
-    
+
     # sample with high probability from "good" choices for lambda and with low prob the "bad" choices
     prob = rbinom(2,1,BadParamProb)
-    
+
     # Marginal Parameter
     if (is.null(Regressor)){
       lambda1 = prob[1]*runif(1,0,100) + (1-prob[1])*sample(BadLambda,1)
@@ -1371,18 +1368,18 @@ GenModelParam = function(CountDist,BadParamProb, AROrder, MAOrder, Regressor){
       MargParm = c(b0,b1,c0,c1,k)
     }
   }
-  
-  
+
+
   if(CountDist=="ZIP"){
     # create some "bad" ZIP parameter choices
     BadLambda = c(-1,500)
-    
+
     # sample a probability
     p =  runif(1,0,1)
-    
+
     # sample with high probability from "good" choices for lambda and with low prob the "bad" choices
     prob = rbinom(1,1,BadParamProb)
-    
+
     # Marginal Parameter
     if (is.null(Regressor)){
       lambda = prob*runif(1,0,100) + (1-prob)*sample(BadLambda,1)
@@ -1501,7 +1498,226 @@ ComputeResiduals= function(theta, mod){
 }
 
 
-
-
+# PF likelihood with resampling for AR(p)
+# ParticleFilter_Res_AR = function(theta, mod){
+#   #--------------------------------------------------------------------------#
+#   # PURPOSE:  Use particle filtering with resampling
+#   #           to approximate the likelihood of the
+#   #           a specified count time series model with an underlying AR(p)
+#   #           dependence structure. A singloe dummy regression is added here.
+#   #
+#   # NOTES:    1. See "Latent Gaussian Count Time Series Modeling" for  more
+#   #           details. A first version of the paer can be found at:
+#   #           https://arxiv.org/abs/1811.00203
+#   #           2. This function is very similar to LikSISGenDist_ARp but here
+#   #           I have a resampling step.
+#   #
+#   # INPUTS:
+#   #    theta:            parameter vector
+#   #    data:             data
+#   #    ParticleNumber:   number of particles to be used.
+#   #    CountDist:        count marginal distribution
+#   #    epsilon           resampling when ESS<epsilon*N
+#   #
+#   # OUTPUT:
+#   #    loglik:           approximate log-likelihood
+#   #
+#   #
+#   # AUTHORS: James Livsey, Vladas Pipiras, Stefanos Kechagias,
+#   # DATE:    July  2020
+#   #--------------------------------------------------------------------------#
+#
+#   old_state <- get_rand_state()
+#   on.exit(set_rand_state(old_state))
+#
+#   # retrieve marginal parameters
+#   MargParms        = theta[mod$MargParmIndices]
+#
+#   # retrieve regressor parameters
+#   if(mod$nreg>0){
+#     beta  = MargParms[1:(mod$nreg+1)]
+#     m     = exp(mod$Regressor%*%beta)
+#   }
+#
+#   # retrieve GLM type  parameters
+#   if(mod$CountDist == "Negative Binomial" && mod$nreg>0){
+#     ConstMargParm  = 1/MargParms[mod$nreg+2]
+#     DynamMargParm  = MargParms[mod$nreg+2]*m/(1+MargParms[mod$nreg+2]*m)
+#   }
+#
+#   if(mod$CountDist == "Generalized Poisson" && mod$nreg>0){
+#     ConstMargParm  = MargParms[mod$nreg+2]
+#     DynamMargParm  = m
+#   }
+#
+#   if(mod$CountDist == "Poisson" && mod$nreg>0){
+#     ConstMargParm  = NULL
+#     DynamMargParm  = m
+#   }
+#
+#   # retrieve ARMA parameters
+#   AR = NULL
+#   if(mod$ARMAModel[1]>0) AR = theta[(mod$nMargParms+1):(mod$nMargParms + mod$ARMAModel[1])]
+#
+#   MA = NULL
+#   if(mod$ARMAModel[2]>0) MA = theta[(mod$nMargParms+mod$ARMAModel[1]+1) : (mod$nMargParms + mod$ARMAModel[1] + mod$ARMAModel[2]) ]
+#
+#   # check for causality
+#   if( CheckStability(AR,MA) ) return(10^(-6))
+#
+#
+#     T1 = length(mod$DependentVar)
+#     N = mod$ParticleNumber          # number of particles
+#
+#     wgh = matrix(0,T1,N)        # to collect all particle weights
+#
+#     # allocate memory for zprev
+#     ZprevAll = matrix(0,mod$ARMAModel[1],N)
+#
+#     if(mod$nreg==0){
+#       # Compute integral limits
+#       a = rep( qnorm(mod$mycdf(mod$DependentVar[1]-1,t(MargParms)),0,1), N)
+#       b = rep( qnorm(mod$mycdf(mod$DependentVar[1],t(MargParms)),0,1), N)
+#     }else{
+#       a = rep( qnorm(mod$mycdf(mod$DependentVar[1]-1, ConstMargParm, DynamMargParm[1]) ,0,1), N)
+#       b = rep( qnorm(mod$mycdf(mod$DependentVar[1], ConstMargParm, DynamMargParm[1]) ,0,1), N)
+#     }
+#     # Generate N(0,1) variables restricted to (ai,bi),i=1,...n
+#     zprev = qnorm(runif(length(a),0,1)*(pnorm(b,0,1)-pnorm(a,0,1))+pnorm(a,0,1),0,1)
+#
+#     # save the currrent normal variables
+#     ZprevAll[1,] = zprev
+#
+#     # initial estimate of first AR coefficient as Gamma(1)/Gamma(0) and corresponding error
+#     # phit = TacvfAR(AR)[2]/TacvfAR(AR)[1] - this FitAR package is obsolete
+#     # FIX ME: check if the code below is correct
+#     phit = ARMAacf(ar = 0.2)[2]/ARMAacf(ar = 0.2)[1]
+#     rt = as.numeric(sqrt(1-phit^2))
+#
+#     # particle filter weights
+#     wprev = rep(1,N)
+#     wgh[1,] = wprev
+#     nloglik = 0 # initialize likelihood
+#
+#     # First p steps:
+#     if (mod$ARMAModel[1]>=2){
+#       for (t in 2:mod$ARMAModel[1]){
+#
+#         # best linear predictor is just Phi1*lag(Z,1)+...+phiP*lag(Z,p)
+#         if (t==2) {
+#           zhat = ZprevAll[1:(t-1),]*phit
+#         } else{
+#           zhat = colSums(ZprevAll[1:(t-1),]*phit)
+#         }
+#
+#         # Recompute integral limits
+#         if(mod$nreg==0){
+#           a = (qnorm(mod$mycdf(mod$DependentVar[t]-1,t(MargParms)),0,1) - zhat)/rt
+#           b = (qnorm(mod$mycdf(mod$DependentVar[t],t(MargParms)),0,1) - zhat)/rt
+#         }else{
+#           a = (qnorm(mod$mycdf(mod$DependentVar[t]-1,ConstMargParm, DynamMargParm[t]),0,1) - zhat)/rt
+#           b = (qnorm(mod$mycdf(mod$DependentVar[t],ConstMargParm, DynamMargParm[t]),0,1) - zhat)/rt
+#         }
+#
+#         # compute random errors from truncated normal
+#         err = qnorm(runif(length(a),0,1)*(pnorm(b,0,1)-pnorm(a,0,1))+pnorm(a,0,1),0,1)
+#
+#         # compute the new Z and add it to the previous ones
+#         znew = rbind(zhat + rt*err, ZprevAll[1:(t-1),])
+#         ZprevAll[1:t,] = znew
+#
+#         # recompute weights
+#         wgh[t,] = wprev*(pnorm(b,0,1) - pnorm(a,0,1))
+#         wprev = wgh[t,]
+#
+#         # use YW equation to compute estimates of phi and of the errors
+#         # FIX ME: Check if the code below is correct i nterms of the ARMAacf
+#         Gt    = toeplitz(ARMAacf(AR)[1:t])
+#         gt    = ARMAacf(AR)[2:(t+1)]
+#         phit  = as.numeric(solve(Gt) %*% gt)
+#         rt    =  as.numeric(sqrt(1 - gt %*% solve(Gt) %*% gt/ARMAacf(AR)[1]))
+#
+#       }
+#     }
+#
+#
+#     # From p to T1 I dont need to estimate phi anymore
+#     for (t in (mod$ARMAModel[1]+1):T1){
+#
+#       # compute phi_1*Z_{t-1} + phi_2*Z_{t-2} for all particles
+#       if(mod$ARMAModel[1]>1){# colsums doesnt work for 1-dimensional matrix
+#         zhat = colSums(ZprevAll*AR)
+#       }else{
+#         zhat=ZprevAll*AR
+#       }
+#
+#       # compute limits of truncated normal distribution
+#       if(mod$nreg==0){
+#         a = as.numeric(qnorm(mod$mycdf(mod$mod$DependentVar[t]-1,MargParms),0,1) - zhat)/rt
+#         b = as.numeric(qnorm(mod$mycdf(mod$mod$DependentVar[t],  MargParms),0,1) - zhat)/rt
+#       }else{
+#         a = as.numeric(qnorm(mod$mycdf(mod$mod$DependentVar[t]-1,ConstMargParm, DynamMargParm[t]),0,1) - zhat)/rt
+#         b = as.numeric(qnorm(mod$mycdf(mod$mod$DependentVar[t],  ConstMargParm, DynamMargParm[t]),0,1) - zhat)/rt
+#       }
+#
+#       # draw errors from truncated normal
+#       err = qnorm(runif(length(a),0,1)*(pnorm(b,0,1)-pnorm(a,0,1))+pnorm(a,0,1),0,1)
+#
+#       # Update the underlying Gaussian series (see step 3 in SIS section in the paper)
+#       znew = zhat + rt*err
+#
+#       # Resampling Step--here the function differs from LikSISGenDist_ARp
+#
+#       # compute unnormalized weights
+#       wgh[t,] = pnorm(b,0,1) - pnorm(a,0,1)
+#
+#       # break if I got NA weight
+#       if (any(is.na(wgh[t,]))| sum(wgh[t,])==0 ){
+#         nloglik = 10^8
+#         break
+#       }
+#
+#       # normalized weights
+#       wghn = wgh[t,]/sum(wgh[t,])
+#
+#       old_state1 <- get_rand_state()
+#
+#       # sample indices from multinomial distribution-see Step 4 of SISR in paper
+#       ESS = 1/sum(wghn^2)
+#       if(ESS<mod$epsilon*N){
+#         ind = rmultinom(1,N,wghn)
+#         # sample particles
+#         znew = rep(znew,ind)
+#
+#         # use low variance resampling
+#         #znew = lowVarianceRS(znew, wghn, N)
+#       }
+#       set_rand_state(old_state1)
+#
+#
+#       # save particles
+#       if (mod$ARMAModel[1]>1){
+#         ZprevAll = rbind(znew, ZprevAll[1:(mod$ARMAModel[1]-1),])
+#       }else {
+#         ZprevAll[1,]=znew
+#       }
+#       # update likelihood
+#       nloglik = nloglik - log(mean(wgh[t,]))
+#     }
+#
+#     # likelihood approximation
+#     if(mod$nreg==0){
+#       nloglik = nloglik - log(mod$mypdf(mod$mod$DependentVar[1],MargParms))
+#     }else{
+#       nloglik = nloglik - log(mod$mypdf(mod$mod$DependentVar[1], ConstMargParm, DynamMargParm[1]))
+#     }
+#
+#     # for log-likelihood we use a bias correction--see par2.3 in Durbin Koopman, 1997
+#     nloglik = nloglik
+#     #- (1/(2*N))*(var(na.omit(wgh[T1,]))/mean(na.omit(wgh[T1,])))/mean(na.omit(wgh[T1,]))
+#
+#   return(nloglik)
+# }
+#
 
 
