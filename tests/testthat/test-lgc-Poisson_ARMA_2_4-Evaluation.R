@@ -1,19 +1,12 @@
-# load necessary libraries
-library(optimx)
-library(ltsa)
-library(countsFun)
-library(itsmr)
-library(tictoc)
-library(MixtureInf)
-
+test_that("LGC wrapper works for evaluation Poisson ARMA(2,4)", {
 
 # Specify model and methods
 n              = 200
 Regressor      = NULL
-CountDist      = "Mixed Poisson"
-MargParm       = c(2, 5, 0.7)
-ARParm         = 0.75
-MAParm         = NULL
+CountDist      = "Poisson"
+MargParm       = 3
+ARParm         = c(0.4, 0.4)
+MAParm         = c(0.3, 0.5, -0.2, 0.1)
 ARMAModel      = c(length(ARParm),length(MAParm))
 ParticleNumber = 5
 epsilon        = 0.5
@@ -52,9 +45,7 @@ mylgc = lgc(DependentVar   = DependentVar,
             OutputType     = OutputType,
             ParamScheme    = ParamScheme,
             maxdiff        = maxdiff)
-mylgc
 
+expect_equal(mylgc$FitStatistics[[1]], 298.60514)
 
-
-
-
+})

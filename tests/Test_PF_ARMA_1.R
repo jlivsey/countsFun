@@ -26,6 +26,7 @@ SampleSize     = NULL
 nsim           = NULL
 no_cores       = NULL
 OptMethod      = "bobyqa"
+OptMethod      = "L-BFGS-B"
 OutputType     = "data.frame"
 ParamScheme    = NULL
 maxdiff        = 10^(-6)
@@ -51,13 +52,13 @@ for (i in 1:50){
 t1 = tic() - t1
 
 
-t3 = tic()
-for (i in 1:50){
-  a3 = ParticleFilter_Res_AR(theta,mod)
-}
-t3 = tic() - t3
+#t3 = tic()
+# for (i in 1:50){
+#   a3 = ParticleFilter_Res_AR(theta,mod)
+# }
+#t3 = tic() - t3
 
 t1
 t3
 a1
-a3
+

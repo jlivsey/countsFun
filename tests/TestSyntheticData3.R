@@ -13,7 +13,7 @@ library(itsmr)
 library(tictoc)
 
 # Specify model and methods
-n              = 100
+n              = 200
 # Regressor      = cbind(rep(1,n),rbinom(n,1,0.25))
 Regressor      = NULL
 CountDist      = "Poisson"
@@ -23,7 +23,7 @@ MargParm       = 3
 ARParm         = NULL
 MAParm         = c(0.5,0.25)
 ARMAModel      = c(length(ARParm),length(MAParm))
-ParticleNumber = 1
+ParticleNumber = 5
 epsilon        = 0.5
 EstMethod      = "PFR"
 initialParam   = NULL
@@ -33,14 +33,15 @@ SampleSize     = NULL
 nsim           = NULL
 no_cores       = NULL
 OptMethod      = "bobyqa"
-OutputType     = "data.frame"
+OptMethod      = "L-BFGS-B"
+OutputType     = "list"
 ParamScheme    = NULL
 maxdiff        = 10^(-8)
 
 # simulate data
 set.seed(2)
 DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor)
-
+initialParam = c(10, -0.3, 0)
 
 t0 = tic()
 # Fit the model using the lgc wrapper
