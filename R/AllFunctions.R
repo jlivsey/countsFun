@@ -174,6 +174,7 @@ ModelScheme = function(DependentVar, Regressor=NULL, EstMethod="PFR", ARMAModel=
   if(nAR>0 && nMA<1) parmnames = c(MargParmsNames, ARNames)
   if(nAR<1 && nMA>0) parmnames = c(MargParmsNames, MANames)
   if(nAR>0 && nMA>0) parmnames = c(MargParmsNames, ARNames, MANames)
+  if(nAR==0 && nMA==0) parmnames = c(MargParmsNames)
 
   # add the parmnames on theta fix me: does this affect performance?
   if(!is.null(initialParam)) names(initialParam) = parmnames
@@ -1078,6 +1079,8 @@ ComputeLimits = function(mod, Parms, t, Zhat, Rt){
   # fix me: this will be ok for AR or MA models but for ARMA? is it p+q instead of max(p,q)
   # fix me: why do I have t(Parms$MargParms)?
   index = min(t, max(mod$ARMAModel))
+  if(max(mod$ARMAModel)==0){index=1}
+
   if(mod$nreg==0){
     Lim$a = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t]-1,t(Parms$MargParms)),0,1)) - Zhat)/(Rt[index])
     Lim$b = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t],t(Parms$MargParms)),0,1)) - Zhat)/Rt[index]
@@ -1093,6 +1096,7 @@ SampleTruncNormParticles = function(mod, Limit, t, Zhat, Rt){
   # relation (21) in JASA paper and the inverse transform method
   # check me: this can be improved?
   index = min(t, max(mod$ARMAModel))
+  if(max(mod$ARMAModel)==0){index=1}
   z = qnorm(runif(length(Limit$a),0,1)*(pnorm(Limit$b,0,1)-pnorm(Limit$a,0,1))+pnorm(Limit$a,0,1),0,1)*Rt[index] + Zhat
   return(z)
 }
