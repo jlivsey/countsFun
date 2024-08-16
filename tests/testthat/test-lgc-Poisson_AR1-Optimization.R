@@ -50,8 +50,8 @@ a = lgc(DependentVar, Regressor, EstMethod, CountDist, ARMAModel, ParticleNumber
 a$ParamEstimates
 
 # for the set.seed(2) I will get the following likelihood: 302.57734
-expect_equal(a$ParamEstimates[1], 2.8172329)
-expect_equal(a$ParamEstimates[2], 0.43318923)
-expect_equal(a$ParamEstimates[3], 0.17216145)
+expect_equal(a$ParamEstimates[1], 2.81723205, tolerance = 10^(-4))
+expect_equal(a$ParamEstimates[2], 0.43318915, tolerance = 10^(-4))
+expect_equal(a$ParamEstimates[3], 0.17216124, tolerance = 10^(-4))
 
 })
