@@ -12,7 +12,7 @@ Regressor      = NULL
 CountDist      = "Poisson"
 MargParm       = 3
 #ARParm         = c(0.8, -0.25)
-MAParm         = c(0.2, 0.5,0.2, 0.1)
+MAParm         = c(0.5,0.2, 0.1)
 ARParm         = NULL
 #MAParm         = NULL
 ARMAModel      = c(length(ARParm),length(MAParm))
@@ -45,29 +45,37 @@ if (is.null(initialParam)){
 }
 
 t1 = tic()
-for (i in 1:100){
+for (i in 1:1){
 a1 = ParticleFilter_Res_ARMA(theta,mod)
 }
 t1 = tic() - t1
 
-# t2 = tic()
-# for (i in 1:50){
-# a2 = ParticleFilter_Res_MA(theta,mod)
-# }
-# t2 = tic() - t2
+t2 = tic()
+for (i in 1:1){
+a2 = ParticleFilter_Res_MA(theta,mod)
+}
+t2 = tic() - t2
 
 t3 = tic()
-for (i in 1:100){
-  a3 = ParticleFilter_Res_AR(theta,mod)
+for (i in 1:1){
+  a3 = ParticleFilter_Res_ARMA_old(theta,mod)
 }
 t3 = tic() - t3
 
+t4 = tic()
+for (i in 1:1){
+  a4 = ParticleFilter_Res_MA_old(theta,mod)
+}
+t4 = tic() - t4
+
 t1
-#t2
+t2
+t3
 t3
 a1
-#a2
+a2
 a3
+a4
 
 
 

@@ -69,7 +69,7 @@ for(i in 1:30){
   Regressor         = NULL
   if(Sample$Regressor) Regressor = cbind(rep(1,Sample$SampleSize), rnorm(Sample$SampleSize,0,1))
 
-  # generate model Parameters according to model scheme - currently workd for Poisson and Neg Bin
+  # generate model Parameters according to model scheme - currently works for Poisson and Neg Bin
   set.seed(i)
   AllParms = GenModelParam(Sample$CountDist, BadParamProb, Sample$AROrder, Sample$MAOrder, Regressor)
 

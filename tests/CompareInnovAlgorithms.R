@@ -252,22 +252,27 @@ InnovKernel3 = function(gamma,phi,theta,sigma2, N) {
 
 
 
-theta    = 0.5
-phi      = 0
+theta    = NULL
+phi      = c(0.8, -0.25)
 sigma2   = 1
-N        = 10
+N        = 5
 a        = list()
 a$phi    = phi
 a$theta  = theta
 a$sigma2 = sigma2
 acvf2    = aacvf(a,N-1)
-acvf     = ARMAacf(ma = theta,lag.max = N-1)
+acvf     = ARMAacf(ar = phi,lag.max = N-1)
 names(acvf) = NULL
-# ia1      = innovations.algorithm(acvf)
+ia0      = innovations.algorithm(acvf)
+ia4      = InnovKernel(a, N)
+
+
 # ia2      = innovations.algorithm(acvf2)
 # ia3      = InnovKernel(a,N)
 # #ia4      = InnovAlgMA(acvf2,n.max=length(acvf)-1,q,maxdiff=0.000000001)
 # ia5      = InnovKernel2(a,N)
+
+
 nsim = 1
 t1 = tic()
 for (i in 1:nsim){
@@ -283,7 +288,7 @@ t2 = tic()-t2
 
 t3 = tic()
 for (i in 1:nsim){
-  ia3      = InnovKernel3(gamma,phi,theta,sigma2, N)
+  ia3      = InnovKernel3(acvf2,phi,theta,sigma2, N)
 }
 t3 = tic()-t3
 
@@ -292,10 +297,10 @@ for (i in 1:nsim){
   ia4      = InnovKernel(a, N)
 }
 t4 = tic()-t4
-t1
-t2
-t3
-t4
+ia1
+ia2
+ia3
+ia4
 
 
 

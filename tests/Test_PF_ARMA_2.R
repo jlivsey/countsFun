@@ -6,7 +6,7 @@ library(itsmr)
 library(tictoc)
 
 # Specify model and methods
-n              = 400
+n              = 1000
 # Regressor      = cbind(rep(1,n),rbinom(n,1,0.25))
 Regressor      = NULL
 CountDist      = "Poisson"

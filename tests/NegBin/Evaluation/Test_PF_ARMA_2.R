@@ -44,13 +44,23 @@ if (is.null(initialParam)){
   theta  = InitEst = mod$initialParam
 }
 
-
-
 t1 = tic()
 for (i in 1:50){
   a1 = ParticleFilter_Res_ARMA(theta,mod)
 }
 t1 = tic() - t1
+
+
+mod = ModelScheme(DependentVar, Regressor, EstMethod, ARMAModel, CountDist,ParticleNumber, epsilon,
+                  initialParam, TrueParam, Task,SampleSize, OptMethod, OutputType, ParamScheme, maxdiff)
+
+
+if (is.null(initialParam)){
+  theta  = InitEst = InitialEstimates(mod)
+  mod$initialParam = InitEst
+}else{
+  theta  = InitEst = mod$initialParam
+}
 
 t2 = tic()
 for (i in 1:50){
