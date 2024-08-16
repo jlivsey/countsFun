@@ -1,26 +1,30 @@
 #---------retrieve the model scheme
 ModelScheme = function(DependentVar, Regressor=NULL, EstMethod="PFR", ARMAModel=c(0,0), CountDist="Poisson",
                        ParticleNumber = 5, epsilon = 0.5, initialParam=NULL, TrueParam=NULL, Task="Optimization", SampleSize=NULL,
-                       OptMethod="bobyqa", OutputType="list", ParamScheme=1, maxdiff=10^(-8)){
-
-  # retrieve sample size
-  n = ifelse(!is.null(DependentVar), length(DependentVar), SampleSize)
+                       OptMethod="bobyqa", OutputType="list", ParamScheme=1, maxdiff=10^(-8),...){
 
   # Distribution list
   if( !(CountDist %in% c("Poisson", "Negative Binomial", "Generalized Poisson", "Mixed Poisson", "ZIP", "Binomial")))
     stop("The specified distribution in not supported.")
+
   # Task
-  if( !(Task %in% c("Evaluation", "Optimization", "Simulation")))
-    stop("The specified distribution in not supported.")
+  if( !(Task %in% c("Evaluation", "Optimization", "Simulation"))){
+    Task = "Evaluation"
+    message("The selected Task is not supported. The Task has been set to 'Evaluation'")
+  }
 
   # Estimation Method
-  if( !(EstMethod %in% c("PFR")))
-    stop("The specified estimation method in not supported.")
+  if( !(EstMethod %in% c("PFR"))){
+    EstMethod = "PFR"
+    message("The selected EstMethod is not supported. EstMethod has been set to'PFR'")
+  }
 
   # check that the ARMA order has dimension 2, the ARMA orders are integers
   if(length(ARMAModel)!=2 | !prod(ARMAModel %% 1 == c(0,0)) )
     stop("The specified ARMA model is not supported.")
 
+  # retrieve sample size
+  n = ifelse(!is.null(DependentVar), length(DependentVar), SampleSize)
 
   # number of regressors assuming there is an intercept
   nreg = ifelse(is.null(Regressor), 0,dim(Regressor)[2]-1)
@@ -40,6 +44,11 @@ ModelScheme = function(DependentVar, Regressor=NULL, EstMethod="PFR", ARMAModel=
   nparms     = nMargParms + sum(ARMAModel)
   nAR        = ARMAModel[1]
   nMA        = ARMAModel[2]
+
+  # cannot allow for sample size to be smaller than model parameters
+  if (n<=nparms+2)
+    stop(sprintf("The provided sample size is equal to %.0f while the
+                 the specified model has %.0f parameters",n,nparms))
 
   # check if initial param length is wrong
   if(!is.null(initialParam) & length(initialParam)!=nparms)
@@ -284,7 +293,7 @@ ParticleFilter_Res_ARMA = function(theta, mod){
   gamma    = itsmr::aacvf(a,mod$n)
 
   # Compute coefficients of Innovations Algorithm see 5.2.16 and 5.3.9 in in Brockwell Davis book
-  IA       = InnovAlg(Parms, gamma, mod$maxdiff)
+  IA       = InnovAlg(Parms, gamma, mod)
   Theta    = IA$thetas
   Rt       = sqrt(IA$v)
 
@@ -502,9 +511,9 @@ FitMultiplePF_Res = function(theta, mod){
     ModelOutput$Task           = mod$Task
     if(!is.null(mod$TrueParam)) ModelOutput$TrueParam      = mod$TrueParam
     if(!is.null(mod$initialParam)) ModelOutput$initialParam   = mod$initialParam
-    if(Task=="Optimization") ModelOutput$StdErrors      = se
+    if(mod$Task=="Optimization") ModelOutput$StdErrors      = se
     ModelOutput$FitStatistics  = c(loglik, Criteria)
-    if(Task=="Optimization") ModelOutput$OptimOutput    = c(convcode,kkt1,kkt2)
+    if(mod$Task=="Optimization") ModelOutput$OptimOutput    = c(convcode,kkt1,kkt2)
     ModelOutput$EstMethod      = mod$EstMethod
     ModelOutput$SampleSize     = mod$n
     if(loglikelihood==mod$loglik_BadValue1) ModelOutput$WarnMessage = "WARNING: The ARMA polynomial must be causal and invertible."
@@ -513,9 +522,9 @@ FitMultiplePF_Res = function(theta, mod){
     if(!is.null(mod$TrueParam)) names(ModelOutput$TrueParam)      = mod$parmnames
     colnames(ModelOutput$ParamEstimates) = mod$parmnames
 
-    if(Task=="Optimization")colnames(ModelOutput$StdErrors)      = paste("se(", mod$parmnames,")", sep="")
+    if(mod$Task=="Optimization")colnames(ModelOutput$StdErrors)      = paste("se(", mod$parmnames,")", sep="")
     names(ModelOutput$FitStatistics)     = c("loglik", "AIC", "BIC", "AICc")
-    if(Task=="Optimization")names(ModelOutput$OptimOutput)       = c("ConvergeStatus", "kkt1", "kkt2")
+    if(mod$Task=="Optimization")names(ModelOutput$OptimOutput)       = c("ConvergeStatus", "kkt1", "kkt2")
 
   }else{
     ModelOutput  = data.frame(matrix(ncol = 4*mod$nparms+16, nrow = 1))
@@ -833,7 +842,7 @@ NegBinMoM = function(DependentVar, GLMMeanEst){
 }
 
 # innovations algorithm
-InnovAlg = function(Parms,gamma, maxdiff) {
+InnovAlg = function(Parms,gamma, mod) {
   # adapt the Innovation.algorithm if ITSMR
 
   # Compute autocovariance kappa(i,j) per equation (3.3.3)
@@ -881,13 +890,13 @@ InnovAlg = function(Parms,gamma, maxdiff) {
     }
     js     = 0:(n-1)
     v[n+1] = kappa(n+1,n+1) - sum(Theta[[n]][n-js]^2*v[js+1])
-    if(mod$nAR==0 && mod$nMA>0) StopCondition = (abs(v[n+1]-v[n])< maxdiff)
+    if(mod$nAR==0 && mod$nMA>0) StopCondition = (abs(v[n+1]-v[n])< mod$maxdiff)
     if(mod$nAR>0 && mod$nMA==0) StopCondition = (n>3*m)
     n      = n+1
   }
   v = v/v[1]
 
-  StopCondition = (abs(v[n+1]-v[n])< maxdiff)
+  StopCondition = (abs(v[n+1]-v[n])< mod$maxdiff)
 
 
   return(list(n=n-1,thetas=lapply(Theta[ ][1:(n-1)], function(x) {x[1:q]}),v=v[1:(n-1)]))

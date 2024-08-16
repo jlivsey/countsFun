@@ -17,19 +17,36 @@ lgc = function(DependentVar   = NULL,
                epsilon        = 0.5,
                initialParam   = NULL,
                TrueParam      = NULL,
-               Task           = 'Optimization',
+               Task           = 'Evaluation',
                SampleSize     = NULL,
                nsim           = NULL,
                no_cores       = 1,
                OptMethod      = "bobyqa",
-               OutputType     = "data.frame",
+               OutputType     = "list",
                ParamScheme    = NULL,
-               maxdiff        = 10^(-8) ){
+               maxdiff        = 10^(-8), ...){
 
   # parse all the parameters and the data into a list called mod
-  mod = ModelScheme(DependentVar, Regressor, EstMethod, ARMAModel, CountDist,ParticleNumber, epsilon,
-                    initialParam, TrueParam, Task,SampleSize, OptMethod, OutputType, ParamScheme, maxdiff)
+  mod = ModelScheme(DependentVar   = DependentVar,
+                    Regressor      = Regressor,
+                    EstMethod      = EstMethod,
+                    ARMAModel      = ARMAModel,
+                    CountDist      = CountDist,
+                    ParticleNumber = ParticleNumber,
+                    epsilon        = epsilon,
+                    initialParam   = initialParam,
+                    TrueParam      = TrueParam,
+                    Task           = Task,
+                    SampleSize     = SampleSize,
+                    OptMethod      = OptMethod,
+                    OutputType     = OutputType,
+                    ParamScheme    = ParamScheme,
+                    maxdiff        = maxdiff)
 
+  # compute initial parameters if they haven't been provided
+  if (is.null(mod$initialParam)){
+    mod$initialParam = InitialEstimates(mod)
+  }
 
   # if simulation task has been chosen simulate the data and compute initial estimates
   # check me how fast is this?
@@ -67,19 +84,9 @@ lgc = function(DependentVar   = NULL,
   }
 
   if(Task %in% c('Evaluation', 'Optimization')){
-    # compute initial parameters if they haven't been provided and save them in mod
-    if (is.null(initialParam)){
-      theta  = InitEst = InitialEstimates(mod)
-      mod$initialParam = InitEst
-    }else{
-      theta  = InitEst = mod$initialParam
-    }
-    # fit the model using PF
-    if(EstMethod=="PFR"){
+      theta  = mod$initialParam
       out = FitMultiplePF_Res(theta, mod)
-    }
   }
-
 
 # create an lgc object and save the initial estimate
 class(out) = "lgc"
