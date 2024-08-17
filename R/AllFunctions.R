@@ -334,11 +334,10 @@ ParticleFilter_Res_ARMA = function(theta, mod){
     #w[t,] = ComputeWeights(mod, Limit$a, Limit$b, t, w[(t-1),])
     w[t,] = ComputeWeights(mod, Limit, t, w[(t-1),])
 
-
     # check me: break if I got NA weight
     if (any(is.na(w[t,]))| sum(w[t,])==0 ){
-      # print(t)
-      # print(w[t,])
+      #print(t)
+      #print(w[t,])
       message(sprintf('WARNING: Some of the weights are either too small or sum to 0'))
       return(10^8)
     }
@@ -1088,6 +1087,8 @@ ComputeLimits = function(mod, Parms, t, Zhat, Rt){
   # fix me: this will be ok for AR or MA models but for ARMA? is it p+q instead of max(p,q)
   # fix me: why do I have t(Parms$MargParms)?
   index = min(t, max(mod$ARMAModel))
+
+  # add the following for White Noise models
   if(max(mod$ARMAModel)==0){index=1}
 
   if(mod$nreg==0){
