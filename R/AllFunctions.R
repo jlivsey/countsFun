@@ -194,42 +194,43 @@ ModelScheme = function(DependentVar, Regressor=NULL, EstMethod="PFR", ARMAModel=
   # value I wil set the loglik when things go bad (e.g. non invetible ARMA)
   loglik_BadValue2 = 10^9
 
+
   out = list(
-    mycdf           = mycdf,
-    mypdf           = mypdf,
-    myinvcdf        = myinvcdf,
-    MargParmIndices = MargParmIndices,
-    initialParam    = initialParam,
-    TrueParam       = TrueParam,
-    parmnames       = parmnames,
-    nMargParms      = nMargParms,
-    nAR             = nAR,
-    nMA             = nMA,
-    n               = n,
-    nreg            = nreg,
-    CountDist       = CountDist,
-    ARMAModel       = ARMAModel,
-    ParticleNumber  = ParticleNumber,
-    epsilon         = epsilon,
-    nparms          = nparms,
-    UB              = UB,
-    LB              = LB,
-    EstMethod       = EstMethod,
-    DependentVar    = DependentVar,
-    Regressor       = Regressor,
-    Task            = Task,
-    OptMethod       = OptMethod,
-    OutputType      = OutputType,
-    ParamScheme     = ParamScheme,
-    maxdiff         = maxdiff,
+    mycdf            = mycdf,
+    mypdf            = mypdf,
+    myinvcdf         = myinvcdf,
+    MargParmIndices  = MargParmIndices,
+    initialParam     = initialParam,
+    TrueParam        = TrueParam,
+    parmnames        = parmnames,
+    nMargParms       = nMargParms,
+    nAR              = nAR,
+    nMA              = nMA,
+    n                = n,
+    nreg             = nreg,
+    CountDist        = CountDist,
+    ARMAModel        = ARMAModel,
+    ParticleNumber   = ParticleNumber,
+    epsilon          = epsilon,
+    nparms           = nparms,
+    UB               = UB,
+    LB               = LB,
+    EstMethod        = EstMethod,
+    DependentVar     = DependentVar,
+    Regressor        = Regressor,
+    Task             = Task,
+    OptMethod        = OptMethod,
+    OutputType       = OutputType,
+    ParamScheme      = ParamScheme,
+    maxdiff          = maxdiff,
     loglik_BadValue1 = loglik_BadValue1,
     loglik_BadValue2 = loglik_BadValue2
-  )
+    )
   return(out)
 
 }
 
-# PF likelihood with resampling for ARMA(p,q)
+# Particle filer likelihood function
 ParticleFilter_Res_ARMA = function(theta, mod){
   #------------------------------------------------------------------------------------#
   # PURPOSE:  Use particle filtering with resampling to approximate the likelihood
@@ -241,7 +242,10 @@ ParticleFilter_Res_ARMA = function(theta, mod){
   #           https://arxiv.org/abs/1811.00203
   #           2. This function is very similar to LikSISGenDist_ARp but here
   #           I have a resampling step.
-  #
+  #           3. This is the first stable ParticleFilter_Res_ARMA version. I am
+  #           renaming it to ParticleFilter_Res_ARMA_stable and continue to use the
+  #           ParticleFilter_Res_ARMA name for newer versions of the likelihood. In
+  #           particu
   # INPUTS:
   #    theta:            parameter vector
   #    data:             data
@@ -333,23 +337,14 @@ ParticleFilter_Res_ARMA = function(theta, mod){
     # update weights
     #w[t,] = ComputeWeights(mod, Limit$a, Limit$b, t, w[(t-1),])
     w[t,] = ComputeWeights(mod, Limit, t, w[(t-1),])
-    #print(t)
-    #print(w[t,])
-    # check me: In misspecified models, the weights may get equal to 0. Is it ok
-    # for me to do the following? how is this different from allowing zero weights and
-    # returning a large likelihood?
-    if (sum(w[t,])==0){
-      w[t,] = rep(10^(-16),mod$ParticleNumber)
-    }
 
     # check me: break if I got NA weight
     if (any(is.na(w[t,]))| sum(w[t,])==0 ){
       #print(t)
       #print(w[t,])
-      message(sprintf('WARNING: Some of the weights are either too small or sum to 0'))
+      message(sprintf('WARNING: At t=%.0f some of the weights are either too small or sum to 0',t))
       return(10^8)
     }
-
     # Resample the particles using common random numbers
     old_state1 = get_rand_state()
     Znew = ResampleParticles(mod, w, t, Znew)
@@ -1087,8 +1082,8 @@ model.lgc = function(object){
   return(a)
 }
 
-
 ComputeLimits = function(mod, Parms, t, Zhat, Rt){
+
   # a and b are the arguments in the two normal cdfs in the 4th line in equation (19) in JASA paper
   Lim = list()
   # fix me: this will be ok for AR or MA models but for ARMA? is it p+q instead of max(p,q)
@@ -1099,22 +1094,8 @@ ComputeLimits = function(mod, Parms, t, Zhat, Rt){
   if(max(mod$ARMAModel)==0){index=1}
 
   if(mod$nreg==0){
-
-    C_1 = mod$mycdf(mod$DependentVar[t]-1,t(Parms$MargParms))
-    C   = mod$mycdf(mod$DependentVar[t],t(Parms$MargParms))
-    # check me: can this help avoid the issue of plugging in 1 and getting Inf value in the qnorm below?
-    #  I will try it and I will give a warning here if this happens
-    if(C_1==1) {
-      C_1 = 1-10^(-16)
-      message(sprintf("A %s model is fitted, but at t=%.0f the dependent variable is equal to %.0f.",mod$CountDist, t,mod$DependentVar[t]))
-    }
-    if(C==1) {
-      C = 1-10^(-16)
-      message(sprintf("A %s model is fitted, but at t=%.0f the dependent variable is equal to %.0f.",mod$CountDist, t,mod$DependentVar[t]))
-    }
-    if(C==1) C = 1-10^(-16)
-    Lim$a = as.numeric((qnorm(C_1,0,1)) - Zhat)/Rt[index]
-    Lim$b = as.numeric((qnorm(C  ,0,1)) - Zhat)/Rt[index]
+    Lim$a = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t]-1,t(Parms$MargParms)),0,1)) - Zhat)/(Rt[index])
+    Lim$b = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t],t(Parms$MargParms)),0,1)) - Zhat)/Rt[index]
   }else{
     Lim$a = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t]-1,Parms$ConstMargParm, Parms$DynamMargParm[t,]),0,1)) - Zhat)/Rt[index]
     Lim$b = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t],Parms$ConstMargParm, Parms$DynamMargParm[t,]),0,1)) - Zhat)/Rt[index]
@@ -1128,18 +1109,6 @@ SampleTruncNormParticles = function(mod, Limit, t, Zhat, Rt){
   # check me: this can be improved?
   index = min(t, max(mod$ARMAModel))
   if(max(mod$ARMAModel)==0){index=1}
-
-  # Check me: in the case of missspecifed models, I may get really large values for the limits
-  # wchich means that the pnorm will equal 1 and then the qnorm will yield Inf. Is this ok?
-  if (min(Limit$a)>=7) {
-    Limit$a[Limit$a>=7] = 7 - 10^(-11)
-    message(sprintf("A %s model is fitted, but at t=%.0f the dependent variable is equal to %.0f.",mod$CountDist, t,mod$DependentVar[t]))
-  }
-  if (min(Limit$b)>=7) {
-    Limit$b[Limit$b>=7] = 7 - 10^(-11)
-    message(sprintf("A %s model is fitted, but at t=%.0f the dependent variable is equal to %.0f.",mod$CountDist, t,mod$DependentVar[t]))
-  }
-
   z = qnorm(runif(length(Limit$a),0,1)*(pnorm(Limit$b,0,1)-pnorm(Limit$a,0,1))+pnorm(Limit$a,0,1),0,1)*Rt[index] + Zhat
   return(z)
 }
@@ -2067,7 +2036,6 @@ ParticleFilter_Res_MA = function(theta, mod){
   return(nloglik)
 }
 
-
 # older PF likelihood with resampling for ARMA(p,q)
 ParticleFilter_Res_ARMA_old = function(theta, mod){
   #------------------------------------------------------------------------------------#
@@ -2201,19 +2169,41 @@ ParticleFilter_Res_ARMA_old = function(theta, mod){
   return(nloglik)
 }
 
+# Retrieve the name of the current marginal disgribution
+CurrentDist = function(theta,mod){
+  # check me: does it work for models with regressors?
+  name = sprintf("%s=%.2f",mod$parmnames[1],theta[1])
+
+  if (mod$nMargParms>1){
+    for(i in 2:mod$nMargParms){
+      #name = paste(name,initialParam[i],sep=",")
+      a = sprintf("%s=%.2f",mod$parmnames[i],theta[i])
+      name = paste(name,a,sep=",")
+    }
+  }
+  name = paste(mod$CountDist, "(", name,")", sep="")
+  return(name)
+}
 
 #--------------------------------------------------------------------------------#
-# On August 2024 for Issue #27, I renamed the funcions ParticleFilter_Res_ARMA,
-# ComputeLimits and SampleTruncNormParticles to ParticleFilter_Res_ARMA_stable,
-# ComputeLimits_stable and SampleTruncNormParticles_stable. The new
-# ParticleFilter_Res_ARMA, ComputeLimits and SampleTruncNormParticles
-# functions have the change that the value 1 for CDF calculations is changed to
-# 1-10^(-16), so that when inverse normal is applied we do not receive an inf value.
-# I am keeping the stable versions below (i.e., the versions before the change was
-# made) until I perform adequate testing (the new functions have passed the existing
-# unit tests, however at this time we haven't yet created enough unit tests).
-# PF likelihood with resampling for ARMA(p,q)
-ParticleFilter_Res_ARMA_stable = function(theta, mod){
+# On August 2024 for Issue #27, I created a modified likelihood function called
+# ParticleFilter_Res_ARMA_MisSpec with three changes:
+#
+# 1. The value 1 for the count CDF calculations is changed to 1-10^(-16), so that
+#    when inverse normal is applied in the copula, we do not receive an inf value.
+# 2. When the limits of the truncated normal distribution become too large (say>7),
+#    I set them equal to 7-epsilon, so when I apply the normal cdf and subsequnetly the
+#    inverse cdf i avoid the inf values.
+# 3. If the weights in the particle filter likelihood become 0 I set them equal to
+#    10^(-64).
+#
+# I have added the changes in the ParticleFilter_Res_ARMA_MisSpec, ComputeLimits_MisSpec
+# and SampleTruncNormParticles_MisSpec files and wil lcontinue  working with the
+# standard versions below until I perform adequate testing.
+
+
+# PF likelihood with resampling for ARMA(p,q) - with adhoc truncations
+ParticleFilter_Res_ARMA_MisSpec = function(theta, mod){
   #------------------------------------------------------------------------------------#
   # PURPOSE:  Use particle filtering with resampling to approximate the likelihood
   #           of the a specified count time series model with an underlying MA(1)
@@ -2224,10 +2214,7 @@ ParticleFilter_Res_ARMA_stable = function(theta, mod){
   #           https://arxiv.org/abs/1811.00203
   #           2. This function is very similar to LikSISGenDist_ARp but here
   #           I have a resampling step.
-  #           3. This is the first stable ParticleFilter_Res_ARMA version. I am
-  #           renaming it to ParticleFilter_Res_ARMA_stable and continue to use the
-  #           ParticleFilter_Res_ARMA name for newer versions of the likelihood. In
-  #           particu
+  #
   # INPUTS:
   #    theta:            parameter vector
   #    data:             data
@@ -2296,11 +2283,11 @@ ParticleFilter_Res_ARMA_stable = function(theta, mod){
   w[1,]    = rep(1,mod$ParticleNumber)
 
   # Compute the first integral limits Limit$a and Limit$b
-  Limit    = ComputeLimits_stable(mod, Parms, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
+  Limit    = ComputeLimits_MisSpec(mod, Parms, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
 
   # Initialize the particles using N(0,1) variables truncated to the limits computed above
   #Z[1,]    = SampleTruncNormParticles(mod, Limit$a, Limit$b, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
-  Z[1,]    = SampleTruncNormParticles_stable(mod, Limit, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
+  Z[1,]    = SampleTruncNormParticles_MisSpec(mod, Limit, Parms, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
 
 
   for (t in 2:mod$n){
@@ -2310,21 +2297,30 @@ ParticleFilter_Res_ARMA_stable = function(theta, mod){
     Zhat[t,] = ComputeZhat_t(mod, IA, Z, Zhat,t, Parms)
 
     # Compute integral limits
-    Limit = ComputeLimits_stable(mod, Parms, t, Zhat[t,], Rt)
+    Limit = ComputeLimits_MisSpec(mod, Parms, t, Zhat[t,], Rt)
 
     # Sample truncated normal particles
     #Znew  = SampleTruncNormParticles(mod, Limit$a, Limit$b, t, Zhat[t,], Rt)
-    Znew  = SampleTruncNormParticles_stable(mod, Limit, t, Zhat[t,], Rt)
+    Znew  = SampleTruncNormParticles_MisSpec(mod, Limit, Parms, t, Zhat[t,], Rt)
 
     # update weights
     #w[t,] = ComputeWeights(mod, Limit$a, Limit$b, t, w[(t-1),])
     w[t,] = ComputeWeights(mod, Limit, t, w[(t-1),])
+    #print(t)
+    #print(w[t,])
+    # check me: In misspecified models, the weights may get equal to 0. Is it ok
+    # for me to do the following? how is this different from allowing zero weights and
+    # returning a large likelihood?
+    if (sum(w[t,])==0){
+      w[t,] = rep(10^(-64),mod$ParticleNumber)
+      message(sprintf("At t = %.0f all weights are equal to 0. They are resetted to equal 1e-64.",t))
+    }
 
     # check me: break if I got NA weight
     if (any(is.na(w[t,]))| sum(w[t,])==0 ){
       #print(t)
       #print(w[t,])
-      message(sprintf('WARNING: Some of the weights are either too small or sum to 0'))
+      message(sprintf('WARNING: At t=%.0f some of the weights are either too small or sum to 0',t))
       return(10^8)
     }
 
@@ -2352,8 +2348,7 @@ ParticleFilter_Res_ARMA_stable = function(theta, mod){
   return(nloglik)
 }
 
-ComputeLimits_stable = function(mod, Parms, t, Zhat, Rt){
-
+ComputeLimits_MisSpec = function(mod, Parms, t, Zhat, Rt){
   # a and b are the arguments in the two normal cdfs in the 4th line in equation (19) in JASA paper
   Lim = list()
   # fix me: this will be ok for AR or MA models but for ARMA? is it p+q instead of max(p,q)
@@ -2361,11 +2356,43 @@ ComputeLimits_stable = function(mod, Parms, t, Zhat, Rt){
   index = min(t, max(mod$ARMAModel))
 
   # add the following for White Noise models
-  if(max(mod$ARMAModel)==0){index=1}
+  if(max(mod$ARMAModel)==0) index=1
 
   if(mod$nreg==0){
-    Lim$a = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t]-1,t(Parms$MargParms)),0,1)) - Zhat)/(Rt[index])
-    Lim$b = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t],t(Parms$MargParms)),0,1)) - Zhat)/Rt[index]
+
+    C_1 = mod$mycdf(mod$DependentVar[t]-1,t(Parms$MargParms))
+    C   = mod$mycdf(mod$DependentVar[t],t(Parms$MargParms))
+
+    # fix me: need to implement for regressors as well
+    if(C_1==1) {
+      C_1 = 1-10^(-16)
+
+      # retrieve the name of the current distribution
+      CurrentDist = CurrentDist(Parms$MargParms, mod)
+
+      # warn the user of the situation
+      message(sprintf("To avoid an Inf inverse cdf value, 1e-16 was
+subtracted from C_xt_1 in relation (19). C_xt_1 = 1 can be caused by
+a misspecified marginal distribution, lack of relevant covariates, or
+an optimizer seaching the parameter space away from the truth. Here a
+%s model is fitted, but at t=%.0f the dependent variable is
+equal to %.0f.\n",CurrentDist, t,mod$DependentVar[t]))
+    }
+    if(C==1 ) {
+      # retrieve the name of the current distribution
+      CurrentDist = CurrentDist(Parms$MargParms, mod)
+
+      C = 1-10^(-16)
+      message(sprintf("To avoid an Inf inverse cdf value, 1e-16 was
+subtracted from C_xt in relation (19). C_xt_1 = 1 can be caused by
+a misspecified marginal distribution, lack of relevant covariates,
+or an optimizer seaching the parameter space away from the truth. Here
+a %s model is fitted, but at t=%.0f the dependent variable is
+equal to %.0f.\n",CurrentDist,t,mod$DependentVar[t]))
+    }
+
+    Lim$a = as.numeric((qnorm(C_1,0,1)) - Zhat)/Rt[index]
+    Lim$b = as.numeric((qnorm(C  ,0,1)) - Zhat)/Rt[index]
   }else{
     Lim$a = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t]-1,Parms$ConstMargParm, Parms$DynamMargParm[t,]),0,1)) - Zhat)/Rt[index]
     Lim$b = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t],Parms$ConstMargParm, Parms$DynamMargParm[t,]),0,1)) - Zhat)/Rt[index]
@@ -2374,11 +2401,64 @@ ComputeLimits_stable = function(mod, Parms, t, Zhat, Rt){
   return(Lim)
 }
 
-SampleTruncNormParticles_stable = function(mod, Limit, t, Zhat, Rt){
+SampleTruncNormParticles_MisSpec = function(mod, Limit, Parms, t, Zhat, Rt){
   # relation (21) in JASA paper and the inverse transform method
   # check me: this can be improved?
   index = min(t, max(mod$ARMAModel))
   if(max(mod$ARMAModel)==0){index=1}
+
+
+  # Check me: in the case of missspecifed models, I may get really large values for the limits
+  # wchich means that the pnorm will equal 1 and then the qnorm will yield Inf. Is this ok?
+  if (min(Limit$a)>=7 ) {
+    # retrieve the name of the current distribution
+    CurrentDist = CurrentDist(Parms$MargParms, mod)
+    Limit$a[Limit$a>=7] = 7 - 10^(-11)
+    message(sprintf("To avoid an Inf inverse cdf value, 1e-11 was subtracted from
+the lower limit of the truncated Normal distribution used to generate new particles.
+Large limits can be caused by a misspecified marginal distribution, lack of relevant
+covariates, or an optimizer seaching the parameter space away from the truth among
+other things. Here a %s model is fitted, but at t=%.0f the dependent
+variable is equal to %.0f.\n", CurrentDist, t,mod$DependentVar[t]))
+  }
+
+  #   if (max(Limit$a)<=-7 ) {
+  #     # retrieve the name of the current distribution
+  #     CurrentDist = CurrentDist(Parms$MargParms, mod)
+  #     Limit$a[Limit$a<=-7] = -7 + 10^(-11)
+  #     message(sprintf("To avoid an Inf inverse cdf value, 1e-11 was added to
+  # the lower limit of the truncated Normal distribution used to generate new particles.
+  # Large limits can be caused by a misspecified marginal distribution, lack of relevant
+  # covariates, or an optimizer seaching the parameter space away from the truth among
+  # other things. Here a %s model is fitted, but at t=%.0f the dependent
+  # variable is equal to %.0f.\n", CurrentDist,t,mod$DependentVar[t]))
+  #     }
+
+  if (min(Limit$b)>=7 ) {
+    # retrieve the name of the current distribution
+    CurrentDist = CurrentDist(Parms$MargParms, mod)
+    Limit$b[Limit$b>=7] = 7 - 10^(-11)
+    message(sprintf("To avoid an Inf inverse cdf value, 1e-11 was subtracted from
+the upper limit of the truncated Normal distribution used to generate new particles.
+Large limits can be caused by a misspecified marginal distribution, lack of relevant
+covariates, or an optimizer seaching the parameter space away from the truth among
+other things. Here a %s model is fitted, but at t=%.0f the dependent
+variable is equal to %.0f.\n", CurrentDist, t,mod$DependentVar[t]))
+  }
+
+  #   if (max(Limit$b)<=-7 ) {
+  #     # retrieve the name of the current distribution
+  #     CurrentDist = CurrentDist(Parms$MargParms, mod)
+  #     Limit$b[Limit$b<=-7] = -7 + 10^(-11)
+  #     message(sprintf("To avoid an Inf inverse cdf value, 1e-11 was added to
+  # the upper limit of the truncated Normal distribution used to generate new particles.
+  # Large limits can be caused by a misspecified marginal distribution, lack of relevant
+  # covariates, or an optimizer seaching the parameter space away from the truth among
+  # other things. Here a %s model is fitted, but at t=%.0f the dependent
+  # variable is equal to %.0f.", CurrentDist,t,mod$DependentVar[t]))
+  #   }
   z = qnorm(runif(length(Limit$a),0,1)*(pnorm(Limit$b,0,1)-pnorm(Limit$a,0,1))+pnorm(Limit$a,0,1),0,1)*Rt[index] + Zhat
+
   return(z)
 }
+
