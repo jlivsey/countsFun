@@ -1,7 +1,7 @@
 #---------retrieve the model scheme
-ModelScheme = function(DependentVar, Regressor=NULL, EstMethod="PFR", ARMAModel=c(0,0), CountDist="Poisson",
-                       ParticleNumber = 5, epsilon = 0.5, initialParam=NULL, TrueParam=NULL, Task="Optimization", SampleSize=NULL,
-                       OptMethod="bobyqa", OutputType="list", ParamScheme=1, maxdiff=10^(-8),...){
+ModelScheme = function(DependentVar, Regressor=NULL, EstMethod="PFR", ARMAModel=c(0,0), CountDist="NULL",
+                       ParticleNumber = 5, epsilon = 0.5, initialParam=NULL, TrueParam=NULL, Task="Evaluation", SampleSize=NULL,
+                       OptMethod="L-BFGS-B", OutputType="list", ParamScheme=1, maxdiff=10^(-8),...){
 
   # Distribution list
   if( !(CountDist %in% c("Poisson", "Negative Binomial", "Generalized Poisson", "Mixed Poisson", "ZIP", "Binomial")))

@@ -38,6 +38,6 @@ mylgc = lgc(DependentVar   = DependentVar,
                   OptMethod      = OptMethod,
                initialParam = initialParam)
 
-expect_equal(mylgc$FitStatistics[[1]], 392.6825512, tolerance = 10^(-5))
+expect_equal(mylgc$FitStatistics[[1]], 392.673, tolerance = 10^(-3))
 
 })

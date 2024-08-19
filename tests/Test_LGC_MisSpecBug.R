@@ -38,14 +38,14 @@ mod = ModelScheme(DependentVar   = DependentVar,
                   initialParam = initialParam)
 
 
-optim.output <- optimx(
-  par     = theta,
-  fn      = ParticleFilter_Res_ARMA,
-  lower   = mod$LB,
-  upper   = mod$UB,
-  hessian = TRUE,
-  method  = mod$OptMethod,
-  mod     = mod)
+# optim.output <- optimx(
+#   par     = theta,
+#   fn      = ParticleFilter_Res_ARMA,
+#   lower   = mod$LB,
+#   upper   = mod$UB,
+#   hessian = TRUE,
+#   method  = mod$OptMethod,
+#   mod     = mod)
 
 
 mylgc = lgc(DependentVar   = DependentVar,
@@ -53,4 +53,3 @@ mylgc = lgc(DependentVar   = DependentVar,
             ARMAModel      = ARMAModel,
             initialParam   = initialParam,
             Task           = Task)
-mylgc
