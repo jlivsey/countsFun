@@ -333,6 +333,14 @@ ParticleFilter_Res_ARMA = function(theta, mod){
     # update weights
     #w[t,] = ComputeWeights(mod, Limit$a, Limit$b, t, w[(t-1),])
     w[t,] = ComputeWeights(mod, Limit, t, w[(t-1),])
+    #print(t)
+    #print(w[t,])
+    # check me: In misspecified models, the weights may get equal to 0. Is it ok
+    # for me to do the following? how is this different from allowing zero weights and
+    # returning a large likelihood?
+    if (sum(w[t,])==0){
+      w[t,] = rep(10^(-16),mod$ParticleNumber)
+    }
 
     # check me: break if I got NA weight
     if (any(is.na(w[t,]))| sum(w[t,])==0 ){
@@ -631,7 +639,6 @@ FitMultiplePF_Res = function(theta, mod){
 
   return(ModelOutput)
 }
-
 
 # Add some functions that I will need for common random numbers
 get_rand_state <- function() {
@@ -1092,8 +1099,22 @@ ComputeLimits = function(mod, Parms, t, Zhat, Rt){
   if(max(mod$ARMAModel)==0){index=1}
 
   if(mod$nreg==0){
-    Lim$a = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t]-1,t(Parms$MargParms)),0,1)) - Zhat)/(Rt[index])
-    Lim$b = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t],t(Parms$MargParms)),0,1)) - Zhat)/Rt[index]
+
+    C_1 = mod$mycdf(mod$DependentVar[t]-1,t(Parms$MargParms))
+    C   = mod$mycdf(mod$DependentVar[t],t(Parms$MargParms))
+    # check me: can this help avoid the issue of plugging in 1 and getting Inf value in the qnorm below?
+    #  I will try it and I will give a warning here if this happens
+    if(C_1==1) {
+      C_1 = 1-10^(-16)
+      message(sprintf("A %s model is fitted, but at t=%.0f the dependent variable is equal to %.0f.",mod$CountDist, t,mod$DependentVar[t]))
+    }
+    if(C==1) {
+      C = 1-10^(-16)
+      message(sprintf("A %s model is fitted, but at t=%.0f the dependent variable is equal to %.0f.",mod$CountDist, t,mod$DependentVar[t]))
+    }
+    if(C==1) C = 1-10^(-16)
+    Lim$a = as.numeric((qnorm(C_1,0,1)) - Zhat)/Rt[index]
+    Lim$b = as.numeric((qnorm(C  ,0,1)) - Zhat)/Rt[index]
   }else{
     Lim$a = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t]-1,Parms$ConstMargParm, Parms$DynamMargParm[t,]),0,1)) - Zhat)/Rt[index]
     Lim$b = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t],Parms$ConstMargParm, Parms$DynamMargParm[t,]),0,1)) - Zhat)/Rt[index]
@@ -1107,6 +1128,18 @@ SampleTruncNormParticles = function(mod, Limit, t, Zhat, Rt){
   # check me: this can be improved?
   index = min(t, max(mod$ARMAModel))
   if(max(mod$ARMAModel)==0){index=1}
+
+  # Check me: in the case of missspecifed models, I may get really large values for the limits
+  # wchich means that the pnorm will equal 1 and then the qnorm will yield Inf. Is this ok?
+  if (min(Limit$a)>=7) {
+    Limit$a[Limit$a>=7] = 7 - 10^(-11)
+    message(sprintf("A %s model is fitted, but at t=%.0f the dependent variable is equal to %.0f.",mod$CountDist, t,mod$DependentVar[t]))
+  }
+  if (min(Limit$b)>=7) {
+    Limit$b[Limit$b>=7] = 7 - 10^(-11)
+    message(sprintf("A %s model is fitted, but at t=%.0f the dependent variable is equal to %.0f.",mod$CountDist, t,mod$DependentVar[t]))
+  }
+
   z = qnorm(runif(length(Limit$a),0,1)*(pnorm(Limit$b,0,1)-pnorm(Limit$a,0,1))+pnorm(Limit$a,0,1),0,1)*Rt[index] + Zhat
   return(z)
 }
@@ -2047,7 +2080,8 @@ ParticleFilter_Res_ARMA_old = function(theta, mod){
   #           https://arxiv.org/abs/1811.00203
   #           2. This function is very similar to LikSISGenDist_ARp but here
   #           I have a resampling step.
-  #
+  #           3. The innovations algorithm here is the standard one, likely it will
+  #           be slower.
   # INPUTS:
   #    theta:            parameter vector
   #    data:             data
@@ -2165,4 +2199,186 @@ ParticleFilter_Res_ARMA_old = function(theta, mod){
 
 
   return(nloglik)
+}
+
+
+#--------------------------------------------------------------------------------#
+# On August 2024 for Issue #27, I renamed the funcions ParticleFilter_Res_ARMA,
+# ComputeLimits and SampleTruncNormParticles to ParticleFilter_Res_ARMA_stable,
+# ComputeLimits_stable and SampleTruncNormParticles_stable. The new
+# ParticleFilter_Res_ARMA, ComputeLimits and SampleTruncNormParticles
+# functions have the change that the value 1 for CDF calculations is changed to
+# 1-10^(-16), so that when inverse normal is applied we do not receive an inf value.
+# I am keeping the stable versions below (i.e., the versions before the change was
+# made) until I perform adequate testing (the new functions have passed the existing
+# unit tests, however at this time we haven't yet created enough unit tests).
+# PF likelihood with resampling for ARMA(p,q)
+ParticleFilter_Res_ARMA_stable = function(theta, mod){
+  #------------------------------------------------------------------------------------#
+  # PURPOSE:  Use particle filtering with resampling to approximate the likelihood
+  #           of the a specified count time series model with an underlying MA(1)
+  #           dependence structure.
+  #
+  # NOTES:    1. See "Latent Gaussian Count Time Series Modeling" for  more
+  #           details. A first version of the paper can be found at:
+  #           https://arxiv.org/abs/1811.00203
+  #           2. This function is very similar to LikSISGenDist_ARp but here
+  #           I have a resampling step.
+  #           3. This is the first stable ParticleFilter_Res_ARMA version. I am
+  #           renaming it to ParticleFilter_Res_ARMA_stable and continue to use the
+  #           ParticleFilter_Res_ARMA name for newer versions of the likelihood. In
+  #           particu
+  # INPUTS:
+  #    theta:            parameter vector
+  #    data:             data
+  #    ParticleNumber:   number of particles to be used.
+  #    Regressor:        independent variable
+  #    CountDist:        count marginal distribution
+  #    epsilon           resampling when ESS<epsilon*N
+  #
+  # OUTPUT:
+  #    loglik:           approximate log-likelihood
+  #
+  #
+  # AUTHORS: James Livsey, Vladas Pipiras, Stefanos Kechagias,
+  # DATE:    July 2020
+  #------------------------------------------------------------------------------------#
+
+  old_state <- get_rand_state()
+  on.exit(set_rand_state(old_state))
+
+  # Retrieve parameters and save them in a list called Parms
+  Parms = RetrieveParameters(theta,mod)
+
+  # check for causality
+  if( CheckStability(Parms$AR,Parms$MA) ) return(10^(8))
+
+  # Initialize the negative log likelihood computation
+  nloglik = ifelse(mod$nreg==0,  - log(mod$mypdf(mod$DependentVar[1],Parms$MargParms)),
+                   - log(mod$mypdf(mod$DependentVar[1], Parms$ConstMargParm, Parms$DynamMargParm[1])))
+
+  # retrieve AR, MA orders and their max
+  m = max(mod$ARMAModel)
+  p = mod$ARMAModel[1]
+  q = mod$ARMAModel[2]
+
+
+  # Compute ARMA covariance up to lag n-1
+  a        = list()
+  if(!is.null(Parms$AR)){
+    a$phi = Parms$AR
+  }else{
+    a$phi = 0
+  }
+  if(!is.null(Parms$MA)){
+    a$theta = Parms$MA
+  }else{
+    a$theta = 0
+  }
+  a$sigma2 = 1
+  gamma    = itsmr::aacvf(a,mod$n)
+
+  # Compute coefficients of Innovations Algorithm see 5.2.16 and 5.3.9 in in Brockwell Davis book
+  IA       = InnovAlg(Parms, gamma, mod)
+  Theta    = IA$thetas
+  Rt       = sqrt(IA$v)
+
+  # Get the n such that |v_n-v_{n-1}|< mod$maxdiff. check me: does this guarantee convergence of Thetas?
+  nTheta   = IA$n
+  Theta_n  = Theta[[nTheta]]
+
+  # allocate matrices for weights, particles and predictions of the latent series
+  w        = matrix(0, mod$n, mod$ParticleNumber)
+  Z        = matrix(0, mod$n, mod$ParticleNumber)
+  Zhat     = matrix(0, mod$n, mod$ParticleNumber)
+
+  # initialize particle filter weights
+  w[1,]    = rep(1,mod$ParticleNumber)
+
+  # Compute the first integral limits Limit$a and Limit$b
+  Limit    = ComputeLimits_stable(mod, Parms, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
+
+  # Initialize the particles using N(0,1) variables truncated to the limits computed above
+  #Z[1,]    = SampleTruncNormParticles(mod, Limit$a, Limit$b, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
+  Z[1,]    = SampleTruncNormParticles_stable(mod, Limit, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
+
+
+  for (t in 2:mod$n){
+
+    # compute Zhat_t
+    #Zhat[t,] = ComputeZhat_t(m,Theta,Z,Zhat,t, Parms,p,q, nTheta, Theta_n)
+    Zhat[t,] = ComputeZhat_t(mod, IA, Z, Zhat,t, Parms)
+
+    # Compute integral limits
+    Limit = ComputeLimits_stable(mod, Parms, t, Zhat[t,], Rt)
+
+    # Sample truncated normal particles
+    #Znew  = SampleTruncNormParticles(mod, Limit$a, Limit$b, t, Zhat[t,], Rt)
+    Znew  = SampleTruncNormParticles_stable(mod, Limit, t, Zhat[t,], Rt)
+
+    # update weights
+    #w[t,] = ComputeWeights(mod, Limit$a, Limit$b, t, w[(t-1),])
+    w[t,] = ComputeWeights(mod, Limit, t, w[(t-1),])
+
+    # check me: break if I got NA weight
+    if (any(is.na(w[t,]))| sum(w[t,])==0 ){
+      #print(t)
+      #print(w[t,])
+      message(sprintf('WARNING: Some of the weights are either too small or sum to 0'))
+      return(10^8)
+    }
+
+    # Resample the particles using common random numbers
+    old_state1 = get_rand_state()
+    Znew = ResampleParticles(mod, w, t, Znew)
+    set_rand_state(old_state1)
+
+    # save the current particle
+    Z[t,]   = Znew
+
+    # update likelihood
+    nloglik = nloglik - log(mean(w[t,]))
+
+  }
+
+  # for log-likelihood we use a bias correction--see par2.3 in Durbin Koopman, 1997
+  # nloglik = nloglik- (1/(2*N))*(var(na.omit(wgh[T1,]))/mean(na.omit(wgh[T1,])))/mean(na.omit(wgh[T1,]))
+
+  # if (nloglik==Inf | is.na(nloglik)){
+  #   nloglik = 10^8
+  # }
+
+
+  return(nloglik)
+}
+
+ComputeLimits_stable = function(mod, Parms, t, Zhat, Rt){
+
+  # a and b are the arguments in the two normal cdfs in the 4th line in equation (19) in JASA paper
+  Lim = list()
+  # fix me: this will be ok for AR or MA models but for ARMA? is it p+q instead of max(p,q)
+  # fix me: why do I have t(Parms$MargParms)?
+  index = min(t, max(mod$ARMAModel))
+
+  # add the following for White Noise models
+  if(max(mod$ARMAModel)==0){index=1}
+
+  if(mod$nreg==0){
+    Lim$a = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t]-1,t(Parms$MargParms)),0,1)) - Zhat)/(Rt[index])
+    Lim$b = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t],t(Parms$MargParms)),0,1)) - Zhat)/Rt[index]
+  }else{
+    Lim$a = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t]-1,Parms$ConstMargParm, Parms$DynamMargParm[t,]),0,1)) - Zhat)/Rt[index]
+    Lim$b = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t],Parms$ConstMargParm, Parms$DynamMargParm[t,]),0,1)) - Zhat)/Rt[index]
+  }
+
+  return(Lim)
+}
+
+SampleTruncNormParticles_stable = function(mod, Limit, t, Zhat, Rt){
+  # relation (21) in JASA paper and the inverse transform method
+  # check me: this can be improved?
+  index = min(t, max(mod$ARMAModel))
+  if(max(mod$ARMAModel)==0){index=1}
+  z = qnorm(runif(length(Limit$a),0,1)*(pnorm(Limit$b,0,1)-pnorm(Limit$a,0,1))+pnorm(Limit$a,0,1),0,1)*Rt[index] + Zhat
+  return(z)
 }

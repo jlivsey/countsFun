@@ -59,12 +59,18 @@ ComputeLimits(mod, Parms, t, Zhat_t, Rt)
 
 # Entering the ComputeLimits function I am computing the fourth line in relation (19):
 index = min(t, max(mod$ARMAModel))
-Lim$a = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t]-1,Parms$ConstMargParm, Parms$DynamMargParm[t,]),0,1)) - Zhat)/Rt[index]
-Lim$b = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t],Parms$ConstMargParm, Parms$DynamMargParm[t,]),0,1)) - Zhat)/Rt[index]
+
+Lim = list()
+C_1 = mod$mycdf(mod$DependentVar[t]-1,t(Parms$MargParms))
+C   = mod$mycdf(mod$DependentVar[t],t(Parms$MargParms))
+
+#if(C_1==1) C_1 = 1-10^(-16)
+#if(C==1) C = 1-10^(-16)
+
+Lim$a = as.numeric((qnorm(C_1,0,1)) - Zhat_t)/Rt[index]
+Lim$b = as.numeric((qnorm(C  ,0,1)) - Zhat_t)/Rt[index]
 
 # the limits a and b take Inf value because mod$mycdf(mod$DependentVar[t]-1,(Parms$MargParms)) = 1
 Lim
-
-# for this case the count cdf is equal to 1
 mod$mycdf(mod$DependentVar[t]-1,t(Parms$MargParms))
 
