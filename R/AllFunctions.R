@@ -2185,6 +2185,133 @@ CurrentDist = function(theta,mod){
   return(name)
 }
 
+
+# Modifying the partcile filter function to return Predictive distribution
+PDvalues = function(theta, mod){
+  #------------------------------------------------------------------------------------#
+  # PURPOSE:  Compute predictive distribution
+  #
+  #
+  # AUTHORS: James Livsey, Vladas Pipiras, Stefanos Kechagias,
+  # DATE:    July 2020
+  #------------------------------------------------------------------------------------#
+
+  old_state <- get_rand_state()
+  on.exit(set_rand_state(old_state))
+
+  # Retrieve parameters and save them in a list called Parms
+  Parms = RetrieveParameters(theta,mod)
+
+  # check for causality
+  if( CheckStability(Parms$AR,Parms$MA) ) return(10^(8))
+
+  # Initialize the negative log likelihood computation
+  nloglik = ifelse(mod$nreg==0,  - log(mod$mypdf(mod$DependentVar[1],Parms$MargParms)),
+                   - log(mod$mypdf(mod$DependentVar[1], Parms$ConstMargParm, Parms$DynamMargParm[1])))
+
+  # retrieve AR, MA orders and their max
+  m = max(mod$ARMAModel)
+  p = mod$ARMAModel[1]
+  q = mod$ARMAModel[2]
+
+  # Compute ARMA covariance up to lag n-1
+  a        = list()
+  if(!is.null(Parms$AR)){
+    a$phi = Parms$AR
+  }else{
+    a$phi = 0
+  }
+  if(!is.null(Parms$MA)){
+    a$theta = Parms$MA
+  }else{
+    a$theta = 0
+  }
+  a$sigma2 = 1
+  gamma    = itsmr::aacvf(a,mod$n)
+
+  # Compute coefficients of Innovations Algorithm see 5.2.16 and 5.3.9 in in Brockwell Davis book
+  IA       = InnovAlg(Parms, gamma, mod)
+  Theta    = IA$thetas
+  Rt       = sqrt(IA$v)
+
+  # Get the n such that |v_n-v_{n-1}|< mod$maxdiff. check me: does this guarantee convergence of Thetas?
+  nTheta   = IA$n
+  Theta_n  = Theta[[nTheta]]
+
+  # allocate matrices for weights, particles and predictions of the latent series
+  w        = matrix(0, mod$n, mod$ParticleNumber)
+  Z        = matrix(0, mod$n, mod$ParticleNumber)
+  Zhat     = matrix(0, mod$n, mod$ParticleNumber)
+
+  # to collect the values of predictive distribution of interest
+  preddist = matrix(0,2,mod$n)
+
+  # initialize particle filter weights
+  w[1,]    = rep(1,mod$ParticleNumber)
+
+  # Compute the first integral limits Limit$a and Limit$b
+  Limit    = ComputeLimits(mod, Parms, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
+
+  # Initialize the particles using N(0,1) variables truncated to the limits computed above
+  #Z[1,]    = SampleTruncNormParticles(mod, Limit$a, Limit$b, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
+  Z[1,]    = SampleTruncNormParticles(mod, Limit, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
+
+
+  for (t in 2:mod$n){
+
+    # compute Zhat_t
+    Zhat[t,] = ComputeZhat_t(mod, IA, Z, Zhat,t, Parms)
+
+    # compute a,b and temp
+    temp  = rep(0,(mod$DependentVar[t]+1))
+    index = min(t, max(mod$ARMAModel))
+    for (x in 0:mod$DependentVar[t]){
+      # Compute integral limits
+      if(mod$nreg==0){
+        a = as.numeric(qnorm(mod$mycdf(x-1,Parms$MargParms),0,1) -  Zhat[t,])/Rt[index]
+        b = as.numeric(qnorm(mod$mycdf(x,  Parms$MargParms),0,1) -  Zhat[t,])/Rt[index]
+      }else{
+        a = as.numeric(qnorm(mod$mycdf(x-1,Parms$ConstMargParm, Parms$DynamMargParm[t]),0,1) -  Zhat[t,])/Rt[index]
+        b = as.numeric(qnorm(mod$mycdf(x,  Parms$ConstMargParm, Parms$DynamMargParm[t]),0,1) -  Zhat[t,])/Rt[index]
+      }
+      temp[x+1] = mean(pnorm(b,0,1) - pnorm(a,0,1))
+    }
+
+    # Compute integral limits
+    Limit = ComputeLimits(mod, Parms, t, Zhat[t,], Rt)
+
+    # Sample truncated normal particles
+    Znew  = SampleTruncNormParticles(mod, Limit, t, Zhat[t,], Rt)
+
+    # update weights
+    w[t,] = ComputeWeights(mod, Limit, t, w[(t-1),])
+
+    # check me: break if I got NA weight
+    if (any(is.na(w[t,]))| sum(w[t,])==0 ){
+      message(sprintf('WARNING: At t=%.0f some of the weights are either too small or sum to 0',t))
+      return(10^8)
+    }
+    # Resample the particles using common random numbers
+    old_state1 = get_rand_state()
+    Znew = ResampleParticles(mod, w, t, Znew)
+    set_rand_state(old_state1)
+
+    # save the current particle
+    Z[t,]   = Znew
+
+
+    if (mod$DependentVar[t]==0){
+      preddist[,t] = c(0,temp[1])
+    }else{
+      preddist[,t] = cumsum(temp)[mod$DependentVar[t]:(mod$DependentVar[t]+1)]
+    }
+
+  }
+
+  return(preddist)
+}
+
+#===========================================================================================#
 #--------------------------------------------------------------------------------#
 # On August 2024 for Issue #27, I created a modified likelihood function called
 # ParticleFilter_Res_ARMA_MisSpec with three changes:

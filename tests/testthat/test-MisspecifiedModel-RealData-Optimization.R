@@ -10,7 +10,8 @@ library(itsmr)
 library(tictoc)
 
 # load the data
-mysales = read.csv("https://raw.githubusercontent.com/jlivsey/countsFun/master/data/MySelectedSeries.csv")
+#mysales = read.csv("https://raw.githubusercontent.com/jlivsey/countsFun/master/data/MySelectedSeries.csv")
+data(MySelectedSeries)
 
 # deal with a smaller sample size that we considered in the JASA paper
 n = 104

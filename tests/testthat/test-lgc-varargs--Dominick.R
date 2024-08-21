@@ -15,7 +15,8 @@ library(itsmr)
 library(tictoc)
 
 # load the data
-mysales = read.csv("https://raw.githubusercontent.com/jlivsey/countsFun/master/data/MySelectedSeries.csv")
+#mysales = read.csv("https://raw.githubusercontent.com/jlivsey/countsFun/master/data/MySelectedSeries.csv")
+data(MySelectedSeries)
 
 # attach the dataframe
 n = 104
@@ -32,11 +33,11 @@ initialParam   = c(2.1756853 , 1.2048704,0.5, -0.3875602, 0.0603419 )
 
 # call the wrapper function with less arguments
 mylgc = lgc(DependentVar   = DependentVar,
-                  Regressor      = Regressor,
-                  CountDist      = CountDist,
-                  ARMAModel      = ARMAModel,
-                  OptMethod      = OptMethod,
-               initialParam = initialParam)
+            Regressor      = Regressor,
+            CountDist      = CountDist,
+            ARMAModel      = ARMAModel,
+            OptMethod      = OptMethod,
+              initialParam = initialParam)
 
 expect_equal(mylgc$FitStatistics[[1]], 392.673, tolerance = 10^(-3))
 
