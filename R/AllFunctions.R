@@ -2311,6 +2311,27 @@ PDvalues = function(theta, mod){
   return(preddist)
 }
 
+# Compute PIT values - see relations (39) - (40) in JASA paper
+PITvalues = function(H, predDist){
+  PITvalues = rep(0,H)
+
+  predd1 = predDist[1,]
+  predd2 = predDist[2,]
+  Tr = length(predd1)
+
+  for (h in 1:H){
+    id1 = (predd1 < h/H)*(h/H < predd2)
+    id2 = (h/H >= predd2)
+    tmp1 = (h/H-predd1)/(predd2-predd1)
+    tmp1[!id1] = 0
+    tmp2 = rep(0,Tr)
+    tmp2[id2] = 1
+    PITvalues[h] = mean(tmp1+tmp2)
+  }
+PITvalues = c(0,PITvalues)
+return(diff(PITvalues))
+}
+
 #===========================================================================================#
 #--------------------------------------------------------------------------------#
 # On August 2024 for Issue #27, I created a modified likelihood function called
