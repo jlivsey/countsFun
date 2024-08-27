@@ -44,8 +44,10 @@ test_that("LGC wrapper works for evaluation MixPois AR(1)", {
               OutputType     = OutputType,
               ParamScheme    = ParamScheme,
               maxdiff        = maxdiff)
-  mylgc
+  est = c(1.602, 4.163,0.507,0.67716673)
 
-  expect_equal(mylgc$FitStatistics[[1]], 369.42858)
+  expect_equal(mylgc$FitStatistics[[1]], 369.35048)
+  expect_equal(as.numeric(mylgc$ParamEstimates), est)
+
 
 })

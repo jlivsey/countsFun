@@ -24,7 +24,8 @@ lgc = function(DependentVar   = NULL,
                OptMethod      = "L-BFGS-B",
                OutputType     = "list",
                ParamScheme    = NULL,
-               maxdiff        = 10^(-8), ...){
+               maxdiff        = 10^(-8),
+               ntrials        = NULL,...){
 
   # parse all the parameters and the data into a list called mod
   mod = ModelScheme(DependentVar   = DependentVar,
@@ -41,7 +42,13 @@ lgc = function(DependentVar   = NULL,
                     OptMethod      = OptMethod,
                     OutputType     = OutputType,
                     ParamScheme    = ParamScheme,
-                    maxdiff        = maxdiff)
+                    maxdiff        = maxdiff,
+                    ntrials        = ntrials)
+
+  # if(Task=='Synthesis'){
+  #   out
+  # }
+
 
   # compute initial parameters if they haven't been provided
   if (is.null(mod$initialParam)){
@@ -72,6 +79,7 @@ lgc = function(DependentVar   = NULL,
     registerDoParallel(cl)
 
     # run foreach
+    # fix me: need to be very careful here with packages - and run tests for all distributions with and without regressors
     out = foreach(index = 1:nsim,
                 .combine = rbind,
                 .packages = c("ltsa", "optimx", 'tictoc', 'countsFun'))  %dopar%  {
