@@ -39,7 +39,7 @@ ModelScheme = function(DependentVar = NULL, Regressor=NULL, EstMethod="PFR", ARM
                            "Generalized Poisson 2" = 1:(2+nreg),
                            "Binomial"              = 1:(1+nreg),
                            "Mixed Poisson"         = 1:(3+nreg*2),
-                           "ZIP"                   = 1:(2+nreg*2)
+                           "ZIP"                   = 1:(2+nreg)
   )
 
   # retrieve marginal distribution parameters
@@ -131,7 +131,7 @@ ModelScheme = function(DependentVar = NULL, Regressor=NULL, EstMethod="PFR", ARM
                    "Generalized Poisson 2" = function(x, ConstMargParm, DynamMargParm){ pgenpois2(x, DynamMargParm, ConstMargParm)},
                    "Binomial"              = function(x, ConstMargParm, DynamMargParm){    pbinom(x, ntrials, DynamMargParm)},
                    "Mixed Poisson"         = function(x, ConstMargParm, DynamMargParm){  pmixpois(x, DynamMargParm[1], DynamMargParm[2], ConstMargParm)},
-                   "ZIP"                   = function(x, ConstMargParm, DynamMargParm){   pzipois(x, DynamMargParm[1], DynamMargParm[2])}
+                   "ZIP"                   = function(x, ConstMargParm, DynamMargParm){   pzipois(x, DynamMargParm, ConstMargParm)}
     )
     # retrieve marginal pdf
     mypdf = switch(CountDist,
@@ -141,7 +141,7 @@ ModelScheme = function(DependentVar = NULL, Regressor=NULL, EstMethod="PFR", ARM
                    "Generalized Poisson 2" = function(x, ConstMargParm, DynamMargParm){ dgenpois2(x, DynamMargParm, ConstMargParm)},
                    "Binomial"              = function(x, ConstMargParm, DynamMargParm){    dbinom(x, ntrials, DynamMargParm)},
                    "Mixed Poisson"         = function(x, ConstMargParm, DynamMargParm){  dmixpois(x, DynamMargParm[1], DynamMargParm[2], ConstMargParm)},
-                   "ZIP"                   = function(x, ConstMargParm, DynamMargParm){   dzipois(x, DynamMargParm[1], DynamMargParm[2])}
+                   "ZIP"                   = function(x, ConstMargParm, DynamMargParm){   dzipois(x, DynamMargParm, ConstMargParm)}
     )
     # retrieve marginal inverse cdf
     myinvcdf = switch(CountDist,
@@ -151,7 +151,7 @@ ModelScheme = function(DependentVar = NULL, Regressor=NULL, EstMethod="PFR", ARM
                    "Generalized Poisson 2" = function(x, ConstMargParm, DynamMargParm){ qgenpois2(x, DynamMargParm, ConstMargParm)},
                    "Binomial"              = function(x, ConstMargParm, DynamMargParm){    qbinom(x, ntrials, DynamMargParm)},
                    "Mixed Poisson"         = function(x, ConstMargParm, DynamMargParm){  qmixpois(x, DynamMargParm[1], DynamMargParm[2], ConstMargParm)},
-                   "ZIP"                   = function(x, ConstMargParm, DynamMargParm){   qzipois(x, DynamMargParm[1], DynamMargParm[2])}
+                   "ZIP"                   = function(x, ConstMargParm, DynamMargParm){   qzipois(x, DynamMargParm, ConstMargParm)}
     )
     # lower bound contraints
     LB = switch(CountDist,
@@ -171,7 +171,7 @@ ModelScheme = function(DependentVar = NULL, Regressor=NULL, EstMethod="PFR", ARM
                 "Generalized Poisson 2" = c(rep(Inf, nreg+1), Inf, rep(Inf, sum(ARMAModel))),
                 "Binomial"              = rep(Inf, sum(ARMAModel)+nreg+1),
                 "Mixed Poisson"         = c(rep(Inf, 2*nreg+2), 0.99, rep(Inf, sum(ARMAModel))),
-                "ZIP"                   = c(rep(Inf, 2*nreg+2), rep(Inf, sum(ARMAModel)))
+                "ZIP"                   = c(rep(Inf, nreg+1), Inf, rep(Inf, sum(ARMAModel))),
     )
     # retrieve names of marginal parameters
     MargParmsNames = switch(CountDist,
@@ -181,7 +181,7 @@ ModelScheme = function(DependentVar = NULL, Regressor=NULL, EstMethod="PFR", ARM
                             "Generalized Poisson"   = c(paste(rep("b_",nreg),0:nreg,sep=""), "a"),
                             "Generalized Poisson 2" = c(paste(rep("b_",nreg),0:nreg,sep=""), "a"),
                             "Binomial"              = paste(rep("b_",nreg),0:nreg,sep=""),
-                            "ZIP"                   = c(paste(rep("b_",nreg),0:nreg, sep=""), paste(rep("c_",nreg),0:nreg, sep=""))
+                            "ZIP"                   = c(paste(rep("b_",nreg),0:nreg,sep=""), "p"),
     )
   }
 
@@ -720,11 +720,11 @@ InitialEstimates = function(mod){
 
     }else{
       # GLM for the mean that depends on time
-      glmNegBin                 = glm.nb(mod$DependentVar~mod$Regressor[,2:(mod$nreg+1)])
+      glmNB                     = glm.nb(mod$DependentVar~mod$Regressor[,2:(mod$nreg+1)])
       est[1:(mod$nMargParms-1)] = as.numeric(glmNegBin[1]$coef)
 
-      # MOM on constant variance
-      est[mod$nMargParms]       = NegBinMoM(mod$DependentVar,glmNegBin$fitted.values)
+      # MoM for the over dispersion param in NegBin2 parametrization
+      est[mod$nMargParms]       = sum(glmNB$fitted.values^2)/(sum((mod$DependentVar-glmNB$fitted.values)^2-glmNB$fitted.values))
 
     }
   }
@@ -807,18 +807,13 @@ InitialEstimates = function(mod){
 
       lEst = ZIP_PMLE[1]
       pEst = ZIP_PMLE[2]
-
-      # correct estimates if they are outside the feasible region
-      # if(pEst<mod$LB[1]){pEst = 1.1*mod$LB[1]}
-      # if(pEst>mod$UB[1]){pEst = 0.9*mod$UB[1]}
-      #
-      # if(lEst<mod$LB[2]){l1Est = 1.1*mod$LB[2]}
-
       est[1:2] = c(lEst, pEst)
 
     }else{
-      zeroinfl_reg = zeroinfl(mod$DependentVar~mod$Regressor[,2:(mod$nreg+1)])$coefficients
-      est[1:mod$nMargParms] = as.numeric(c(zeroinfl_reg$count, zeroinfl_reg$zero))
+      #zeroinfl_reg <- zeroinfl( mod$DependentVar~ mod$Regressor[,2:(mod$nreg+1)] | 1,)
+      zeroinfl_reg = vglm( mod$DependentVar~ mod$Regressor[,2:(mod$nreg+1)], zipoisson(zero=1))
+      est[1:(mod$nMargParms-1)] = as.numeric(coef(zeroinfl_reg))[2:(mod$nMargParms)]
+      est[mod$nMargParms] = plogis(as.numeric(coef(zeroinfl_reg))[1])
     }
   }
 
@@ -860,13 +855,6 @@ InitialEstimates = function(mod){
 
 
   return(est)
-}
-
-NegBinMoM = function(DependentVar, GLMMeanEst){
-  # the GLMMeanEst is the GLM estimate of the standard log-link
-  # th formula below is standard MoM for the over dispersion param in NegBin2 parametrization
-  PhiMomEst = sum(GLMMeanEst^2)/(sum((DependentVar-GLMMeanEst)^2-GLMMeanEst))
-  return(PhiMomEst)
 }
 
 # innovations algorithm
@@ -1050,23 +1038,6 @@ sim_lgc = function(n, CountDist, MargParm, ARParm, MAParm, Regressor=NULL, ntria
   }
   # FIX ME: Should I be returning ts objects?
   return(as.numeric(x))
-}
-
-# poisson cdf using incomplete gamma and its derivative wrt to lambda
-myppois = function(x, lambda){
-  # compute poisson cdf as the ratio of an incomplete gamma function over the standard gamma function
-  # I will also compute the derivative of the poisson cdf wrt lambda
-  X  =c(lambda,x+1)
-  v1 = gammainc(X)
-  v2 = gamma(x+1)
-
-  # straight forward formula from the definition of incomplete gamma integral
-  v1_d = -lambda^x*exp(-lambda)
-  v2_d = 0
-
-  z  = v1/v2
-  z_d = (v1_d*v2 - v2_d*v1)/v2^2
-  return(c(z,z_d))
 }
 
 #---------Compute AIC, BIC, AICc
@@ -1277,7 +1248,6 @@ RetrieveParameters = function(theta,mod){
 
   if(mod$CountDist == "Binomial" && mod$nreg>0){
     Parms$ConstMargParm  = NULL
-    # this is the standard exp(Xb)/(1+exp(Xb))
     Parms$DynamMargParm  = m/(1+m)
   }
 
@@ -1288,9 +1258,8 @@ RetrieveParameters = function(theta,mod){
   }
 
   if(mod$CountDist == "ZIP" && mod$nreg>0){
-    Parms$ConstMargParm  = NULL
-    Parms$DynamMargParm  = cbind(exp(mod$Regressor%*%Parms$MargParms[1:(mod$nreg+1)]),
-                                 1/(1+exp(-mod$Regressor%*%Parms$MargParms[(mod$nreg+2):(mod$nreg*2+2)])))
+    Parms$ConstMargParm  = Parms$MargParms[mod$nreg+2]
+    Parms$DynamMargParm  = m
   }
 
 
@@ -1331,7 +1300,9 @@ dmixpois = function(x, lam1, lam2, p){
   return(y)
 }
 
-
+#-------------------------------------------------------------------------------------#
+# these are used when CountDist = "Generalize Poisson". I have now implemented the
+# "Generalized Poisson 2" and in the future the following will not be needed.
 # Generalized Poisson pdfs
 dGpois = function(y,a,m){
   #relation 2.4 in Famoye 1994, parametrization through the mean
@@ -1389,9 +1360,9 @@ rGpois = function(n, a,m){
   x = qGpois(u,a, m)
   return(x)
 }
+#-------------------------------------------------------------------------------------#
 
-
-# function that generates random marginal parameter values
+# function that generates random marginal parameter values - used in testing
 GenModelParam = function(CountDist,BadParamProb, AROrder, MAOrder, Regressor){
 
   #-----------------Marginal Parameters
@@ -1513,7 +1484,7 @@ GenModelParam = function(CountDist,BadParamProb, AROrder, MAOrder, Regressor){
 
 GenInitVal = function(AllParms, perturbation){
 
-  # select negative or postive perturbation based on a  coin flip
+  # select negative or positive perturbation based on a  coin flip
   #sign = 1-2*rbinom(1,1,0.5)
   # adding only negative sign now to ensure stability
   sign  = -1
@@ -1592,6 +1563,469 @@ ComputeResiduals= function(theta, mod){
   names(residual) = "residual"
   return(residual)
 }
+
+# Retrieve the name of the current marginal disgribution
+CurrentDist = function(theta,mod){
+  # check me: does it work for models with regressors?
+  name = sprintf("%s=%.2f",mod$parmnames[1],theta[1])
+
+  if (mod$nMargParms>1){
+    for(i in 2:mod$nMargParms){
+      #name = paste(name,initialParam[i],sep=",")
+      a = sprintf("%s=%.2f",mod$parmnames[i],theta[i])
+      name = paste(name,a,sep=",")
+    }
+  }
+  name = paste(mod$CountDist, "(", name,")", sep="")
+  return(name)
+}
+
+# Modifying the partcile filter function to return Predictive distribution
+PDvalues = function(theta, mod){
+  #------------------------------------------------------------------------------------#
+  # PURPOSE:  Compute predictive distribution
+  #
+  #
+  # AUTHORS: James Livsey, Vladas Pipiras, Stefanos Kechagias,
+  # DATE:    July 2020
+  #------------------------------------------------------------------------------------#
+
+  old_state <- get_rand_state()
+  on.exit(set_rand_state(old_state))
+
+  # Retrieve parameters and save them in a list called Parms
+  Parms = RetrieveParameters(theta,mod)
+
+  # check for causality
+  if( CheckStability(Parms$AR,Parms$MA) ) return(10^(8))
+
+  # Initialize the negative log likelihood computation
+  nloglik = ifelse(mod$nreg==0,  - log(mod$mypdf(mod$DependentVar[1],Parms$MargParms)),
+                   - log(mod$mypdf(mod$DependentVar[1], Parms$ConstMargParm, Parms$DynamMargParm[1])))
+
+  # retrieve AR, MA orders and their max
+  m = max(mod$ARMAModel)
+  p = mod$ARMAModel[1]
+  q = mod$ARMAModel[2]
+
+  # Compute ARMA covariance up to lag n-1
+  a        = list()
+  if(!is.null(Parms$AR)){
+    a$phi = Parms$AR
+  }else{
+    a$phi = 0
+  }
+  if(!is.null(Parms$MA)){
+    a$theta = Parms$MA
+  }else{
+    a$theta = 0
+  }
+  a$sigma2 = 1
+  gamma    = itsmr::aacvf(a,mod$n)
+
+  # Compute coefficients of Innovations Algorithm see 5.2.16 and 5.3.9 in in Brockwell Davis book
+  IA       = InnovAlg(Parms, gamma, mod)
+  Theta    = IA$thetas
+  Rt       = sqrt(IA$v)
+
+  # Get the n such that |v_n-v_{n-1}|< mod$maxdiff. check me: does this guarantee convergence of Thetas?
+  nTheta   = IA$n
+  Theta_n  = Theta[[nTheta]]
+
+  # allocate matrices for weights, particles and predictions of the latent series
+  w        = matrix(0, mod$n, mod$ParticleNumber)
+  Z        = matrix(0, mod$n, mod$ParticleNumber)
+  Zhat     = matrix(0, mod$n, mod$ParticleNumber)
+
+  # to collect the values of predictive distribution of interest
+  preddist = matrix(0,2,mod$n)
+
+  # initialize particle filter weights
+  w[1,]    = rep(1,mod$ParticleNumber)
+
+  # Compute the first integral limits Limit$a and Limit$b
+  Limit    = ComputeLimits(mod, Parms, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
+
+  # Initialize the particles using N(0,1) variables truncated to the limits computed above
+  #Z[1,]    = SampleTruncNormParticles(mod, Limit$a, Limit$b, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
+  Z[1,]    = SampleTruncNormParticles(mod, Limit, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
+
+
+  for (t in 2:mod$n){
+
+    # compute Zhat_t
+    Zhat[t,] = ComputeZhat_t(mod, IA, Z, Zhat,t, Parms)
+
+    # compute a,b and temp
+    temp  = rep(0,(mod$DependentVar[t]+1))
+    index = min(t, max(mod$ARMAModel))
+    for (x in 0:mod$DependentVar[t]){
+      # Compute integral limits
+      if(mod$nreg==0){
+        a = as.numeric(qnorm(mod$mycdf(x-1,Parms$MargParms),0,1) -  Zhat[t,])/Rt[index]
+        b = as.numeric(qnorm(mod$mycdf(x,  Parms$MargParms),0,1) -  Zhat[t,])/Rt[index]
+      }else{
+        a = as.numeric(qnorm(mod$mycdf(x-1,Parms$ConstMargParm, Parms$DynamMargParm[t]),0,1) -  Zhat[t,])/Rt[index]
+        b = as.numeric(qnorm(mod$mycdf(x,  Parms$ConstMargParm, Parms$DynamMargParm[t]),0,1) -  Zhat[t,])/Rt[index]
+      }
+      temp[x+1] = mean(pnorm(b,0,1) - pnorm(a,0,1))
+    }
+
+    # Compute integral limits
+    Limit = ComputeLimits(mod, Parms, t, Zhat[t,], Rt)
+
+    # Sample truncated normal particles
+    Znew  = SampleTruncNormParticles(mod, Limit, t, Zhat[t,], Rt)
+
+    # update weights
+    w[t,] = ComputeWeights(mod, Limit, t, w[(t-1),])
+
+    # check me: break if I got NA weight
+    if (any(is.na(w[t,]))| sum(w[t,])==0 ){
+      message(sprintf('WARNING: At t=%.0f some of the weights are either too small or sum to 0',t))
+      return(10^8)
+    }
+    # Resample the particles using common random numbers
+    old_state1 = get_rand_state()
+    Znew = ResampleParticles(mod, w, t, Znew)
+    set_rand_state(old_state1)
+
+    # save the current particle
+    Z[t,]   = Znew
+
+
+    if (mod$DependentVar[t]==0){
+      preddist[,t] = c(0,temp[1])
+    }else{
+      preddist[,t] = cumsum(temp)[mod$DependentVar[t]:(mod$DependentVar[t]+1)]
+    }
+
+  }
+
+  return(preddist)
+}
+
+# Compute PIT values - see relations (39) - (40) in JASA paper
+PITvalues = function(H, predDist){
+  PITvalues = rep(0,H)
+
+  predd1 = predDist[1,]
+  predd2 = predDist[2,]
+  Tr = length(predd1)
+
+  for (h in 1:H){
+    id1 = (predd1 < h/H)*(h/H < predd2)
+    id2 = (h/H >= predd2)
+    tmp1 = (h/H-predd1)/(predd2-predd1)
+    tmp1[!id1] = 0
+    tmp2 = rep(0,Tr)
+    tmp2[id2] = 1
+    PITvalues[h] = mean(tmp1+tmp2)
+  }
+PITvalues = c(0,PITvalues)
+return(diff(PITvalues))
+}
+
+
+#===========================================================================================#
+#--------------------------------------------------------------------------------#
+# On August 2024 for Issue #27, I created a modified likelihood function called
+# ParticleFilter_Res_ARMA_MisSpec with three changes:
+#
+# 1. The value 1 for the count CDF calculations is changed to 1-10^(-16), so that
+#    when inverse normal is applied in the copula, we do not receive an inf value.
+# 2. When the limits of the truncated normal distribution become too large (say>7),
+#    I set them equal to 7-epsilon, so when I apply the normal cdf and subsequnetly the
+#    inverse cdf i avoid the inf values.
+# 3. If the weights in the particle filter likelihood become 0 I set them equal to
+#    10^(-64).
+#
+# I have added the changes in the ParticleFilter_Res_ARMA_MisSpec, ComputeLimits_MisSpec
+# and SampleTruncNormParticles_MisSpec files and wil lcontinue  working with the
+# standard versions below until I perform adequate testing.
+
+
+# PF likelihood with resampling for ARMA(p,q) - with adhoc truncations
+ParticleFilter_Res_ARMA_MisSpec = function(theta, mod){
+  #------------------------------------------------------------------------------------#
+  # PURPOSE:  Use particle filtering with resampling to approximate the likelihood
+  #           of the a specified count time series model with an underlying MA(1)
+  #           dependence structure.
+  #
+  # NOTES:    1. See "Latent Gaussian Count Time Series Modeling" for  more
+  #           details. A first version of the paper can be found at:
+  #           https://arxiv.org/abs/1811.00203
+  #           2. This function is very similar to LikSISGenDist_ARp but here
+  #           I have a resampling step.
+  #
+  # INPUTS:
+  #    theta:            parameter vector
+  #    data:             data
+  #    ParticleNumber:   number of particles to be used.
+  #    Regressor:        independent variable
+  #    CountDist:        count marginal distribution
+  #    epsilon           resampling when ESS<epsilon*N
+  #
+  # OUTPUT:
+  #    loglik:           approximate log-likelihood
+  #
+  #
+  # AUTHORS: James Livsey, Vladas Pipiras, Stefanos Kechagias,
+  # DATE:    July 2020
+  #------------------------------------------------------------------------------------#
+
+  old_state <- get_rand_state()
+  on.exit(set_rand_state(old_state))
+
+  # Retrieve parameters and save them in a list called Parms
+  Parms = RetrieveParameters(theta,mod)
+
+  # check for causality
+  if( CheckStability(Parms$AR,Parms$MA) ) return(10^(8))
+
+  # Initialize the negative log likelihood computation
+  nloglik = ifelse(mod$nreg==0,  - log(mod$mypdf(mod$DependentVar[1],Parms$MargParms)),
+                   - log(mod$mypdf(mod$DependentVar[1], Parms$ConstMargParm, Parms$DynamMargParm[1])))
+
+  # retrieve AR, MA orders and their max
+  m = max(mod$ARMAModel)
+  p = mod$ARMAModel[1]
+  q = mod$ARMAModel[2]
+
+
+  # Compute ARMA covariance up to lag n-1
+  a        = list()
+  if(!is.null(Parms$AR)){
+    a$phi = Parms$AR
+  }else{
+    a$phi = 0
+  }
+  if(!is.null(Parms$MA)){
+    a$theta = Parms$MA
+  }else{
+    a$theta = 0
+  }
+  a$sigma2 = 1
+  gamma    = itsmr::aacvf(a,mod$n)
+
+  # Compute coefficients of Innovations Algorithm see 5.2.16 and 5.3.9 in in Brockwell Davis book
+  IA       = InnovAlg(Parms, gamma, mod)
+  Theta    = IA$thetas
+  Rt       = sqrt(IA$v)
+
+  # Get the n such that |v_n-v_{n-1}|< mod$maxdiff. check me: does this guarantee convergence of Thetas?
+  nTheta   = IA$n
+  Theta_n  = Theta[[nTheta]]
+
+  # allocate matrices for weights, particles and predictions of the latent series
+  w        = matrix(0, mod$n, mod$ParticleNumber)
+  Z        = matrix(0, mod$n, mod$ParticleNumber)
+  Zhat     = matrix(0, mod$n, mod$ParticleNumber)
+
+  # initialize particle filter weights
+  w[1,]    = rep(1,mod$ParticleNumber)
+
+  # Compute the first integral limits Limit$a and Limit$b
+  Limit    = ComputeLimits_MisSpec(mod, Parms, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
+
+  # Initialize the particles using N(0,1) variables truncated to the limits computed above
+  #Z[1,]    = SampleTruncNormParticles(mod, Limit$a, Limit$b, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
+  Z[1,]    = SampleTruncNormParticles_MisSpec(mod, Limit, Parms, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
+
+
+  for (t in 2:mod$n){
+
+    # compute Zhat_t
+    #Zhat[t,] = ComputeZhat_t(m,Theta,Z,Zhat,t, Parms,p,q, nTheta, Theta_n)
+    Zhat[t,] = ComputeZhat_t(mod, IA, Z, Zhat,t, Parms)
+
+    # Compute integral limits
+    Limit = ComputeLimits_MisSpec(mod, Parms, t, Zhat[t,], Rt)
+
+    # Sample truncated normal particles
+    #Znew  = SampleTruncNormParticles(mod, Limit$a, Limit$b, t, Zhat[t,], Rt)
+    Znew  = SampleTruncNormParticles_MisSpec(mod, Limit, Parms, t, Zhat[t,], Rt)
+
+    # update weights
+    #w[t,] = ComputeWeights(mod, Limit$a, Limit$b, t, w[(t-1),])
+    w[t,] = ComputeWeights(mod, Limit, t, w[(t-1),])
+    #print(t)
+    #print(w[t,])
+    # check me: In misspecified models, the weights may get equal to 0. Is it ok
+    # for me to do the following? how is this different from allowing zero weights and
+    # returning a large likelihood?
+    if (sum(w[t,])==0){
+      w[t,] = rep(10^(-64),mod$ParticleNumber)
+      message(sprintf("At t = %.0f all weights are equal to 0. They are resetted to equal 1e-64.",t))
+    }
+
+    # check me: break if I got NA weight
+    if (any(is.na(w[t,]))| sum(w[t,])==0 ){
+      #print(t)
+      #print(w[t,])
+      message(sprintf('WARNING: At t=%.0f some of the weights are either too small or sum to 0',t))
+      return(10^8)
+    }
+
+    # Resample the particles using common random numbers
+    old_state1 = get_rand_state()
+    Znew = ResampleParticles(mod, w, t, Znew)
+    set_rand_state(old_state1)
+
+    # save the current particle
+    Z[t,]   = Znew
+
+    # update likelihood
+    nloglik = nloglik - log(mean(w[t,]))
+
+  }
+
+  # for log-likelihood we use a bias correction--see par2.3 in Durbin Koopman, 1997
+  # nloglik = nloglik- (1/(2*N))*(var(na.omit(wgh[T1,]))/mean(na.omit(wgh[T1,])))/mean(na.omit(wgh[T1,]))
+
+  # if (nloglik==Inf | is.na(nloglik)){
+  #   nloglik = 10^8
+  # }
+
+
+  return(nloglik)
+}
+
+ComputeLimits_MisSpec = function(mod, Parms, t, Zhat, Rt){
+  # a and b are the arguments in the two normal cdfs in the 4th line in equation (19) in JASA paper
+  Lim = list()
+  # fix me: this will be ok for AR or MA models but for ARMA? is it p+q instead of max(p,q)
+  # fix me: why do I have t(Parms$MargParms)?
+  index = min(t, max(mod$ARMAModel))
+
+  # add the following for White Noise models
+  if(max(mod$ARMAModel)==0) index=1
+
+  if(mod$nreg==0){
+
+    C_1 = mod$mycdf(mod$DependentVar[t]-1,t(Parms$MargParms))
+    C   = mod$mycdf(mod$DependentVar[t],t(Parms$MargParms))
+
+    # fix me: need to implement for regressors as well
+    if(C_1==1) {
+      C_1 = 1-10^(-16)
+
+      # retrieve the name of the current distribution
+      CurrentDist = CurrentDist(Parms$MargParms, mod)
+
+      # warn the user of the situation
+      message(sprintf("To avoid an Inf inverse cdf value, 1e-16 was
+subtracted from C_xt_1 in relation (19). C_xt_1 = 1 can be caused by
+a misspecified marginal distribution, lack of relevant covariates, or
+an optimizer seaching the parameter space away from the truth. Here a
+%s model is fitted, but at t=%.0f the dependent variable is
+equal to %.0f.\n",CurrentDist, t,mod$DependentVar[t]))
+    }
+    if(C==1 ) {
+      # retrieve the name of the current distribution
+      CurrentDist = CurrentDist(Parms$MargParms, mod)
+
+      C = 1-10^(-16)
+      message(sprintf("To avoid an Inf inverse cdf value, 1e-16 was
+subtracted from C_xt in relation (19). C_xt_1 = 1 can be caused by
+a misspecified marginal distribution, lack of relevant covariates,
+or an optimizer seaching the parameter space away from the truth. Here
+a %s model is fitted, but at t=%.0f the dependent variable is
+equal to %.0f.\n",CurrentDist,t,mod$DependentVar[t]))
+    }
+
+    Lim$a = as.numeric((qnorm(C_1,0,1)) - Zhat)/Rt[index]
+    Lim$b = as.numeric((qnorm(C  ,0,1)) - Zhat)/Rt[index]
+  }else{
+    Lim$a = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t]-1,Parms$ConstMargParm, Parms$DynamMargParm[t,]),0,1)) - Zhat)/Rt[index]
+    Lim$b = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t],Parms$ConstMargParm, Parms$DynamMargParm[t,]),0,1)) - Zhat)/Rt[index]
+  }
+
+  return(Lim)
+}
+
+SampleTruncNormParticles_MisSpec = function(mod, Limit, Parms, t, Zhat, Rt){
+  # relation (21) in JASA paper and the inverse transform method
+  # check me: this can be improved?
+  index = min(t, max(mod$ARMAModel))
+  if(max(mod$ARMAModel)==0){index=1}
+
+
+  # Check me: in the case of missspecifed models, I may get really large values for the limits
+  # wchich means that the pnorm will equal 1 and then the qnorm will yield Inf. Is this ok?
+  if (min(Limit$a)>=7 ) {
+    # retrieve the name of the current distribution
+    CurrentDist = CurrentDist(Parms$MargParms, mod)
+    Limit$a[Limit$a>=7] = 7 - 10^(-11)
+    message(sprintf("To avoid an Inf inverse cdf value, 1e-11 was subtracted from
+the lower limit of the truncated Normal distribution used to generate new particles.
+Large limits can be caused by a misspecified marginal distribution, lack of relevant
+covariates, or an optimizer seaching the parameter space away from the truth among
+other things. Here a %s model is fitted, but at t=%.0f the dependent
+variable is equal to %.0f.\n", CurrentDist, t,mod$DependentVar[t]))
+  }
+
+  #   if (max(Limit$a)<=-7 ) {
+  #     # retrieve the name of the current distribution
+  #     CurrentDist = CurrentDist(Parms$MargParms, mod)
+  #     Limit$a[Limit$a<=-7] = -7 + 10^(-11)
+  #     message(sprintf("To avoid an Inf inverse cdf value, 1e-11 was added to
+  # the lower limit of the truncated Normal distribution used to generate new particles.
+  # Large limits can be caused by a misspecified marginal distribution, lack of relevant
+  # covariates, or an optimizer seaching the parameter space away from the truth among
+  # other things. Here a %s model is fitted, but at t=%.0f the dependent
+  # variable is equal to %.0f.\n", CurrentDist,t,mod$DependentVar[t]))
+  #     }
+
+  if (min(Limit$b)>=7 ) {
+    # retrieve the name of the current distribution
+    CurrentDist = CurrentDist(Parms$MargParms, mod)
+    Limit$b[Limit$b>=7] = 7 - 10^(-11)
+    message(sprintf("To avoid an Inf inverse cdf value, 1e-11 was subtracted from
+the upper limit of the truncated Normal distribution used to generate new particles.
+Large limits can be caused by a misspecified marginal distribution, lack of relevant
+covariates, or an optimizer seaching the parameter space away from the truth among
+other things. Here a %s model is fitted, but at t=%.0f the dependent
+variable is equal to %.0f.\n", CurrentDist, t,mod$DependentVar[t]))
+  }
+
+  #   if (max(Limit$b)<=-7 ) {
+  #     # retrieve the name of the current distribution
+  #     CurrentDist = CurrentDist(Parms$MargParms, mod)
+  #     Limit$b[Limit$b<=-7] = -7 + 10^(-11)
+  #     message(sprintf("To avoid an Inf inverse cdf value, 1e-11 was added to
+  # the upper limit of the truncated Normal distribution used to generate new particles.
+  # Large limits can be caused by a misspecified marginal distribution, lack of relevant
+  # covariates, or an optimizer seaching the parameter space away from the truth among
+  # other things. Here a %s model is fitted, but at t=%.0f the dependent
+  # variable is equal to %.0f.", CurrentDist,t,mod$DependentVar[t]))
+  #   }
+  z = qnorm(runif(length(Limit$a),0,1)*(pnorm(Limit$b,0,1)-pnorm(Limit$a,0,1))+pnorm(Limit$a,0,1),0,1)*Rt[index] + Zhat
+
+  return(z)
+}
+
+#############################################################################################
+#-------------------------------------------------------------------------------------------#
+# functions we wrote, and may use in the future
+# poisson cdf using incomplete gamma and its derivative wrt to lambda
+
+myppois = function(x, lambda){
+  # compute poisson cdf as the ratio of an incomplete gamma function over the standard gamma function
+  # I will also compute the derivative of the poisson cdf wrt lambda
+  X  = c(lambda,x+1)
+  v1 = gammainc(X)
+  v2 = gamma(x+1)
+
+  # straight forward formula from the definition of incomplete gamma integral
+  v1_d = -lambda^x*exp(-lambda)
+  v2_d = 0
+
+  z  = v1/v2
+  z_d = (v1_d*v2 - v2_d*v1)/v2^2
+  return(c(z,z_d))
+}
+
 
 # PF likelihood with resampling for AR(p)
 ParticleFilter_Res_AR_old = function(theta, mod){
@@ -1863,7 +2297,7 @@ ParticleFilter_Res = function(theta, mod){
   return(loglik)
 }
 
-# innovations algorithm code
+# innovations algorithm code - use in previous likelihood implementations
 innovations.algorithm <- function(gamma){
   n.max=length(gamma)-1
   # Found this online need to check it
@@ -2246,445 +2680,3 @@ ParticleFilter_Res_ARMA_old = function(theta, mod){
 
   return(nloglik)
 }
-
-# Retrieve the name of the current marginal disgribution
-CurrentDist = function(theta,mod){
-  # check me: does it work for models with regressors?
-  name = sprintf("%s=%.2f",mod$parmnames[1],theta[1])
-
-  if (mod$nMargParms>1){
-    for(i in 2:mod$nMargParms){
-      #name = paste(name,initialParam[i],sep=",")
-      a = sprintf("%s=%.2f",mod$parmnames[i],theta[i])
-      name = paste(name,a,sep=",")
-    }
-  }
-  name = paste(mod$CountDist, "(", name,")", sep="")
-  return(name)
-}
-
-
-# Modifying the partcile filter function to return Predictive distribution
-PDvalues = function(theta, mod){
-  #------------------------------------------------------------------------------------#
-  # PURPOSE:  Compute predictive distribution
-  #
-  #
-  # AUTHORS: James Livsey, Vladas Pipiras, Stefanos Kechagias,
-  # DATE:    July 2020
-  #------------------------------------------------------------------------------------#
-
-  old_state <- get_rand_state()
-  on.exit(set_rand_state(old_state))
-
-  # Retrieve parameters and save them in a list called Parms
-  Parms = RetrieveParameters(theta,mod)
-
-  # check for causality
-  if( CheckStability(Parms$AR,Parms$MA) ) return(10^(8))
-
-  # Initialize the negative log likelihood computation
-  nloglik = ifelse(mod$nreg==0,  - log(mod$mypdf(mod$DependentVar[1],Parms$MargParms)),
-                   - log(mod$mypdf(mod$DependentVar[1], Parms$ConstMargParm, Parms$DynamMargParm[1])))
-
-  # retrieve AR, MA orders and their max
-  m = max(mod$ARMAModel)
-  p = mod$ARMAModel[1]
-  q = mod$ARMAModel[2]
-
-  # Compute ARMA covariance up to lag n-1
-  a        = list()
-  if(!is.null(Parms$AR)){
-    a$phi = Parms$AR
-  }else{
-    a$phi = 0
-  }
-  if(!is.null(Parms$MA)){
-    a$theta = Parms$MA
-  }else{
-    a$theta = 0
-  }
-  a$sigma2 = 1
-  gamma    = itsmr::aacvf(a,mod$n)
-
-  # Compute coefficients of Innovations Algorithm see 5.2.16 and 5.3.9 in in Brockwell Davis book
-  IA       = InnovAlg(Parms, gamma, mod)
-  Theta    = IA$thetas
-  Rt       = sqrt(IA$v)
-
-  # Get the n such that |v_n-v_{n-1}|< mod$maxdiff. check me: does this guarantee convergence of Thetas?
-  nTheta   = IA$n
-  Theta_n  = Theta[[nTheta]]
-
-  # allocate matrices for weights, particles and predictions of the latent series
-  w        = matrix(0, mod$n, mod$ParticleNumber)
-  Z        = matrix(0, mod$n, mod$ParticleNumber)
-  Zhat     = matrix(0, mod$n, mod$ParticleNumber)
-
-  # to collect the values of predictive distribution of interest
-  preddist = matrix(0,2,mod$n)
-
-  # initialize particle filter weights
-  w[1,]    = rep(1,mod$ParticleNumber)
-
-  # Compute the first integral limits Limit$a and Limit$b
-  Limit    = ComputeLimits(mod, Parms, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
-
-  # Initialize the particles using N(0,1) variables truncated to the limits computed above
-  #Z[1,]    = SampleTruncNormParticles(mod, Limit$a, Limit$b, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
-  Z[1,]    = SampleTruncNormParticles(mod, Limit, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
-
-
-  for (t in 2:mod$n){
-
-    # compute Zhat_t
-    Zhat[t,] = ComputeZhat_t(mod, IA, Z, Zhat,t, Parms)
-
-    # compute a,b and temp
-    temp  = rep(0,(mod$DependentVar[t]+1))
-    index = min(t, max(mod$ARMAModel))
-    for (x in 0:mod$DependentVar[t]){
-      # Compute integral limits
-      if(mod$nreg==0){
-        a = as.numeric(qnorm(mod$mycdf(x-1,Parms$MargParms),0,1) -  Zhat[t,])/Rt[index]
-        b = as.numeric(qnorm(mod$mycdf(x,  Parms$MargParms),0,1) -  Zhat[t,])/Rt[index]
-      }else{
-        a = as.numeric(qnorm(mod$mycdf(x-1,Parms$ConstMargParm, Parms$DynamMargParm[t]),0,1) -  Zhat[t,])/Rt[index]
-        b = as.numeric(qnorm(mod$mycdf(x,  Parms$ConstMargParm, Parms$DynamMargParm[t]),0,1) -  Zhat[t,])/Rt[index]
-      }
-      temp[x+1] = mean(pnorm(b,0,1) - pnorm(a,0,1))
-    }
-
-    # Compute integral limits
-    Limit = ComputeLimits(mod, Parms, t, Zhat[t,], Rt)
-
-    # Sample truncated normal particles
-    Znew  = SampleTruncNormParticles(mod, Limit, t, Zhat[t,], Rt)
-
-    # update weights
-    w[t,] = ComputeWeights(mod, Limit, t, w[(t-1),])
-
-    # check me: break if I got NA weight
-    if (any(is.na(w[t,]))| sum(w[t,])==0 ){
-      message(sprintf('WARNING: At t=%.0f some of the weights are either too small or sum to 0',t))
-      return(10^8)
-    }
-    # Resample the particles using common random numbers
-    old_state1 = get_rand_state()
-    Znew = ResampleParticles(mod, w, t, Znew)
-    set_rand_state(old_state1)
-
-    # save the current particle
-    Z[t,]   = Znew
-
-
-    if (mod$DependentVar[t]==0){
-      preddist[,t] = c(0,temp[1])
-    }else{
-      preddist[,t] = cumsum(temp)[mod$DependentVar[t]:(mod$DependentVar[t]+1)]
-    }
-
-  }
-
-  return(preddist)
-}
-
-# Compute PIT values - see relations (39) - (40) in JASA paper
-PITvalues = function(H, predDist){
-  PITvalues = rep(0,H)
-
-  predd1 = predDist[1,]
-  predd2 = predDist[2,]
-  Tr = length(predd1)
-
-  for (h in 1:H){
-    id1 = (predd1 < h/H)*(h/H < predd2)
-    id2 = (h/H >= predd2)
-    tmp1 = (h/H-predd1)/(predd2-predd1)
-    tmp1[!id1] = 0
-    tmp2 = rep(0,Tr)
-    tmp2[id2] = 1
-    PITvalues[h] = mean(tmp1+tmp2)
-  }
-PITvalues = c(0,PITvalues)
-return(diff(PITvalues))
-}
-
-#===========================================================================================#
-#--------------------------------------------------------------------------------#
-# On August 2024 for Issue #27, I created a modified likelihood function called
-# ParticleFilter_Res_ARMA_MisSpec with three changes:
-#
-# 1. The value 1 for the count CDF calculations is changed to 1-10^(-16), so that
-#    when inverse normal is applied in the copula, we do not receive an inf value.
-# 2. When the limits of the truncated normal distribution become too large (say>7),
-#    I set them equal to 7-epsilon, so when I apply the normal cdf and subsequnetly the
-#    inverse cdf i avoid the inf values.
-# 3. If the weights in the particle filter likelihood become 0 I set them equal to
-#    10^(-64).
-#
-# I have added the changes in the ParticleFilter_Res_ARMA_MisSpec, ComputeLimits_MisSpec
-# and SampleTruncNormParticles_MisSpec files and wil lcontinue  working with the
-# standard versions below until I perform adequate testing.
-
-
-# PF likelihood with resampling for ARMA(p,q) - with adhoc truncations
-ParticleFilter_Res_ARMA_MisSpec = function(theta, mod){
-  #------------------------------------------------------------------------------------#
-  # PURPOSE:  Use particle filtering with resampling to approximate the likelihood
-  #           of the a specified count time series model with an underlying MA(1)
-  #           dependence structure.
-  #
-  # NOTES:    1. See "Latent Gaussian Count Time Series Modeling" for  more
-  #           details. A first version of the paper can be found at:
-  #           https://arxiv.org/abs/1811.00203
-  #           2. This function is very similar to LikSISGenDist_ARp but here
-  #           I have a resampling step.
-  #
-  # INPUTS:
-  #    theta:            parameter vector
-  #    data:             data
-  #    ParticleNumber:   number of particles to be used.
-  #    Regressor:        independent variable
-  #    CountDist:        count marginal distribution
-  #    epsilon           resampling when ESS<epsilon*N
-  #
-  # OUTPUT:
-  #    loglik:           approximate log-likelihood
-  #
-  #
-  # AUTHORS: James Livsey, Vladas Pipiras, Stefanos Kechagias,
-  # DATE:    July 2020
-  #------------------------------------------------------------------------------------#
-
-  old_state <- get_rand_state()
-  on.exit(set_rand_state(old_state))
-
-  # Retrieve parameters and save them in a list called Parms
-  Parms = RetrieveParameters(theta,mod)
-
-  # check for causality
-  if( CheckStability(Parms$AR,Parms$MA) ) return(10^(8))
-
-  # Initialize the negative log likelihood computation
-  nloglik = ifelse(mod$nreg==0,  - log(mod$mypdf(mod$DependentVar[1],Parms$MargParms)),
-                   - log(mod$mypdf(mod$DependentVar[1], Parms$ConstMargParm, Parms$DynamMargParm[1])))
-
-  # retrieve AR, MA orders and their max
-  m = max(mod$ARMAModel)
-  p = mod$ARMAModel[1]
-  q = mod$ARMAModel[2]
-
-
-  # Compute ARMA covariance up to lag n-1
-  a        = list()
-  if(!is.null(Parms$AR)){
-    a$phi = Parms$AR
-  }else{
-    a$phi = 0
-  }
-  if(!is.null(Parms$MA)){
-    a$theta = Parms$MA
-  }else{
-    a$theta = 0
-  }
-  a$sigma2 = 1
-  gamma    = itsmr::aacvf(a,mod$n)
-
-  # Compute coefficients of Innovations Algorithm see 5.2.16 and 5.3.9 in in Brockwell Davis book
-  IA       = InnovAlg(Parms, gamma, mod)
-  Theta    = IA$thetas
-  Rt       = sqrt(IA$v)
-
-  # Get the n such that |v_n-v_{n-1}|< mod$maxdiff. check me: does this guarantee convergence of Thetas?
-  nTheta   = IA$n
-  Theta_n  = Theta[[nTheta]]
-
-  # allocate matrices for weights, particles and predictions of the latent series
-  w        = matrix(0, mod$n, mod$ParticleNumber)
-  Z        = matrix(0, mod$n, mod$ParticleNumber)
-  Zhat     = matrix(0, mod$n, mod$ParticleNumber)
-
-  # initialize particle filter weights
-  w[1,]    = rep(1,mod$ParticleNumber)
-
-  # Compute the first integral limits Limit$a and Limit$b
-  Limit    = ComputeLimits_MisSpec(mod, Parms, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
-
-  # Initialize the particles using N(0,1) variables truncated to the limits computed above
-  #Z[1,]    = SampleTruncNormParticles(mod, Limit$a, Limit$b, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
-  Z[1,]    = SampleTruncNormParticles_MisSpec(mod, Limit, Parms, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
-
-
-  for (t in 2:mod$n){
-
-    # compute Zhat_t
-    #Zhat[t,] = ComputeZhat_t(m,Theta,Z,Zhat,t, Parms,p,q, nTheta, Theta_n)
-    Zhat[t,] = ComputeZhat_t(mod, IA, Z, Zhat,t, Parms)
-
-    # Compute integral limits
-    Limit = ComputeLimits_MisSpec(mod, Parms, t, Zhat[t,], Rt)
-
-    # Sample truncated normal particles
-    #Znew  = SampleTruncNormParticles(mod, Limit$a, Limit$b, t, Zhat[t,], Rt)
-    Znew  = SampleTruncNormParticles_MisSpec(mod, Limit, Parms, t, Zhat[t,], Rt)
-
-    # update weights
-    #w[t,] = ComputeWeights(mod, Limit$a, Limit$b, t, w[(t-1),])
-    w[t,] = ComputeWeights(mod, Limit, t, w[(t-1),])
-    #print(t)
-    #print(w[t,])
-    # check me: In misspecified models, the weights may get equal to 0. Is it ok
-    # for me to do the following? how is this different from allowing zero weights and
-    # returning a large likelihood?
-    if (sum(w[t,])==0){
-      w[t,] = rep(10^(-64),mod$ParticleNumber)
-      message(sprintf("At t = %.0f all weights are equal to 0. They are resetted to equal 1e-64.",t))
-    }
-
-    # check me: break if I got NA weight
-    if (any(is.na(w[t,]))| sum(w[t,])==0 ){
-      #print(t)
-      #print(w[t,])
-      message(sprintf('WARNING: At t=%.0f some of the weights are either too small or sum to 0',t))
-      return(10^8)
-    }
-
-    # Resample the particles using common random numbers
-    old_state1 = get_rand_state()
-    Znew = ResampleParticles(mod, w, t, Znew)
-    set_rand_state(old_state1)
-
-    # save the current particle
-    Z[t,]   = Znew
-
-    # update likelihood
-    nloglik = nloglik - log(mean(w[t,]))
-
-  }
-
-  # for log-likelihood we use a bias correction--see par2.3 in Durbin Koopman, 1997
-  # nloglik = nloglik- (1/(2*N))*(var(na.omit(wgh[T1,]))/mean(na.omit(wgh[T1,])))/mean(na.omit(wgh[T1,]))
-
-  # if (nloglik==Inf | is.na(nloglik)){
-  #   nloglik = 10^8
-  # }
-
-
-  return(nloglik)
-}
-
-ComputeLimits_MisSpec = function(mod, Parms, t, Zhat, Rt){
-  # a and b are the arguments in the two normal cdfs in the 4th line in equation (19) in JASA paper
-  Lim = list()
-  # fix me: this will be ok for AR or MA models but for ARMA? is it p+q instead of max(p,q)
-  # fix me: why do I have t(Parms$MargParms)?
-  index = min(t, max(mod$ARMAModel))
-
-  # add the following for White Noise models
-  if(max(mod$ARMAModel)==0) index=1
-
-  if(mod$nreg==0){
-
-    C_1 = mod$mycdf(mod$DependentVar[t]-1,t(Parms$MargParms))
-    C   = mod$mycdf(mod$DependentVar[t],t(Parms$MargParms))
-
-    # fix me: need to implement for regressors as well
-    if(C_1==1) {
-      C_1 = 1-10^(-16)
-
-      # retrieve the name of the current distribution
-      CurrentDist = CurrentDist(Parms$MargParms, mod)
-
-      # warn the user of the situation
-      message(sprintf("To avoid an Inf inverse cdf value, 1e-16 was
-subtracted from C_xt_1 in relation (19). C_xt_1 = 1 can be caused by
-a misspecified marginal distribution, lack of relevant covariates, or
-an optimizer seaching the parameter space away from the truth. Here a
-%s model is fitted, but at t=%.0f the dependent variable is
-equal to %.0f.\n",CurrentDist, t,mod$DependentVar[t]))
-    }
-    if(C==1 ) {
-      # retrieve the name of the current distribution
-      CurrentDist = CurrentDist(Parms$MargParms, mod)
-
-      C = 1-10^(-16)
-      message(sprintf("To avoid an Inf inverse cdf value, 1e-16 was
-subtracted from C_xt in relation (19). C_xt_1 = 1 can be caused by
-a misspecified marginal distribution, lack of relevant covariates,
-or an optimizer seaching the parameter space away from the truth. Here
-a %s model is fitted, but at t=%.0f the dependent variable is
-equal to %.0f.\n",CurrentDist,t,mod$DependentVar[t]))
-    }
-
-    Lim$a = as.numeric((qnorm(C_1,0,1)) - Zhat)/Rt[index]
-    Lim$b = as.numeric((qnorm(C  ,0,1)) - Zhat)/Rt[index]
-  }else{
-    Lim$a = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t]-1,Parms$ConstMargParm, Parms$DynamMargParm[t,]),0,1)) - Zhat)/Rt[index]
-    Lim$b = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t],Parms$ConstMargParm, Parms$DynamMargParm[t,]),0,1)) - Zhat)/Rt[index]
-  }
-
-  return(Lim)
-}
-
-SampleTruncNormParticles_MisSpec = function(mod, Limit, Parms, t, Zhat, Rt){
-  # relation (21) in JASA paper and the inverse transform method
-  # check me: this can be improved?
-  index = min(t, max(mod$ARMAModel))
-  if(max(mod$ARMAModel)==0){index=1}
-
-
-  # Check me: in the case of missspecifed models, I may get really large values for the limits
-  # wchich means that the pnorm will equal 1 and then the qnorm will yield Inf. Is this ok?
-  if (min(Limit$a)>=7 ) {
-    # retrieve the name of the current distribution
-    CurrentDist = CurrentDist(Parms$MargParms, mod)
-    Limit$a[Limit$a>=7] = 7 - 10^(-11)
-    message(sprintf("To avoid an Inf inverse cdf value, 1e-11 was subtracted from
-the lower limit of the truncated Normal distribution used to generate new particles.
-Large limits can be caused by a misspecified marginal distribution, lack of relevant
-covariates, or an optimizer seaching the parameter space away from the truth among
-other things. Here a %s model is fitted, but at t=%.0f the dependent
-variable is equal to %.0f.\n", CurrentDist, t,mod$DependentVar[t]))
-  }
-
-  #   if (max(Limit$a)<=-7 ) {
-  #     # retrieve the name of the current distribution
-  #     CurrentDist = CurrentDist(Parms$MargParms, mod)
-  #     Limit$a[Limit$a<=-7] = -7 + 10^(-11)
-  #     message(sprintf("To avoid an Inf inverse cdf value, 1e-11 was added to
-  # the lower limit of the truncated Normal distribution used to generate new particles.
-  # Large limits can be caused by a misspecified marginal distribution, lack of relevant
-  # covariates, or an optimizer seaching the parameter space away from the truth among
-  # other things. Here a %s model is fitted, but at t=%.0f the dependent
-  # variable is equal to %.0f.\n", CurrentDist,t,mod$DependentVar[t]))
-  #     }
-
-  if (min(Limit$b)>=7 ) {
-    # retrieve the name of the current distribution
-    CurrentDist = CurrentDist(Parms$MargParms, mod)
-    Limit$b[Limit$b>=7] = 7 - 10^(-11)
-    message(sprintf("To avoid an Inf inverse cdf value, 1e-11 was subtracted from
-the upper limit of the truncated Normal distribution used to generate new particles.
-Large limits can be caused by a misspecified marginal distribution, lack of relevant
-covariates, or an optimizer seaching the parameter space away from the truth among
-other things. Here a %s model is fitted, but at t=%.0f the dependent
-variable is equal to %.0f.\n", CurrentDist, t,mod$DependentVar[t]))
-  }
-
-  #   if (max(Limit$b)<=-7 ) {
-  #     # retrieve the name of the current distribution
-  #     CurrentDist = CurrentDist(Parms$MargParms, mod)
-  #     Limit$b[Limit$b<=-7] = -7 + 10^(-11)
-  #     message(sprintf("To avoid an Inf inverse cdf value, 1e-11 was added to
-  # the upper limit of the truncated Normal distribution used to generate new particles.
-  # Large limits can be caused by a misspecified marginal distribution, lack of relevant
-  # covariates, or an optimizer seaching the parameter space away from the truth among
-  # other things. Here a %s model is fitted, but at t=%.0f the dependent
-  # variable is equal to %.0f.", CurrentDist,t,mod$DependentVar[t]))
-  #   }
-  z = qnorm(runif(length(Limit$a),0,1)*(pnorm(Limit$b,0,1)-pnorm(Limit$a,0,1))+pnorm(Limit$a,0,1),0,1)*Rt[index] + Zhat
-
-  return(z)
-}
-
