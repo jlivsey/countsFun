@@ -8,7 +8,7 @@ ModelScheme = function(DependentVar = NULL, Regressor=NULL, EstMethod="PFR", ARM
                          "ZIP", "Binomial")))
     stop("The specified distribution in not supported.")
 
-  # Task
+  # Specify Task
   if( !(Task %in% c("Evaluation", "Optimization", "Simulation", "Synthesis"))){
     Task = "Evaluation"
     message("The selected Task is not supported. The Task has been set to 'Evaluation'")
