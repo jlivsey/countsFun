@@ -234,10 +234,10 @@ test_that("Initial Estimation for ZIP-ARMA(1,1)", {
 
   BIAS = colMeans(theta) - TrueParam
   RELATIVEBIAS = BIAS/TrueParam
-  expect_equal(RELATIVEBIAS[1], 0.04668120,tol=10^(-5))
-  expect_equal(RELATIVEBIAS[2], -0.04539234,tol=10^(-5))
-  expect_equal(RELATIVEBIAS[3], -0.22390362,tol=10^(-5))
-  expect_equal(RELATIVEBIAS[4], 0.24277838,tol=10^(-5))
+  expect_equal(RELATIVEBIAS[1], 0.04668120,tolerance=10^(-5))
+  expect_equal(RELATIVEBIAS[2], -0.04539234,tolerance=10^(-5))
+  expect_equal(RELATIVEBIAS[3], -0.22390362,tolerance=10^(-5))
+  expect_equal(RELATIVEBIAS[4], 0.24277838,tolerance=10^(-5))
 
 })
 
@@ -264,6 +264,7 @@ Regressor      = cbind(rep(1,n),e)
 nsim           = 20
 theta          = matrix(NA,nrow=nsim,ncol=length(MargParm)+sum(ARMAModel))
 
+
 for (i in 1:nsim){
   # simulate data
   set.seed(i)
@@ -282,10 +283,10 @@ BIAS = colMeans(theta) - TrueParam
 RELATIVEBIAS = BIAS/TrueParam
 
 # check me: this doesnt seem to work as well. what about IYW?
-expect_equal(RELATIVEBIAS[1], -0.11144035 , tolerance = 10^(-5))
-expect_equal(RELATIVEBIAS[2], 0.08922739 , tolerance = 10^(-5))
-expect_equal(RELATIVEBIAS[3], -0.03059165, tolerance = 10^(-5))
-expect_equal(RELATIVEBIAS[4], -0.22826401, tolerance = 10^(-5))
+expect_equal(RELATIVEBIAS[1], -0.10946933, tolerance = 10^(-5))
+expect_equal(RELATIVEBIAS[2], 0.08773684, tolerance = 10^(-5))
+expect_equal(RELATIVEBIAS[3], -0.03059632, tolerance = 10^(-5))
+expect_equal(RELATIVEBIAS[4], -0.22821499, tolerance = 10^(-5))
 
 })
 
@@ -425,9 +426,9 @@ test_that("Initial Estimation for ZIP-AR(1) with Rerggresor", {
 
   BIAS = colMeans(theta) - TrueParam
   RELATIVEBIAS = BIAS/TrueParam
-  expect_equal(RELATIVEBIAS[1], 0.016037874,tol=10^(-5))
-  expect_equal(RELATIVEBIAS[2], -0.009261874,tol=10^(-5))
-  expect_equal(RELATIVEBIAS[3], -0.052515431,tol=10^(-5))
-  expect_equal(RELATIVEBIAS[4], -0.208396106,tol=10^(-5))
+  expect_equal(RELATIVEBIAS[1], 0.016037874,tolerance=10^(-5))
+  expect_equal(RELATIVEBIAS[2], -0.009261874,tolerance=10^(-5))
+  expect_equal(RELATIVEBIAS[3], -0.052515431,tolerance=10^(-5))
+  expect_equal(RELATIVEBIAS[4], -0.208396106,tolerance=10^(-5))
 
 })

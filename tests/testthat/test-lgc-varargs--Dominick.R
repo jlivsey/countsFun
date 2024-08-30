@@ -13,6 +13,9 @@ library(ltsa)
 require(countsFun)
 library(itsmr)
 library(tictoc)
+library(devtools)
+library(VGAM)
+library(iZID)
 
 # load the data
 #mysales = read.csv("https://raw.githubusercontent.com/jlivsey/countsFun/master/data/MySelectedSeries.csv")
