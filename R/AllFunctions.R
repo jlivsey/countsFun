@@ -774,8 +774,8 @@ InitialEstimates = function(mod){
       est[1:2] = c(alpha, xbar)
 
     }else{
-      # run GenPois GLM using VGAM package
-      fit = VGAM::vglm( mod$DependentVar ~ mod$Regressor[,2], genpoisson2)
+      # run GenPois GLM using VGAM package - CHECK ME: shouls surface maxit as an option to the user?
+      fit = VGAM::vglm( mod$DependentVar ~ mod$Regressor[,2], genpoisson2, maxit=60)
 
       # save linear predictor coefficients
       est[1:(mod$nMargParms-1)]  = as.numeric(coef(fit, matrix = TRUE)[,1])

@@ -264,6 +264,7 @@ Regressor      = cbind(rep(1,n),e)
 nsim           = 20
 theta          = matrix(NA,nrow=nsim,ncol=length(MargParm)+sum(ARMAModel))
 
+
 for (i in 1:nsim){
   # simulate data
   set.seed(i)
@@ -282,10 +283,10 @@ BIAS = colMeans(theta) - TrueParam
 RELATIVEBIAS = BIAS/TrueParam
 
 # check me: this doesnt seem to work as well. what about IYW?
-expect_equal(RELATIVEBIAS[1], -0.11144035 , tolerance = 10^(-5))
-expect_equal(RELATIVEBIAS[2], 0.08922739 , tolerance = 10^(-5))
-expect_equal(RELATIVEBIAS[3], -0.03059165, tolerance = 10^(-5))
-expect_equal(RELATIVEBIAS[4], -0.22826401, tolerance = 10^(-5))
+expect_equal(RELATIVEBIAS[1], -0.10946933, tolerance = 10^(-5))
+expect_equal(RELATIVEBIAS[2], 0.08773684, tolerance = 10^(-5))
+expect_equal(RELATIVEBIAS[3], -0.03059632, tolerance = 10^(-5))
+expect_equal(RELATIVEBIAS[4], -0.22821499, tolerance = 10^(-5))
 
 })
 
