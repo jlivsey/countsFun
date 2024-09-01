@@ -234,10 +234,10 @@ test_that("Initial Estimation for ZIP-ARMA(1,1)", {
 
   BIAS = colMeans(theta) - TrueParam
   RELATIVEBIAS = BIAS/TrueParam
-  expect_equal(RELATIVEBIAS[1], 0.04668120,tol=10^(-5))
-  expect_equal(RELATIVEBIAS[2], -0.04539234,tol=10^(-5))
-  expect_equal(RELATIVEBIAS[3], -0.22390362,tol=10^(-5))
-  expect_equal(RELATIVEBIAS[4], 0.24277838,tol=10^(-5))
+  expect_equal(RELATIVEBIAS[1], 0.04668120,tolerance=10^(-5))
+  expect_equal(RELATIVEBIAS[2], -0.04539234,tolerance=10^(-5))
+  expect_equal(RELATIVEBIAS[3], -0.22390362,tolerance=10^(-5))
+  expect_equal(RELATIVEBIAS[4], 0.24277838,tolerance=10^(-5))
 
 })
 
@@ -425,9 +425,9 @@ test_that("Initial Estimation for ZIP-AR(1) with Rerggresor", {
 
   BIAS = colMeans(theta) - TrueParam
   RELATIVEBIAS = BIAS/TrueParam
-  expect_equal(RELATIVEBIAS[1], 0.016037874,tol=10^(-5))
-  expect_equal(RELATIVEBIAS[2], -0.009261874,tol=10^(-5))
-  expect_equal(RELATIVEBIAS[3], -0.052515431,tol=10^(-5))
-  expect_equal(RELATIVEBIAS[4], -0.208396106,tol=10^(-5))
+  expect_equal(RELATIVEBIAS[1], 0.016037874,tolerance=10^(-5))
+  expect_equal(RELATIVEBIAS[2], -0.009261874,tolerance=10^(-5))
+  expect_equal(RELATIVEBIAS[3], -0.052515431,tolerance=10^(-5))
+  expect_equal(RELATIVEBIAS[4], -0.208396106,tolerance=10^(-5))
 
 })
