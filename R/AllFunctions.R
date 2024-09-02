@@ -66,7 +66,7 @@ ModelScheme = function(DependentVar = NULL, Regressor=NULL, EstMethod="PFR", ARM
                    "Generalized Poisson"   = function(x, theta){    pGpois(x, theta[1], theta[2])},
                    "Generalized Poisson 2" = function(x, theta){ pgenpois2(x, theta[2], theta[1])},,
                    "Binomial"              = function(x, theta){    pbinom(x, ntrials, theta[1])},
-                   "Mixed Poisson"         = function(x, theta){  pmixpois(x, theta[1], theta[2], theta[3])},
+                   "Mixed Poisson"         = function(x, theta){ pmixpois1(x, theta[1], theta[2], theta[3])},
                    "ZIP"                   = function(x, theta){   pzipois(x, theta[1], theta[2])}
     )
 
@@ -77,7 +77,7 @@ ModelScheme = function(DependentVar = NULL, Regressor=NULL, EstMethod="PFR", ARM
                    "Generalized Poisson"   = function(x, theta){    dGpois(x, theta[1], theta[2])},
                    "Generalized Poisson 2" = function(x, theta){ dgenpois2(x, theta[2], theta[1])},
                    "Binomial"              = function(x, theta){    dbinom(x, ntrials, theta[1])},
-                   "Mixed Poisson"         = function(x, theta){  dmixpois(x, theta[1], theta[2], theta[3])},
+                   "Mixed Poisson"         = function(x, theta){ dmixpois1(x, theta[1], theta[2], theta[3])},
                    "ZIP"                   = function(x, theta){   dzipois(x, theta[1], theta[2])}
     )
 
@@ -130,7 +130,7 @@ ModelScheme = function(DependentVar = NULL, Regressor=NULL, EstMethod="PFR", ARM
                    "Generalized Poisson"   = function(x, ConstMargParm, DynamMargParm){    pGpois(x, ConstMargParm, DynamMargParm)},
                    "Generalized Poisson 2" = function(x, ConstMargParm, DynamMargParm){ pgenpois2(x, DynamMargParm, ConstMargParm)},
                    "Binomial"              = function(x, ConstMargParm, DynamMargParm){    pbinom(x, ntrials, DynamMargParm)},
-                   "Mixed Poisson"         = function(x, ConstMargParm, DynamMargParm){  pmixpois(x, DynamMargParm[1], DynamMargParm[2], ConstMargParm)},
+                   "Mixed Poisson"         = function(x, ConstMargParm, DynamMargParm){ pmixpois1(x, DynamMargParm[1], DynamMargParm[2], ConstMargParm)},
                    "ZIP"                   = function(x, ConstMargParm, DynamMargParm){   pzipois(x, DynamMargParm, ConstMargParm)}
     )
     # retrieve marginal pdf
@@ -140,7 +140,7 @@ ModelScheme = function(DependentVar = NULL, Regressor=NULL, EstMethod="PFR", ARM
                    "Generalized Poisson"   = function(x, ConstMargParm, DynamMargParm){    dGpois(x, ConstMargParm, DynamMargParm)},
                    "Generalized Poisson 2" = function(x, ConstMargParm, DynamMargParm){ dgenpois2(x, DynamMargParm, ConstMargParm)},
                    "Binomial"              = function(x, ConstMargParm, DynamMargParm){    dbinom(x, ntrials, DynamMargParm)},
-                   "Mixed Poisson"         = function(x, ConstMargParm, DynamMargParm){  dmixpois(x, DynamMargParm[1], DynamMargParm[2], ConstMargParm)},
+                   "Mixed Poisson"         = function(x, ConstMargParm, DynamMargParm){ dmixpois1(x, DynamMargParm[1], DynamMargParm[2], ConstMargParm)},
                    "ZIP"                   = function(x, ConstMargParm, DynamMargParm){   dzipois(x, DynamMargParm, ConstMargParm)}
     )
     # retrieve marginal inverse cdf
@@ -150,7 +150,7 @@ ModelScheme = function(DependentVar = NULL, Regressor=NULL, EstMethod="PFR", ARM
                    "Generalized Poisson"   = function(x, ConstMargParm, DynamMargParm){    qGpois(x, ConstMargParm, DynamMargParm)},
                    "Generalized Poisson 2" = function(x, ConstMargParm, DynamMargParm){ qgenpois2(x, DynamMargParm, ConstMargParm)},
                    "Binomial"              = function(x, ConstMargParm, DynamMargParm){    qbinom(x, ntrials, DynamMargParm)},
-                   "Mixed Poisson"         = function(x, ConstMargParm, DynamMargParm){  qmixpois(x, DynamMargParm[1], DynamMargParm[2], ConstMargParm)},
+                   "Mixed Poisson"         = function(x, ConstMargParm, DynamMargParm){  qmixpois(x, DynamMargParm[,1], DynamMargParm[,2], ConstMargParm)},
                    "ZIP"                   = function(x, ConstMargParm, DynamMargParm){   qzipois(x, DynamMargParm, ConstMargParm)}
     )
     # lower bound contraints
@@ -170,7 +170,7 @@ ModelScheme = function(DependentVar = NULL, Regressor=NULL, EstMethod="PFR", ARM
                 "Generalized Poisson"   = c(rep(Inf, nreg+1), Inf, rep(Inf, sum(ARMAModel))),
                 "Generalized Poisson 2" = c(rep(Inf, nreg+1), Inf, rep(Inf, sum(ARMAModel))),
                 "Binomial"              = rep(Inf, sum(ARMAModel)+nreg+1),
-                "Mixed Poisson"         = c(rep(Inf, 2*nreg+2), 0.99, rep(Inf, sum(ARMAModel))),
+                "Mixed Poisson"         = c(rep(Inf, 2*nreg+2), 0.49, rep(Inf, sum(ARMAModel))),
                 "ZIP"                   = c(rep(Inf, nreg+1), Inf, rep(Inf, sum(ARMAModel))),
     )
     # retrieve names of marginal parameters
@@ -288,7 +288,7 @@ ParticleFilter_Res_ARMA = function(theta, mod){
 
   # Initialize the negative log likelihood computation
   nloglik = ifelse(mod$nreg==0,  - log(mod$mypdf(mod$DependentVar[1],Parms$MargParms)),
-                   - log(mod$mypdf(mod$DependentVar[1], Parms$ConstMargParm, Parms$DynamMargParm[1])))
+                   - log(mod$mypdf(mod$DependentVar[1], Parms$ConstMargParm, Parms$DynamMargParm[1,])))
 
   # retrieve AR, MA orders and their max
   m = max(mod$ARMAModel)
@@ -370,7 +370,6 @@ ParticleFilter_Res_ARMA = function(theta, mod){
 
     # update likelihood
     nloglik = nloglik - log(mean(w[t,]))
-
   }
 
   # for log-likelihood we use a bias correction--see par2.3 in Durbin Koopman, 1997
@@ -748,8 +747,26 @@ InitialEstimates = function(mod){
       est[1:3] = c(l1Est, l2Est, pEst)
     }else{
       #library(mixtools)
-      mix.reg = poisregmixEM(mod$DependentVar, mod$Regressor[,2:(mod$nreg+1)])
-      est[1:mod$nMargParms] = c(mix.reg$beta, mix.reg$lambda[1])
+      MP_fit = poisregmixEM(mod$DependentVar, mod$Regressor[,2:(mod$nreg+1)])
+
+      if(MP_fit$lambda[1]<0.5){
+        est[1:mod$nMargParms] = as.numeric(c(MP_fit$beta, MP_fit$lambda[1]))
+      }
+      else{
+        #check me: should I give an error here?
+        est[1:mod$nMargParms] = as.numeric(c(MP_fit$beta[3:4],MP_fit$beta[1:2], 1-MP_fit$lambda[1]))
+        }
+      #could also use the flexmix package
+      #check me: for now we allow mixture of only two components
+      #MP_fit <- flexmix(mod$DependentVar ~ mod$Regressor[,2:(mod$nreg+1)], k = 2, model = FLXMRglm(family = "poisson"))
+      #refit1 = refit(MP_fit)
+
+      #beta1Hat = as.numeric(refit1@coef[1:2])
+      #beta2Hat = as.numeric(refit1@coef[3:4])
+      #ProbHat  = MP_fit@prior[1]
+
+      #est[1:mod$nMargParms] = c(beta1Hat, beta2Hat,ProbHat)
+
     }
   }
 
@@ -840,7 +857,7 @@ InitialEstimates = function(mod){
 
     # see comment above regarding Cxt=1 and Cxt = 0
     Cxt = mod$mycdf(mod$DependentVar,Params$ConstMargParm, Params$DynamMargParm)
-    if (mod$CountDist=="Binomial"){
+    if (mod$CountDist=="Binomial" || mod$CountDist=="Mixed Poisson" ){
       Cxt[Cxt==1] = 1-10^(-16)
       Cxt[Cxt==0] = 0+10^(-16)
     }
@@ -936,7 +953,7 @@ sim_lgc_old = function(n, CountDist, MargParm, ARParm, MAParm, Regressor=NULL){
                       "Generalized Poisson"   = function(x, theta){ qGpois  (x, theta[1], theta[2])},
                       "Generalized Poisson 2" = function(x, theta){ qGpois  (x, theta[2], theta[1])},
                       "Binomial"              = qbinom,
-                      "Mixed Poisson"         = function(x, theta){ qmixpois(x, theta[1], theta[2], theta[3])},
+                      "Mixed Poisson"         = function(x, theta){qmixpois1(x, theta[1], theta[2], theta[3])},
                       "ZIP"                   = function(x, theta){ qzipois(x, theta[1], theta[2]) },
                       stop("The specified distribution is not supported.")
     )
@@ -952,7 +969,7 @@ sim_lgc_old = function(n, CountDist, MargParm, ARParm, MAParm, Regressor=NULL){
                       "Generalized Poisson"   = function(x, ConstMargParm, DynamMargParm){ qGpois  (x, ConstMargParm, DynamMargParm)},
                       "Generalized Poisson 2" = function(x, ConstMargParm, DynamMargParm){ qgenpois2  (x, DynamMargParm, ConstMargParm)},
                       "Binomial"              = function(x, ConstMargParm, DynamMargParm){ qbinom  (x, ConstMargParm, DynamMargParm)},
-                      "Mixed Poisson"         = function(x, ConstMargParm, DynamMargParm){ qmixpois(x, DynamMargParm[,1], DynamMargParm[,2],  ConstMargParm)},
+                      "Mixed Poisson"         = function(x, ConstMargParm, DynamMargParm){qmixpois1(x, DynamMargParm[,1], DynamMargParm[,2],  ConstMargParm)},
                       "ZIP"                   = function(x, ConstMargParm, DynamMargParm){ qzipois (x, DynamMargParm[,1], DynamMargParm[,2]) },
                       stop("The specified distribution is not supported.")
     )
@@ -1252,7 +1269,7 @@ RetrieveParameters = function(theta,mod){
   }
 
   if(mod$CountDist == "Mixed Poisson" && mod$nreg>0){
-    Parms$ConstMargParm  = c(Parms$MargParms[mod$nreg*2+3], 1 - Parms$MargParms[mod$nreg*2+3])
+    Parms$ConstMargParm  = c(Parms$MargParms[2*(mod$nreg+1)+1])
     Parms$DynamMargParm  = cbind(exp(mod$Regressor%*%Parms$MargParms[1:(mod$nreg+1)]),
                                  exp(mod$Regressor%*%Parms$MargParms[(mod$nreg+2):(mod$nreg*2+2)]))
   }
@@ -1276,26 +1293,73 @@ RetrieveParameters = function(theta,mod){
   return(Parms)
 }
 
-# Mixed Poisson inverse cdf
-qmixpois = function(y, lam1, lam2, p){
-  yl = length(y)
-  x  = rep(0,yl)
-  for (n in 1:yl){
-    while(pmixpois(x[n], lam1, lam2,p) <= y[n]){ # R qpois would use <y; this choice makes the function right-continuous; this does not really matter for our model
-      x[n] = x[n]+1
+# Mixed Poisson inverse cdf - this will not allow for vector lambda
+# qmixpois1 = function(y, lam1, lam2, p){
+#   yl = length(y)
+#   x  = rep(0,yl)
+#   for (n in 1:yl){
+#     while(pmixpois(x[n], lam1, lam2,p) <= y[n]){ # R qpois would use <y; this choice makes the function right-continuous; this does not really matter for our model
+#       x[n] = x[n]+1
+#     }
+#   }
+#   return(x)
+# }
+
+# Inverse CDF (quantile function) for Mixed Poisson distribution
+qmixpois1 = function(y, lam1, lam2, p){
+  yl = length(y)  # Length of the input vector y
+  x  = rep(0, yl) # Initialize a vector of zeros to store results
+
+  for (n in 1:yl) {
+    lambda1 = ifelse(length(lam1) > 1, lam1[n], lam1)  # Use indexed lambda1 or constant
+    lambda2 = ifelse(length(lam2) > 1, lam2[n], lam2)  # Use indexed lambda2 or constant
+
+    # Increment x[n] until the CDF is greater than y[n]
+    while (pmixpois1(x[n], lambda1, lambda2, p) <= y[n]) {
+      x[n] = x[n] + 1
     }
   }
+
   return(x)
 }
 
+# Inverse CDF (quantile function) for Mixed Poisson distribution using mapply
+qmixpois = function(p, lam1, lam2, prob) {
+  # Ensure p, lam1, and lam2 are vectors
+  p = as.vector(p)
+
+  # Replicate lam1 and lam2 if they are constants
+  if (length(lam1) == 1) {
+    lam1 = rep(lam1, length(p))
+  }
+  if (length(lam2) == 1) {
+    lam2 = rep(lam2, length(p))
+  }
+
+  # Function to calculate quantile for a single set of parameters
+  find_quantile = function(pi, lambda1, lambda2, prob) {
+    x = 0
+    while (pmixpois1(x, lambda1, lambda2, prob) <= pi) {
+      x = x + 1
+    }
+    return(x)
+  }
+
+  # Use mapply to apply the function over vectors p, lam1, and lam2
+  quantiles = mapply(find_quantile, p, lam1, lam2, MoreArgs = list(prob = prob))
+
+  return(quantiles)
+}
+
+
 # Mixed Poisson cdf
-pmixpois = function(x, lam1, lam2,p){
+pmixpois1 = function(x, lam1, lam2,p){
   y = p*ppois(x,lam1) + (1-p)*ppois(x,lam2)
   return(y)
 }
 
 # mass of Mixed Poisson
-dmixpois = function(x, lam1, lam2, p){
+dmixpois1 = function(x, lam1, lam2, p){
   y = p*dpois(x,lam1) + (1-p)*dpois(x,lam2)
   return(y)
 }

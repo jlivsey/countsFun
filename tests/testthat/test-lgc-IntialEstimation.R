@@ -432,3 +432,58 @@ test_that("Initial Estimation for ZIP-AR(1) with Rerggresor", {
   expect_equal(RELATIVEBIAS[4], -0.208396106,tolerance=10^(-5))
 
 })
+
+test_that("Initial Estimation for Mixed Poisson-AR(1) with Rerggresor", {
+
+  n              = 50
+  nsim           = 10
+  ARParm         = 0.5
+  MAParm         = NULL
+  ARMAModel      = c(length(ARParm),length(MAParm))
+  CountDist      = "Mixed Poisson"
+
+  # set linear predictor parameters
+  b0_1 = 2
+  b1_1 = 0.5
+
+  b0_2 = 3
+  b1_2 =  1
+
+  # set mixing probability
+  prob = 0.4
+
+  # gather Marginal Parameters
+  MargParm = c(b0_1, b1_1, b0_2, b1_2,prob)
+
+  theta          = matrix(NA,nrow=nsim,ncol=length(MargParm)+sum(ARMAModel))
+  TrueParam      = c(MargParm,ARParm, MAParm)
+
+  # Generate a regressor
+  set.seed(3)
+  Regressor  = cbind(1,runif(n))
+
+
+  for (i in 1:nsim){
+    # simulate data
+    set.seed(i)
+    DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor)
+
+    # call the wrapper function with less arguments
+    mod = ModelScheme(DependentVar   = DependentVar,
+                      CountDist      = CountDist,
+                      ARMAModel      = ARMAModel,
+                      Regressor      = Regressor)
+
+    theta[i,] = InitialEstimates(mod)
+  }
+
+
+  BIAS = colMeans(theta) - TrueParam
+  RELATIVEBIAS = BIAS/TrueParam
+  expect_equal(BIAS[1], 0.07261641  ,tolerance=10^(-5))
+  expect_equal(BIAS[2], 0.09570763,tolerance=10^(-5))
+  expect_equal(BIAS[3], -0.06185493,tolerance=10^(-5))
+  expect_equal(BIAS[4], -0.10140203 ,tolerance=10^(-5))
+  expect_equal(BIAS[5], -0.03527632 ,tolerance=10^(-5))
+  expect_equal(BIAS[6], -0.08833939 ,tolerance=10^(-5))
+})
