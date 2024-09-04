@@ -85,7 +85,7 @@ lgc = function(DependentVar   = NULL,
                 .packages = c("ltsa", "optimx", 'tictoc', 'countsFun'))  %dopar%  {
                   mod$DependentVar =  AllSimulatedSeries[[index]]
                   theta  = mod$initialParam = AllInitialParam[[index]]
-                  FitMultiplePF_Res(theta,mod)
+                  FitMultiplePF_Res_New(theta,mod)
                 }
 
     stopCluster(cl)
@@ -93,8 +93,12 @@ lgc = function(DependentVar   = NULL,
 
   if(Task %in% c('Evaluation', 'Optimization')){
       theta  = mod$initialParam
-      out = FitMultiplePF_Res(theta, mod)
+      FitResults = FitMultiplePF_Res_New(theta, mod)
   }
+
+# gather the input information and the Fit Results in one output structure
+out = PrepareOutput(mod, FitResults)
+
 
 # create an lgc object and save the initial estimate
 class(out) = "lgc"
