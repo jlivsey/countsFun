@@ -29,7 +29,7 @@ ModelScheme = function(DependentVar = NULL, Regressor=NULL, EstMethod="PFR", ARM
   # fix me: I need a warning here is there is no samplesize in simulation
 
   # number of regressors assuming there is an intercept
-  nreg = ifelse(is.null(Regressor), 0,dim(Regressor)[2]-1)
+  nreg = ifelse(is.null(Regressor), 0, DIM(Regressor)[2]-1)
 
   # retrieve indices of marginal distribution parameters-the regressor is assumed to have an intercept
   MargParmIndices = switch(CountDist,
@@ -3031,4 +3031,20 @@ ParticleFilter_Res_ARMA_old = function(theta, mod){
 
 
   return(nloglik)
+}
+
+
+#' Dimension function for vector/matrix inputs
+#' Treats vectors as length x 1 column vectors
+#'
+#' @param x vector (column matrix) or matrix
+#'
+#' @return
+#' @export
+#'
+DIM <- function(x){
+  if (is.null(dim(x)))
+    c(length(x), 1)
+else
+  dim(x)
 }
