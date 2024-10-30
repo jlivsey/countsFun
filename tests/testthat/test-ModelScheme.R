@@ -4,6 +4,7 @@ test_that("parsing works ok", {
   n              = 200
   # Regressor      = cbind(rep(1,n),rbinom(n,1,0.25))
   Regressor      = NULL
+  Intercept      = NULL
   CountDist      = "Poisson"
   MargParm       = 3
   ARParm         = c(0.8, -0.25)
@@ -26,7 +27,7 @@ test_that("parsing works ok", {
   set.seed(2)
   DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor)
 
-  mod = ModelScheme(DependentVar, Regressor, EstMethod, ARMAModel, CountDist,ParticleNumber, epsilon,
+  mod = ModelScheme(DependentVar, Regressor, Intercept, EstMethod, ARMAModel, CountDist,ParticleNumber, epsilon,
                     initialParam, TrueParam, Task,SampleSize, OptMethod, OutputType, ParamScheme, maxdiff)
 
   # the following will check only the variables that enter the ModelScheme function as inputs '

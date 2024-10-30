@@ -4,6 +4,7 @@ test_that("Compute the Pred distribution for the Dominick Data", {
 # regressor variable with intercept
 CountDist      = "Poisson"
 Regressor      = NULL
+Intercept      = NULL
 n              = 100
 ARMAModel      = c(2,0)
 MargParm       = 3
@@ -14,7 +15,7 @@ Task           = "Optimization"
 
 # simulate data
 set.seed(2)
-DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor)
+DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor, Intercept)
 
 # # call the wrapper function with less arguments
 # mylgc = lgc(DependentVar   = DependentVar,
@@ -28,6 +29,7 @@ DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor)
 # call the wrapper function with less arguments
 mod = ModelScheme(DependentVar   = DependentVar,
                   Regressor      = Regressor,
+                  Intercept      = Intercept,
                   CountDist      = CountDist,
                   ARMAModel      = ARMAModel,
                   OptMethod      = OptMethod,

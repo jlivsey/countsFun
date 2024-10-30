@@ -27,9 +27,15 @@ maxdiff        = 10^(-8)
 set.seed(2)
 DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor)
 
+# save the data in a data frame
+df = data.frame(DependentVar)
+
+# specify the regression model
+formula = DependentVar~0
+
 # Run the wrapper
-mylgc = lgc(DependentVar   = DependentVar,
-            Regressor      = Regressor,
+mylgc = lgc(formula        = formula,
+            data           = df,
             EstMethod      = EstMethod,
             CountDist      = CountDist,
             ARMAModel      = ARMAModel,

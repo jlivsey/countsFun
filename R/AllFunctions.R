@@ -1,5 +1,5 @@
 #---------retrieve the model scheme
-ModelScheme = function(DependentVar = NULL, Regressor=NULL, EstMethod="PFR", ARMAModel=c(0,0), CountDist="NULL",
+ModelScheme = function(DependentVar = NULL, Regressor=NULL, Intercept = NULL, EstMethod="PFR", ARMAModel=c(0,0), CountDist="NULL",
                        ParticleNumber = 5, epsilon = 0.5, initialParam=NULL, TrueParam=NULL, Task="Evaluation", SampleSize=NULL,
                        OptMethod="L-BFGS-B", OutputType="list", ParamScheme=1, maxdiff=10^(-8),ntrials= NULL,...){
 
@@ -24,12 +24,28 @@ ModelScheme = function(DependentVar = NULL, Regressor=NULL, EstMethod="PFR", ARM
   if(length(ARMAModel)!=2 | !prod(ARMAModel %% 1 == c(0,0)) )
     stop("The specified ARMA model is not supported.")
 
-  # retrieve sample size
-  n = ifelse(!is.null(DependentVar), length(DependentVar), SampleSize)
-  # fix me: I need a warning here is there is no samplesize in simulation
+  # make the dependent variable numeric
+  if(is.data.frame(DependentVar)){
+    DependentVar = DependentVar[,1]
+  }
 
-  # number of regressors assuming there is an intercept
-  nreg = ifelse(is.null(Regressor), 0, DIM(Regressor)[2]-1)
+  # retrieve sample size
+  if(Task=="Synthesis"){
+    n = SampleSize
+  }else{
+    n = length(DependentVar)
+  }
+
+  # fix me: I need a warning here is there is no samplesize in simulation
+  if(!is.null(Regressor)){
+    if (Intercept==TRUE && sum(as.matrix(Regressor)[,1])!=n ){
+      Regressor = as.data.frame(cbind(rep(1,n),Regressor))
+      names(Regressor)[1] = "Intercept"
+    }
+  }
+
+  # number of regressors
+  nreg = ifelse(is.null(Regressor), 0, DIM(Regressor)[2]-as.numeric(Intercept))
 
   # retrieve indices of marginal distribution parameters-the regressor is assumed to have an intercept
   MargParmIndices = switch(CountDist,
@@ -1224,14 +1240,21 @@ InnovAlg = function(Parms,gamma, mod) {
 }
 
 # simulate from our model
-sim_lgc_old = function(n, CountDist, MargParm, ARParm, MAParm, Regressor=NULL){
+sim_lgc_old = function(n, CountDist, MargParm, ARParm, MAParm, Regressor=NULL, Intercept=NULL){
 
   # Generate latent Gaussian model
   z  =arima.sim(model = list( ar = ARParm, ma=MAParm  ), n = n)
   z = z/sd(z) # standardize the data
 
-  # number of regressors assuming there is an intercept, fix me: check the case with not intercept
-  nreg = ifelse(is.null(Regressor), 0, dim(Regressor)[2]-1)
+  # add a column of ones in the Regressors if Intercept is present
+  if (!is.null(Intercept) && Intercept==TRUE && sum(as.matrix(Regressor)[,1])!=n){
+    Regressor = as.data.frame(cbind(rep(1,n),Regressor))
+    names(Regressor)[1] = "Intercept"
+  }
+
+
+  # number of regressors
+  nreg = ifelse(is.null(Regressor), 0, dim(Regressor)[2]-as.numeric(Intercept))
 
   if(nreg==0){
     # retrieve marginal inverse cdf
@@ -1264,7 +1287,7 @@ sim_lgc_old = function(n, CountDist, MargParm, ARParm, MAParm, Regressor=NULL){
 
     # regression parameters
     beta  = MargParm[1:(nreg+1)]
-    m     = exp(Regressor%*%beta)
+    m     = exp(as.matrix(Regressor)%*%beta)
 
     if(CountDist == "Poisson" && nreg>0){
       ConstMargParm  = NULL
@@ -1294,14 +1317,14 @@ sim_lgc_old = function(n, CountDist, MargParm, ARParm, MAParm, Regressor=NULL){
 
     if(CountDist == "Mixed Poisson" && nreg>0){
       ConstMargParm  = c(MargParm[nreg*2+3], 1 - MargParm[nreg*2+3])
-      DynamMargParm  = cbind(exp(Regressor%*%MargParm[1:(nreg+1)]),
-                             exp(Regressor%*%MargParm[(nreg+2):(nreg*2+2)]))
+      DynamMargParm  = cbind(exp(as.matrix(Regressor)%*%MargParm[1:(nreg+1)]),
+                             exp(as.matrix(Regressor)%*%MargParm[(nreg+2):(nreg*2+2)]))
     }
 
     if(CountDist == "ZIP" && nreg>0){
       ConstMargParm  = NULL
-      DynamMargParm  = cbind(exp(Regressor%*%MargParm[1:(nreg+1)]),
-                             1/(1+exp(-Regressor%*%MargParm[(nreg+2):(nreg*2+2)])))
+      DynamMargParm  = cbind(exp(as.matrix(Regressor)%*%MargParm[1:(nreg+1)]),
+                             1/(1+exp(-as.matrix(Regressor)%*%MargParm[(nreg+2):(nreg*2+2)])))
     }
 
     # get the final counts
@@ -1311,7 +1334,7 @@ sim_lgc_old = function(n, CountDist, MargParm, ARParm, MAParm, Regressor=NULL){
 }
 
 # simulate from our model - a bit more concice version
-sim_lgc = function(n, CountDist, MargParm, ARParm, MAParm, Regressor=NULL, ntrials=NULL,...){
+sim_lgc = function(n, CountDist, MargParm, ARParm, MAParm, Regressor=NULL, Intercept=NULL, ntrials=NULL,...){
 
   # combine all parameters in on vector
   TrueParam = c(MargParm,ARParm,MAParm)
@@ -1319,12 +1342,19 @@ sim_lgc = function(n, CountDist, MargParm, ARParm, MAParm, Regressor=NULL, ntria
   # set ARMAModel orders
   ARMAModel = c(length(ARParm), length(MAParm))
 
+  # add a column of ones in the Regressors if Intercept is present
+  if (!is.null(Intercept) && Intercept==TRUE && sum(as.matrix(Regressor)[,1])!=n){
+    Regressor = as.data.frame(cbind(rep(1,n),Regressor))
+    names(Regressor)[1] = "Intercept"
+  }
+
   # parse the model information - needed for distribution functions
   mod = ModelScheme(SampleSize = n,
                      CountDist = CountDist,
                      ARMAModel = ARMAModel,
                      TrueParam = TrueParam,
                      Regressor = Regressor,
+                     Intercept = Intercept,
                           Task = "Synthesis",
                        ntrials = ntrials)
 
@@ -1527,7 +1557,7 @@ RetrieveParameters = function(theta,mod){
   # regressor parameters
   if(mod$nreg>0){
     beta  = Parms$MargParms[1:(mod$nreg+1)]
-    m     = exp(mod$Regressor%*%beta)
+    m     = exp(as.matrix(mod$Regressor)%*%beta)
   }
 
   # GLM type parameters
@@ -1558,8 +1588,7 @@ RetrieveParameters = function(theta,mod){
 
   if(mod$CountDist == "Mixed Poisson" && mod$nreg>0){
     Parms$ConstMargParm  = c(Parms$MargParms[2*(mod$nreg+1)+1])
-    Parms$DynamMargParm  = cbind(exp(mod$Regressor%*%Parms$MargParms[1:(mod$nreg+1)]),
-                                 exp(mod$Regressor%*%Parms$MargParms[(mod$nreg+2):(mod$nreg*2+2)]))
+    Parms$DynamMargParm  = cbind(m, exp(as.matrix(mod$Regressor)%*%Parms$MargParms[(mod$nreg+2):(mod$nreg*2+2)]))
   }
 
   if(mod$CountDist == "ZIP" && mod$nreg>0){
@@ -2076,6 +2105,37 @@ PITvalues = function(H, predDist){
   }
 PITvalues = c(0,PITvalues)
 return(diff(PITvalues))
+}
+
+# parse the values form a standard formula
+parse_formula <- function(formula) {
+  if (!inherits(formula, "formula")) {
+    stop("Input must be a formula.")
+  }
+
+  # Extract the terms object from the formula
+  terms_obj <- terms(formula)
+
+  # Extract the response variable (left-hand side)
+  DependentVar <- as.character(formula[[2]])
+
+  # Extract the predictor terms (right-hand side)
+  Regressor <- attr(terms_obj, "term.labels")
+
+  # If there are no predictors, return NULL
+  if (length(Regressor) == 0) {
+    Regressor <- NULL
+  }
+
+  # Check if the intercept is included (1 if included, 0 if excluded)
+  has_intercept <- attr(terms_obj, "intercept") == 1
+
+  # Return a list with response, predictors, and intercept status
+  return(list(
+    DependentVar = DependentVar,
+    Regressor = Regressor,
+    intercept = has_intercept
+  ))
 }
 
 

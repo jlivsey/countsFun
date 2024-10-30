@@ -179,12 +179,13 @@ ntrials        = 5
 p              = 0.3
 MargParm       = p
 TrueParam      = c(MargParm,ARParm, MAParm)
-theta = matrix(NA,nrow=nsim,ncol=length(MargParm)+sum(ARMAModel))
+theta          = matrix(NA,nrow=nsim,ncol=length(MargParm)+sum(ARMAModel))
+Intercept      = FALSE
 
 for (i in 1:nsim){
   # simulate data
   set.seed(i)
-  DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor,ntrials)
+  DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor,Intercept, ntrials)
 
   # call the wrapper function with less arguments
   mod = ModelScheme(DependentVar   = DependentVar,
@@ -259,8 +260,8 @@ n              = 100
 #e              = rbinom(n,1,0.1)
 #Regressor      = cbind(rep(1,n),e)
 set.seed(3)
-e              = runif(n)
-Regressor      = cbind(rep(1,n),e)
+Regressor      = runif(n)
+Intercept      = TRUE
 nsim           = 20
 theta          = matrix(NA,nrow=nsim,ncol=length(MargParm)+sum(ARMAModel))
 
@@ -268,11 +269,12 @@ theta          = matrix(NA,nrow=nsim,ncol=length(MargParm)+sum(ARMAModel))
 for (i in 1:nsim){
   # simulate data
   set.seed(i)
-  DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor)
+  DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor, Intercept)
 
   # call the wrapper function with less arguments
   mod = ModelScheme(DependentVar   = DependentVar,
                     Regressor      = Regressor,
+                    Intercept      = Intercept,
                     CountDist      = CountDist,
                     ARMAModel      = ARMAModel)
 
@@ -296,8 +298,8 @@ test_that("Initial Estimation for Poisson-AR(2) with Regressor", {
 
   n              = 100
   set.seed(3)
-  e              = runif(n)
-  Regressor      = cbind(rep(1,n),e)
+  Regressor      = runif(n)
+  Intercept      = TRUE
   ARMAModel      = c(2,0)
   ARParm         = c(0.5, 0.2)
   MAParm         = NULL
@@ -312,11 +314,12 @@ test_that("Initial Estimation for Poisson-AR(2) with Regressor", {
   for (i in 1:nsim){
     # simulate data
     set.seed(i)
-    DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor)
+    DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor, Intercept)
 
     # call the wrapper function with less arguments
     mod = ModelScheme(DependentVar   = DependentVar,
                       Regressor      = Regressor,
+                      Intercept      = Intercept,
                       CountDist      = CountDist,
                       ARMAModel      = ARMAModel)
 
@@ -362,17 +365,19 @@ test_that("Initial Estimation for Binomial-MA(3) with Regressor", {
   # allocate memory for estimates
   theta = matrix(NA,nrow=nsim,ncol=length(MargParm)+sum(ARMAModel))
   set.seed(3)
-  Regressor = cbind(1,rnorm(n,0,1))
+  Regressor = rnorm(n,0,1)
+  Intercept = TRUE
 
     for (i in 1:nsim){
     # simulate data
     set.seed(i)
     # Generate a regressor that will be used as a linear predictor
-    DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor,ntrials)
+    DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor,Intercept, ntrials)
 
     # call the wrapper function with less arguments
     mod = ModelScheme(DependentVar   = DependentVar,
                       Regressor      = Regressor,
+                      Intercept      = Intercept,
                       CountDist      = CountDist,
                       ARMAModel      = ARMAModel,
                       ntrials      = ntrials)
@@ -387,7 +392,7 @@ test_that("Initial Estimation for Binomial-MA(3) with Regressor", {
   expect_equal(RELATIVEBIAS, c( -0.20985523,  0.0252643, -0.67265663))
 })
 
-test_that("Initial Estimation for ZIP-AR(1) with Rerggresor", {
+test_that("Initial Estimation for ZIP-AR(1) with Regressor", {
 
   n              = 50
   nsim           = 20
@@ -407,19 +412,21 @@ test_that("Initial Estimation for ZIP-AR(1) with Rerggresor", {
 
   # Generate a regressor
   set.seed(3)
-  Regressor  = cbind(1,runif(n))
+  Regressor  = runif(n)
+  Intercept  = TRUE
 
 
   for (i in 1:nsim){
     # simulate data
     set.seed(i)
-    DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor)
+    DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor, Intercept)
 
     # call the wrapper function with less arguments
     mod = ModelScheme(DependentVar   = DependentVar,
                       CountDist      = CountDist,
                       ARMAModel      = ARMAModel,
-                      Regressor      = Regressor)
+                      Regressor      = Regressor,
+                      Intercept      = Intercept)
 
     theta[i,] = InitialEstimates(mod)
   }
@@ -433,7 +440,7 @@ test_that("Initial Estimation for ZIP-AR(1) with Rerggresor", {
 
 })
 
-test_that("Initial Estimation for Mixed Poisson-AR(1) with Rerggresor", {
+test_that("Initial Estimation for Mixed Poisson-AR(1) with Regressor", {
 
   n              = 50
   nsim           = 10
@@ -460,19 +467,21 @@ test_that("Initial Estimation for Mixed Poisson-AR(1) with Rerggresor", {
 
   # Generate a regressor
   set.seed(3)
-  Regressor  = cbind(1,runif(n))
+  Regressor  = runif(n)
+  Intercept  = TRUE
 
 
   for (i in 1:nsim){
     # simulate data
     set.seed(i)
-    DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor)
+    DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor, Intercept)
 
     # call the wrapper function with less arguments
     mod = ModelScheme(DependentVar   = DependentVar,
                       CountDist      = CountDist,
                       ARMAModel      = ARMAModel,
-                      Regressor      = Regressor)
+                      Regressor      = Regressor,
+                      Intercept      = Intercept)
 
     theta[i,] = InitialEstimates(mod)
   }

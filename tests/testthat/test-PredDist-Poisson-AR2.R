@@ -23,7 +23,8 @@ Buy = Smallsales$Buy
 
 # regressor variable with intercept
 DependentVar   = MOVE
-Regressor      = cbind(rep(1,length(Smallsales$Buy)),Smallsales$Buy)
+Regressor      = Smallsales$Buy
+Intercept      = TRUE
 CountDist      = "Negative Binomial"
 ARMAModel      = c(2,0)
 OptMethod      = "L-BFGS-B"
@@ -32,6 +33,7 @@ initialParam   = c(2.1756853 , 1.2048704,0.5, -0.3875602, 0.0603419 )
 # call the wrapper function with less arguments
 mod = ModelScheme(DependentVar   = DependentVar,
             Regressor      = Regressor,
+            Intercept      = Intercept,
             CountDist      = CountDist,
             ARMAModel      = ARMAModel,
             OptMethod      = OptMethod,

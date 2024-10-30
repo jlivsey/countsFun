@@ -38,13 +38,18 @@ maxdiff        = 10^(-6)
 set.seed(2)
 DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor)
 
+# set initial parameters
 initialParam   = c(10,0.1,0.2)
-# populate the model scheme
-mod = ModelScheme(DependentVar, Regressor, EstMethod, ARMAModel, CountDist,ParticleNumber, epsilon,
-                  initialParam, TrueParam, Task,SampleSize, OptMethod, OutputType, ParamScheme, maxdiff)
+
+# save the data in a data frame
+df = data.frame(DependentVar)
+
+# specify the regression model
+formula = DependentVar~0
+
 
 # call the wrapper
-a = lgc(DependentVar, Regressor, EstMethod, CountDist, ARMAModel, ParticleNumber,
+a = lgc(formula,df, EstMethod, CountDist, ARMAModel, ParticleNumber,
          epsilon, initialParam, TrueParam,  Task, SampleSize, nsim, no_cores, OptMethod,
          OutputType, ParamScheme, maxdiff)
 a$ParamEstimates

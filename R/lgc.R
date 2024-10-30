@@ -8,8 +8,8 @@
 #---------------------------------------------------------------------------------------------------------#
 
 # Final wrapper function
-lgc = function(DependentVar   = NULL,
-               Regressor      = NULL,
+lgc = function(formula        = NULL,
+               data           = NULL,
                EstMethod      = "PFR",
                CountDist      = NULL,
                ARMAModel      = NULL,
@@ -27,9 +27,33 @@ lgc = function(DependentVar   = NULL,
                maxdiff        = 10^(-8),
                ntrials        = NULL,...){
 
+  # parse the regression formula
+  parsed_formula <- parse_formula(formula)
+
+  # retrieve the Dependent variable
+  DependentVar = data[parsed_formula$DependentVar]
+
+  # retrieve the Regressors variable
+  if(is.null(parsed_formula$Regressor)){
+    Regressor = NULL
+  } else{
+    Regressor =   data[parsed_formula$Regressor]
+  }
+
+
+  # retrieve intercept
+  Intercept = parsed_formula$intercept
+
+  # add a column of ones in the Regressors if Intercept is present
+  if (Intercept){
+    Regressor = cbind(rep(1,dim(data)[1]),Regressor)
+    names(Regressor)[1] = "Intercept"
+  }
+
   # parse all the parameters and the data into a list called mod
   mod = ModelScheme(DependentVar   = DependentVar,
                     Regressor      = Regressor,
+                    Intercept      = Intercept,
                     EstMethod      = EstMethod,
                     ARMAModel      = ARMAModel,
                     CountDist      = CountDist,

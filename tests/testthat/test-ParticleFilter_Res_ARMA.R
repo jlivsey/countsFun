@@ -5,6 +5,7 @@ test_that("Likelihood Poisson-AR(1)", {
   n              = 200
   # Regressor      = cbind(rep(1,n),rbinom(n,1,0.25))
   Regressor      = NULL
+  Intercept      = NULL
   CountDist      = "Poisson"
   MargParm       = 3
   ARParm         = c(0.8, -0.25)
@@ -27,10 +28,10 @@ test_that("Likelihood Poisson-AR(1)", {
   maxdiff        = 10^(-6)
   # simulate data
   set.seed(2)
-  DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor)
+  DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor, Intercept)
 
   # populate the model scheme
-  mod = ModelScheme(DependentVar, Regressor, EstMethod, ARMAModel, CountDist,ParticleNumber, epsilon,
+  mod = ModelScheme(DependentVar, Regressor, Intercept, EstMethod, ARMAModel, CountDist,ParticleNumber, epsilon,
                     initialParam, TrueParam, Task,SampleSize, OptMethod, OutputType, ParamScheme, maxdiff)
 
   # evaluate the likleihood

@@ -27,20 +27,25 @@ Smallsales  = mysales[1:n,]
 
 # regressor variable with intercept
 DependentVar   = Smallsales$MOVE
-Regressor      = cbind(rep(1,length(Smallsales$Buy)),Smallsales$Buy)
+Regressor      = Smallsales$Buy
 CountDist      = "Negative Binomial"
 ARMAModel      = c(2,0)
 OptMethod      = "L-BFGS-B"
 initialParam   = c(2.1756853 , 1.2048704,0.5, -0.3875602, 0.0603419 )
 
+# save the data in a data frame
+df = data.frame(DependentVar, Regressor)
+
+# specify the regression model
+formula = DependentVar~Regressor
 
 # call the wrapper function with less arguments
-mylgc = lgc(DependentVar   = DependentVar,
-            Regressor      = Regressor,
+mylgc = lgc(formula        = formula,
+            data           = df,
             CountDist      = CountDist,
             ARMAModel      = ARMAModel,
             OptMethod      = OptMethod,
-              initialParam = initialParam)
+         initialParam      = initialParam)
 
 expect_equal(mylgc$FitStatistics[[1]], 392.673, tolerance = 10^(-3))
 

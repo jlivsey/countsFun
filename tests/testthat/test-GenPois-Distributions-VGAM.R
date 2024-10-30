@@ -49,11 +49,17 @@ theta2 = InitialEstimates(mod)
 set.seed(1)
 a2 = ParticleFilter_Res_ARMA(theta2, mod)
 
+
+# put the data in a data frame
+df = data.frame(DependentVar)
+
 set.seed(1)
+formula = DependentVar~0
 # Run the wrapper
-mylgc = lgc(DependentVar   = DependentVar,
-            CountDist      = CountDist,
-            ARMAModel      = ARMAModel)
+mylgc = lgc(formula = formula,
+               data = df,
+          CountDist = CountDist,
+          ARMAModel = ARMAModel)
 
 
 # check the likelihoods

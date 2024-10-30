@@ -18,11 +18,11 @@ test_that("New synthesis-GenPois_AR1_NoReg", {
   Task           = "Synthesis"
   TrueParam      = c(MargParm,ARParm, MAParm)
   SampleSize     = 50
-
+  Intercept      = FALSE
 
   # simulate data with the old lgc function
   set.seed(1)
-  x1   = sim_lgc_old(SampleSize, CountDist, MargParm, ARParm, MAParm, Regressor = NULL)
+  x1   = sim_lgc_old(SampleSize, CountDist, MargParm, ARParm, MAParm, Regressor = NULL, Intercept)
 
   # synthesize the data using the new sim_lgc function
   set.seed(1)
@@ -48,16 +48,18 @@ test_that("New synthesis-GenPois_AR1_Reg", {
   TrueParam      = c(MargParm,ARParm, MAParm)
   SampleSize     = 50
   e              = rbinom(SampleSize,1,0.1)
-  Regressor      = cbind(rep(1,SampleSize),e)
+  #Regressor      = cbind(rep(1,SampleSize),e)
+  Regressor      = e
+  Intercept      = TRUE
 
   # simulate data with the old lgc function
   set.seed(1)
-  x1   = sim_lgc_old(SampleSize, CountDist, MargParm, ARParm, MAParm, Regressor)
+  x1   = sim_lgc_old(SampleSize, CountDist, MargParm, ARParm, MAParm, Regressor,Intercept)
 
 
   # synthesize the data using the new sim_lgc function
   set.seed(1)
-  x2  = sim_lgc(SampleSize, CountDist, MargParm, ARParm, MAParm, Regressor)
+  x2  = sim_lgc(SampleSize, CountDist, MargParm, ARParm, MAParm, Regressor,Intercept)
 
   expect_identical(x1, x2)
 
