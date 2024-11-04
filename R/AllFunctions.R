@@ -36,26 +36,35 @@ ModelScheme = function(DependentVar = NULL, Regressor=NULL, Intercept = NULL, Es
     n = length(DependentVar)
   }
 
-  # fix me: I need a warning here is there is no samplesize in simulation
+  # fix me: do I need a warning here is there is no samplesize in simulation
   if(!is.null(Regressor)){
     if (Intercept==TRUE && sum(as.matrix(Regressor)[,1])!=n ){
       Regressor = as.data.frame(cbind(rep(1,n),Regressor))
       names(Regressor)[1] = "Intercept"
+    }
+    else{
+      Regressor = as.data.frame(Regressor)
     }
   }
 
   # number of regressors
   nreg = ifelse(is.null(Regressor), 0, DIM(Regressor)[2]-as.numeric(Intercept))
 
-  # retrieve indices of marginal distribution parameters-the regressor is assumed to have an intercept
+  if(is.null(Intercept) || is.null(Regressor)){
+    nint = 1
+  }else{
+    nint = as.numeric(Intercept)
+  }
+
+
   MargParmIndices = switch(CountDist,
-                           "Poisson"               = 1:(1+nreg),
-                           "Negative Binomial"     = 1:(2+nreg),
-                           "Generalized Poisson"   = 1:(2+nreg),
-                           "Generalized Poisson 2" = 1:(2+nreg),
-                           "Binomial"              = 1:(1+nreg),
-                           "Mixed Poisson"         = 1:(3+nreg*2),
-                           "ZIP"                   = 1:(2+nreg)
+                           "Poisson"               = 1:(1+nreg+nint-1),
+                           "Negative Binomial"     = 1:(2+nreg+nint-1),
+                           "Generalized Poisson"   = 1:(2+nreg+nint-1),
+                           "Generalized Poisson 2" = 1:(2+nreg+nint-1),
+                           "Binomial"              = 1:(1+nreg+nint-1),
+                           "Mixed Poisson"         = 1:(3+(nreg+nint-1)*2),
+                           "ZIP"                   = 1:(2+nreg+nint-1)
   )
 
   # retrieve marginal distribution parameters
@@ -191,13 +200,13 @@ ModelScheme = function(DependentVar = NULL, Regressor=NULL, Intercept = NULL, Es
     )
     # retrieve names of marginal parameters
     MargParmsNames = switch(CountDist,
-                            "Poisson"               = paste(rep("b_",nreg),0:nreg,sep=""),
-                            "Negative Binomial"     = c(paste(rep("b_",nreg),0:nreg,sep=""), "k"),
-                            "Mixed Poisson"         = c(paste(rep("b_1",nreg),0:nreg,sep=""),paste(rep("b_2",nreg),0:nreg,sep=""), "p"),
-                            "Generalized Poisson"   = c(paste(rep("b_",nreg),0:nreg,sep=""), "a"),
-                            "Generalized Poisson 2" = c(paste(rep("b_",nreg),0:nreg,sep=""), "a"),
-                            "Binomial"              = paste(rep("b_",nreg),0:nreg,sep=""),
-                            "ZIP"                   = c(paste(rep("b_",nreg),0:nreg,sep=""), "p"),
+                            "Poisson"               = paste(rep("b_",nreg),(1-nint):nreg,sep=""),
+                            "Negative Binomial"     = c(paste(rep("b_",nreg),(1-nint):nreg,sep=""), "k"),
+                            "Mixed Poisson"         = c(paste(rep("b_1",nreg),(1-nint):nreg,sep=""),paste(rep("b_2",nreg),(1-nint):nreg,sep=""), "p"),
+                            "Generalized Poisson"   = c(paste(rep("b_",nreg),(1-nint):nreg,sep=""), "a"),
+                            "Generalized Poisson 2" = c(paste(rep("b_",nreg),(1-nint):nreg,sep=""), "a"),
+                            "Binomial"              = paste(rep("b_",nreg),(1-nint):nreg,sep=""),
+                            "ZIP"                   = c(paste(rep("b_",nreg),(1-nint):nreg,sep=""), "p"),
     )
   }
 
@@ -238,6 +247,7 @@ ModelScheme = function(DependentVar = NULL, Regressor=NULL, Intercept = NULL, Es
     nMA              = nMA,
     n                = n,
     nreg             = nreg,
+    nint             = nint,
     CountDist        = CountDist,
     ARMAModel        = ARMAModel,
     ParticleNumber   = ParticleNumber,
@@ -1003,8 +1013,23 @@ InitialEstimates = function(mod){
       est[1] = mean(mod$DependentVar)
     }else{
       # GLM for the mean that depends on time
-      # CHECK ME: If I fit a Poisson AR(3) in the the data example of the JASA paper, but the code below doesn't specify poisson family (it would pick up the default distribution that glm function has) then there will be a numerical error in the likelihood. Check it!
-      glmPoisson            = glm(mod$DependentVar~mod$Regressor[,2:(mod$nreg+1)], family = "poisson")
+
+      # CHECK ME: If I fit a Poisson AR(3) in the the data example of the JASA paper, but the code below doesn't
+      # specify poisson family (it would pick up the default distribution that glm function has) then there will
+      # be a numerical error in the likelihood. Check it!
+
+      # to fix #36 I will introduce an ifelse below. Another way to do things would be to pass the dataframe
+      # through the mod structure and use the data frame and the variable names in classic lm fashion. However,
+      # with my design of passing the DependentVar and the Regrerssor as separate arguments in mod, I need the
+      # ifelse statement below.
+
+      # glmPoisson            = glm(mod$DependentVar~mod$Regressor[,2:(mod$nreg+1)], family = "poisson")
+      if(mod$nint){
+        glmPoisson            = glm(mod$DependentVar~mod$Regressor[,2:(mod$nreg+1)], family = "poisson")
+      }else{
+        glmPoisson            = glm(mod$DependentVar~0+mod$Regressor[,1:mod$nreg], family = "poisson")
+      }
+
       est[1:mod$nMargParms] = as.numeric(glmPoisson[1]$coef)
 
     }
@@ -1023,7 +1048,14 @@ InitialEstimates = function(mod){
 
     }else{
       # GLM for the mean that depends on time
-      glmNB                     = glm.nb(mod$DependentVar~mod$Regressor[,2:(mod$nreg+1)])
+      #glmNB                     = glm.nb(mod$DependentVar~mod$Regressor[,2:(mod$nreg+1)])
+
+      if(mod$nint){
+        glmNB            = glm.nb(mod$DependentVar~mod$Regressor[,2:(mod$nreg+1)])
+      }else{
+        glmNB            = glm.nb(mod$DependentVar~0+mod$Regressor[,1:mod$nreg])
+      }
+
       est[1:(mod$nMargParms-1)] = as.numeric(glmNegBin[1]$coef)
 
       # MoM for the over dispersion param in NegBin2 parametrization
@@ -1051,14 +1083,25 @@ InitialEstimates = function(mod){
       est[1:3] = c(l1Est, l2Est, pEst)
     }else{
       #library(mixtools)
-      MP_fit = poisregmixEM(mod$DependentVar, mod$Regressor[,2:(mod$nreg+1)])
+      # MP_fit = poisregmixEM(mod$DependentVar, mod$Regressor[,2:(mod$nreg+1)])
+
+      if(mod$nint){
+        MP_fit            = poisregmixEM(mod$DependentVar, mod$Regressor[,2:(mod$nreg+1)])
+      }else{
+        MP_fit            = poisregmixEM(mod$DependentVar, mod$Regressor[,1:mod$nreg],addintercept = FALSE)
+      }
 
       if(MP_fit$lambda[1]<0.5){
         est[1:mod$nMargParms] = as.numeric(c(MP_fit$beta, MP_fit$lambda[1]))
       }
       else{
-        #check me: should I give an error here?
-        est[1:mod$nMargParms] = as.numeric(c(MP_fit$beta[3:4],MP_fit$beta[1:2], 1-MP_fit$lambda[1]))
+        # check me: should I give an error here?
+        # check me: does this work for more regressors? I think there will be an error with the indices below
+        if(mod$nint){
+          est[1:mod$nMargParms] = as.numeric(c(MP_fit$beta[3:4],MP_fit$beta[1:2], 1-MP_fit$lambda[1]))
+        }else{
+          est[1:mod$nMargParms] = as.numeric(c(MP_fit$beta[2],MP_fit$beta[1], 1-MP_fit$lambda[1]))
+        }
         }
       #could also use the flexmix package
       #check me: for now we allow mixture of only two components
@@ -1096,8 +1139,11 @@ InitialEstimates = function(mod){
 
     }else{
       # run GenPois GLM using VGAM package - CHECK ME: shouls surface maxit as an option to the user?
-      fit = VGAM::vglm( mod$DependentVar ~ mod$Regressor[,2], genpoisson2, maxit=60)
-
+      if(mod$nint){
+        fit = VGAM::vglm( mod$DependentVar ~ mod$Regressor[,2:(1+mod$nreg)], genpoisson2, maxit=60)
+      }else{
+        fit = VGAM::vglm( mod$DependentVar ~ 0+mod$Regressor[,1:mod$nreg], genpoisson2(zero=0), maxit=60,)
+      }
       # save linear predictor coefficients
       est[1:(mod$nMargParms-1)]  = as.numeric(coef(fit, matrix = TRUE)[,1])
 
@@ -1114,8 +1160,13 @@ InitialEstimates = function(mod){
       pEst = xbar/mod$ntrials
       est[1] = pEst
     }else{
+      #glmBinomial               = glm(cbind(mod$DependentVar,mod$ntrials-mod$DependentVar) ~ mod$Regressor[,2:(mod$nreg+1)] , family = 'binomial')
+      if(mod$nint){
+        glmBinomial               = glm(cbind(mod$DependentVar,mod$ntrials-mod$DependentVar) ~ mod$Regressor[,2:(mod$nreg+1)] , family = 'binomial')
+      }else{
+        glmBinomial               = glm(cbind(mod$DependentVar,mod$ntrials-mod$DependentVar) ~ 0+mod$Regressor[,1:mod$nreg] , family = 'binomial')
 
-      glmBinomial               = glm(cbind(mod$DependentVar,mod$ntrials-mod$DependentVar) ~ mod$Regressor[,2:(mod$nreg+1)] , family = 'binomial')
+      }
       est[1:mod$nMargParms] = as.numeric(glmBinomial$coef)
     }
   }
@@ -1132,7 +1183,14 @@ InitialEstimates = function(mod){
 
     }else{
       #zeroinfl_reg <- zeroinfl( mod$DependentVar~ mod$Regressor[,2:(mod$nreg+1)] | 1,)
-      zeroinfl_reg = vglm( mod$DependentVar~ mod$Regressor[,2:(mod$nreg+1)], zipoisson(zero=1))
+      #zeroinfl_reg = vglm( mod$DependentVar~ mod$Regressor[,2:(mod$nreg+1)], zipoisson(zero=1))
+
+      if(mod$nint){
+        zeroinfl_reg = vglm( mod$DependentVar~ mod$Regressor[,2:(mod$nreg+1)], zipoisson(zero=1))
+      }else{
+        zeroinfl_reg = vglm( mod$DependentVar~ 0+mod$Regressor[,1:mod$nreg], zipoisson(zero=0))
+      }
+
       est[1:(mod$nMargParms-1)] = as.numeric(coef(zeroinfl_reg))[2:(mod$nMargParms)]
       est[mod$nMargParms] = plogis(as.numeric(coef(zeroinfl_reg))[1])
     }
@@ -1556,23 +1614,23 @@ RetrieveParameters = function(theta,mod){
 
   # regressor parameters
   if(mod$nreg>0){
-    beta  = Parms$MargParms[1:(mod$nreg+1)]
+    beta  = Parms$MargParms[1:(mod$nreg+mod$nint)]
     m     = exp(as.matrix(mod$Regressor)%*%beta)
   }
 
   # GLM type parameters
   if(mod$CountDist == "Negative Binomial" && mod$nreg>0){
-    Parms$ConstMargParm  = 1/Parms$MargParms[mod$nreg+2]
-    Parms$DynamMargParm  = Parms$MargParms[mod$nreg+2]*m/(1+Parms$MargParms[mod$nreg+2]*m)
+    Parms$ConstMargParm  = 1/Parms$MargParms[mod$nreg+mod$nint+1]
+    Parms$DynamMargParm  = Parms$MargParms[mod$nreg+mod$nint+1]*m/(1+Parms$MargParms[mod$nreg+mod$nint+1]*m)
   }
 
   if(mod$CountDist == "Generalized Poisson" && mod$nreg>0){
-    Parms$ConstMargParm  = Parms$MargParms[mod$nreg+2]
+    Parms$ConstMargParm  = Parms$MargParms[mod$nreg+mod$nint+1]
     Parms$DynamMargParm  = m
   }
 
   if(mod$CountDist == "Generalized Poisson 2" && mod$nreg>0){
-    Parms$ConstMargParm  = Parms$MargParms[mod$nreg+2]
+    Parms$ConstMargParm  = Parms$MargParms[mod$nreg+mod$nint+1]
     Parms$DynamMargParm  = m
   }
 
@@ -1587,12 +1645,12 @@ RetrieveParameters = function(theta,mod){
   }
 
   if(mod$CountDist == "Mixed Poisson" && mod$nreg>0){
-    Parms$ConstMargParm  = c(Parms$MargParms[2*(mod$nreg+1)+1])
-    Parms$DynamMargParm  = cbind(m, exp(as.matrix(mod$Regressor)%*%Parms$MargParms[(mod$nreg+2):(mod$nreg*2+2)]))
+    Parms$ConstMargParm  = c(Parms$MargParms[2*(mod$nreg+mod$nint)+1])
+    Parms$DynamMargParm  = cbind(m, exp(as.matrix(mod$Regressor)%*%Parms$MargParms[(mod$nreg+mod$nint+1):((mod$nreg+mod$nint)*2)]))
   }
 
   if(mod$CountDist == "ZIP" && mod$nreg>0){
-    Parms$ConstMargParm  = Parms$MargParms[mod$nreg+2]
+    Parms$ConstMargParm  = Parms$MargParms[mod$nreg+mod$nint+1]
     Parms$DynamMargParm  = m
   }
 
