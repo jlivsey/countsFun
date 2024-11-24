@@ -211,10 +211,19 @@ ModelScheme = function(DependentVar = NULL, Regressor=NULL, Intercept = NULL, Es
     )
   }
 
+  # check whether the provided initial estimates make sense - this is for Evaluation, Simulation, Optimization Task
+  if (!is.null(initialParam)) {
+    if (max(initialParam<=LB) | max(initialParam>=UB)){
+      stop("The specified initial parameter is outside the feasible region.")
+    }
+  }
 
-  # check whether the provided initial estimates make sense
-  if (!is.null(initialParam) & (prod(initialParam<=LB) | prod(initialParam>=UB)))
-    stop("The specified initial parameter is outside thew feasible region.")
+  # check whether the provided initial estimates make sense - This is for Synthesis Tasks
+  if (Task=="Synthesis") {
+    if (max(TrueParam<=LB) | max(TrueParam>=UB)){
+      stop("The specified parameter is outside the feasible region.")
+    }
+  }
 
   # create names of the ARMA parameters
   if(nAR>0) ARNames = paste("AR_",1:ARMAModel[1], sep="")
