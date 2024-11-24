@@ -102,31 +102,15 @@ lgc = function(formula        = NULL,
     #clusterSetRNGStream(cl, 1001) #make the bootstrapping exactly the same as above to equate computation time
     registerDoParallel(cl)
 
-
-    # load libraries
-    # library(countsFun)
-    # library(tictoc)
-    # library(optimx)
-    # library(ltsa)
-    # library(itsmr)
-    # library(numDeriv)
-    # library(MASS)
-    # library(parallel)
-    # library(doParallel)
-    # library(iZID)
-    # library(devtools)
-    # library(VGAM)
-    # library(mixtools)
-    # library(extraDistr)
-
-
     # run foreach
     # fix me: need to be very careful here with packages - and run tests for all distributions with and without regressors
+
+    # .packages = c("ltsa", "optimx", 'tictoc', 'countsFun', 'itsmr',
+    #               'doParallel','numDeriv','VGAM','iZID','extraDistr','devtools',
+    #               'parallel','MASS','mixtools', 'optextras')
+
     out = foreach(index = 1:nsim,
-                .combine = rbind,
-                .packages = c("ltsa", "optimx", 'tictoc', 'countsFun', 'itsmr',
-                              'doParallel','numDeriv','VGAM','iZID','extraDistr','devtools',
-                              'parallel','MASS','mixtools', 'optextras'))  %dopar%  {
+                .packages = c("optimx", 'countsFun'),.export= c("FitMultiplePF_Res_New"))  %dopar%  {
                   mod$DependentVar =  AllSimulatedSeries[[index]]
                   theta  = mod$initialParam = AllInitialParam[[index]]
                   FitMultiplePF_Res_New(theta,mod)
@@ -138,15 +122,15 @@ lgc = function(formula        = NULL,
   if(Task %in% c('Evaluation', 'Optimization')){
       theta  = mod$initialParam
       FitResults = FitMultiplePF_Res_New(theta, mod)
+
+      # gather the input information and the Fit Results in one output structure
+      out = PrepareOutput(mod, FitResults)
   }
 
-# gather the input information and the Fit Results in one output structure
-out = PrepareOutput(mod, FitResults)
-
-
-# create an lgc object and save the initial estimate
-class(out) = "lgc"
-
+  # create an lgc object and save the initial estimate
+  for (i in seq_along(out)) {
+    class(out[[i]]) <- "lgc"
+  }
 return(out)
 
 }

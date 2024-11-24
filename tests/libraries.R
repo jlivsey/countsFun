@@ -13,4 +13,4 @@ library(devtools)
 library(VGAM)
 library(mixtools)
 library(extraDistr)
-
+library(optextras)
