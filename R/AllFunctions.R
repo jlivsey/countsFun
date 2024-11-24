@@ -74,6 +74,13 @@ ModelScheme = function(DependentVar = NULL, Regressor=NULL, Intercept = NULL, Es
   nAR        = ARMAModel[1]
   nMA        = ARMAModel[2]
 
+  if(Task=="Synthesis"){
+    if (nparms!=length(TrueParam)){
+      stop("The length of the specified true parameter does not comply with the
+           model or the number of regressors.")
+    }
+  }
+
   # cannot allow for sample size to be smaller than model parameters
   if (n<=(nparms+2))
     stop(sprintf("The provided sample size is equal to %.0f while the
@@ -181,23 +188,23 @@ ModelScheme = function(DependentVar = NULL, Regressor=NULL, Intercept = NULL, Es
     )
     # lower bound contraints
     LB = switch(CountDist,
-                "Poisson"               = rep(-Inf, sum(ARMAModel)+nreg+1),
-                "Negative Binomial"     = c(rep(-Inf, nreg+1), 0.001, rep(-Inf, sum(ARMAModel))),
-                "Generalized Poisson"   = c(rep(-Inf, nreg+1), 0.001, rep(-Inf, sum(ARMAModel))),
-                "Generalized Poisson 2" = c(rep(-Inf, nreg+1), 0.001, rep(-Inf, sum(ARMAModel))),
-                "Binomial"              = rep(-Inf, sum(ARMAModel)+nreg+1),
-                "Mixed Poisson"         = c(rep(-Inf, 2*nreg+2), 0.001, rep(-Inf, sum(ARMAModel))),
-                "ZIP"                   = c(rep(-Inf, 2*nreg+2), rep(-Inf, sum(ARMAModel)))
+                "Poisson"               = rep(-Inf, sum(ARMAModel)+nreg+nint),
+                "Negative Binomial"     = c(rep(-Inf, nreg+nint), 0.001, rep(-Inf, sum(ARMAModel))),
+                "Generalized Poisson"   = c(rep(-Inf, nreg+nint), 0.001, rep(-Inf, sum(ARMAModel))),
+                "Generalized Poisson 2" = c(rep(-Inf, nreg+nint), 0.001, rep(-Inf, sum(ARMAModel))),
+                "Binomial"              = rep(-Inf, sum(ARMAModel)+nreg+nint),
+                "Mixed Poisson"         = c(rep(-Inf, 2*(nreg+nint)), 0.001, rep(-Inf, sum(ARMAModel))),
+                "ZIP"                   = c(rep(-Inf, nreg+nint), 0.001, rep(-Inf, sum(ARMAModel)))
     )
     # upper bound constraints
     UB = switch(CountDist,
-                "Poisson"               = rep(Inf, sum(ARMAModel)+nreg+1),
-                "Negative Binomial"     = c(rep(Inf, nreg+1), Inf, rep(Inf, sum(ARMAModel))),
-                "Generalized Poisson"   = c(rep(Inf, nreg+1), Inf, rep(Inf, sum(ARMAModel))),
-                "Generalized Poisson 2" = c(rep(Inf, nreg+1), Inf, rep(Inf, sum(ARMAModel))),
-                "Binomial"              = rep(Inf, sum(ARMAModel)+nreg+1),
-                "Mixed Poisson"         = c(rep(Inf, 2*nreg+2), 0.49, rep(Inf, sum(ARMAModel))),
-                "ZIP"                   = c(rep(Inf, nreg+1), Inf, rep(Inf, sum(ARMAModel))),
+                "Poisson"               = rep(Inf, sum(ARMAModel)+nreg+nint),
+                "Negative Binomial"     = c(rep(Inf, nreg+nint), Inf, rep(Inf, sum(ARMAModel))),
+                "Generalized Poisson"   = c(rep(Inf, nreg+nint), Inf, rep(Inf, sum(ARMAModel))),
+                "Generalized Poisson 2" = c(rep(Inf, nreg+nint), Inf, rep(Inf, sum(ARMAModel))),
+                "Binomial"              = rep(Inf, sum(ARMAModel)+nreg+nint),
+                "Mixed Poisson"         = c(rep(Inf, 2*(nreg+nint)), 0.49, rep(Inf, sum(ARMAModel))),
+                "ZIP"                   = c(rep(Inf, nreg+nint), Inf, rep(Inf, sum(ARMAModel))),
     )
     # retrieve names of marginal parameters
     MargParmsNames = switch(CountDist,
