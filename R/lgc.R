@@ -45,7 +45,7 @@ lgc = function(formula        = NULL,
   Intercept = parsed_formula$intercept
 
   # add a column of ones in the Regressors if Intercept is present
-  if (Intercept){
+  if (!is.null(Regressor) && Intercept){
     Regressor = cbind(rep(1,dim(data)[1]),Regressor)
     names(Regressor)[1] = "Intercept"
   }
@@ -102,11 +102,31 @@ lgc = function(formula        = NULL,
     #clusterSetRNGStream(cl, 1001) #make the bootstrapping exactly the same as above to equate computation time
     registerDoParallel(cl)
 
+
+    # load libraries
+    # library(countsFun)
+    # library(tictoc)
+    # library(optimx)
+    # library(ltsa)
+    # library(itsmr)
+    # library(numDeriv)
+    # library(MASS)
+    # library(parallel)
+    # library(doParallel)
+    # library(iZID)
+    # library(devtools)
+    # library(VGAM)
+    # library(mixtools)
+    # library(extraDistr)
+
+
     # run foreach
     # fix me: need to be very careful here with packages - and run tests for all distributions with and without regressors
     out = foreach(index = 1:nsim,
                 .combine = rbind,
-                .packages = c("ltsa", "optimx", 'tictoc', 'countsFun'))  %dopar%  {
+                .packages = c("ltsa", "optimx", 'tictoc', 'countsFun', 'itsmr',
+                              'doParallel','numDeriv','VGAM','iZID','extraDistr','devtools',
+                              'parallel','MASS','mixtools', 'optextras'))  %dopar%  {
                   mod$DependentVar =  AllSimulatedSeries[[index]]
                   theta  = mod$initialParam = AllInitialParam[[index]]
                   FitMultiplePF_Res_New(theta,mod)

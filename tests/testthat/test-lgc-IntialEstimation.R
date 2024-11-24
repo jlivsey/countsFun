@@ -1,10 +1,10 @@
-#====================================================================================================#
-# Purpose: Test the performance of initial estimation. Not extensive.
+#======================================================================================#
+# Purpose: Test the performance of initial estimation.
 #
 # Author: Stefanos Kechagias
-#==========================================================================================#
+#======================================================================================#
 
-#--------------------------- without Regressor ------------------------------------------#
+#--------------------------- without Regressor ----------------------------------------#
 test_that("Initial Estimation for Poisson-AR(2)", {
 
 # regressor variable with intercept
@@ -244,7 +244,6 @@ test_that("Initial Estimation for ZIP-ARMA(1,1)", {
 
 
 #--------------------------- with Regressor ------------------------------------------#
-
 test_that("Initial Estimation for Generalized Poisson-AR(1) with Regressor", {
 # set parameters
 CountDist      = "Generalized Poisson 2"
@@ -499,7 +498,6 @@ test_that("Initial Estimation for Mixed Poisson-AR(1) with Regressor", {
 
 
 #--------------------------- with Regressor no Intercept ----------------------------#
-
 test_that("Initial Estimation for Poisson-AR(2) with Regressor no intercept", {
 
   # regressor variable with intercept
@@ -740,3 +738,256 @@ test_that("Initial Estimation for Generalized Poisson-AR(1) with Regressor no in
   expect_equal(RELATIVEBIAS[3], -0.19260894, tolerance = 10^(-5))
 
 })
+
+
+#-------------------------------- with two Regressors ------------------------------#
+test_that("Initial Estimation for Poisson-AR(2) with two Regressors", {
+
+  # regressor variable with intercept
+  n              = 100
+  set.seed(3)
+  Regressor      = data.frame(runif(n),runif(n))
+  names(Regressor) = c("x1","x2")
+  Intercept      = TRUE
+  ARMAModel      = c(2,0)
+  ARParm         = c(0.5, 0.2)
+  MAParm         = NULL
+  nsim           = 20
+  CountDist      = "Poisson"
+  b0             = 1
+  b1             = 4
+  b2             = 2
+  MargParm       = c(b0,b1,b2)
+  TrueParam      = c(MargParm,ARParm, MAParm)
+  theta = matrix(NA,nrow=nsim,ncol=length(MargParm)+sum(ARMAModel))
+
+  for (i in 1:nsim){
+    # simulate data
+    set.seed(i)
+    DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor, Intercept)
+
+    # call the wrapper function with less arguments
+    mod = ModelScheme(DependentVar   = DependentVar,
+                      Regressor      = Regressor,
+                      Intercept      = Intercept,
+                      CountDist      = CountDist,
+                      ARMAModel      = ARMAModel)
+
+    theta[i,] = InitialEstimates(mod)
+  }
+
+  BIAS = colMeans(theta) - TrueParam
+  RELATIVEBIAS = BIAS/TrueParam
+
+  expect_equal(RELATIVEBIAS[1], 0.0109838255, tolerance = 10^(-5))
+  expect_equal(RELATIVEBIAS[2], -0.0007909735, tolerance = 10^(-5))
+  expect_equal(RELATIVEBIAS[3],  -0.0077351337, tolerance = 10^(-5))
+  expect_equal(RELATIVEBIAS[4], -0.0693040633 , tolerance = 10^(-5))
+  expect_equal(RELATIVEBIAS[5], -0.0925800171 , tolerance = 10^(-5))
+})
+
+test_that("Initial Estimation for Generalized Poisson-AR(1) with two Regressors", {
+  n              = 100
+  CountDist      = "Generalized Poisson 2"
+  alpha          = 1.5
+  set.seed(3)
+  Regressor      = data.frame(runif(n),runif(n))
+  b0             = 1
+  b1             = 4
+  b2             = 2
+  MargParm       = c(b0,b1,b2,alpha)
+  ARParm         = 0.6
+  MAParm         = NULL
+  ARMAModel      = c(length(ARParm),length(MAParm))
+  TrueParam      = c(MargParm,ARParm, MAParm)
+  Intercept      = TRUE
+  nsim           = 20
+  theta          = matrix(NA,nrow=nsim,ncol=length(MargParm)+sum(ARMAModel))
+
+  for (i in 1:nsim){
+    # simulate data
+    set.seed(i)
+    DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor, Intercept)
+
+    # call the wrapper function with less arguments
+    mod = ModelScheme(DependentVar   = DependentVar,
+                      Regressor      = Regressor,
+                      Intercept      = Intercept,
+                      CountDist      = CountDist,
+                      ARMAModel      = ARMAModel)
+
+    theta[i,] = InitialEstimates(mod)
+  }
+
+  BIAS = colMeans(theta) - TrueParam
+  RELATIVEBIAS = BIAS/TrueParam
+
+  # check me: this doesnt seem to work as well. what about IYW?
+  expect_equal(RELATIVEBIAS[1], 3.45446118, tolerance = 10^(-5))
+  expect_equal(RELATIVEBIAS[2], -0.39682713, tolerance = 10^(-5))
+  expect_equal(RELATIVEBIAS[3], -2.37419311, tolerance = 10^(-5))
+  expect_equal(RELATIVEBIAS[4], -0.05585345, tolerance = 10^(-5))
+  expect_equal(RELATIVEBIAS[5], -0.23749383, tolerance = 10^(-5))
+
+})
+
+test_that("Initial Estimation for Binomial-MA(3) with two Regressors", {
+
+  # set sample size and model Parameters
+  n              = 100
+  ARParm         = NULL
+  #MAParm         = c(0.8, -0.5, 0.4)
+  #MAParm         = c(0.8)
+  MAParm          = 0.4
+  #z  =arima.sim(model = list( ar = ARParm, ma=MAParm), n = n)
+
+  ARMAModel      = c(length(ARParm),length(MAParm))
+  nsim           = 20
+  CountDist      = "Binomial"
+
+  # select parameters for linear predictor
+  b0    = 0.2
+  b1    = 0.5
+  b2    = -1
+
+  # set the constant binomial parameter
+  ntrials        = 1
+
+  # collect Marginal and True parameters
+  MargParm       = c(b0,b1,b2)
+  TrueParam      = c(MargParm,ARParm, MAParm)
+
+  # allocate memory for estimates
+  theta = matrix(NA,nrow=nsim,ncol=length(MargParm)+sum(ARMAModel))
+  set.seed(3)
+  Regressor = data.frame(rnorm(n,0,1),runif(n))
+  Intercept = TRUE
+
+  for (i in 1:nsim){
+    # simulate data
+    set.seed(i)
+    # Generate a regressor that will be used as a linear predictor
+    DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor,Intercept, ntrials)
+
+    # call the wrapper function with less arguments
+    mod = ModelScheme(DependentVar   = DependentVar,
+                      Regressor      = Regressor,
+                      Intercept      = Intercept,
+                      CountDist      = CountDist,
+                      ARMAModel      = ARMAModel,
+                      ntrials      = ntrials)
+
+    theta[i,] = InitialEstimates(mod)
+  }
+
+  BIAS = colMeans(theta) - TrueParam
+  RELATIVEBIAS = BIAS/TrueParam
+
+
+  expect_equal(RELATIVEBIAS, c( -0.10203969, -0.06737720, -0.04524991,-0.46005832))
+})
+
+test_that("Initial Estimation for ZIP-AR(1) with two Regressors", {
+
+  n              = 50
+  nsim           = 20
+  ARParm         = 0.5
+  MAParm         = NULL
+  ARMAModel      = c(length(ARParm),length(MAParm))
+  CountDist      = "ZIP"
+
+  # Set parameter for the Poisson link
+  b0             = 2
+  b1             = 3
+  b2             = -2
+  p              = 0.4
+  MargParm       = c(b0,b1,b2,p)
+  theta          = matrix(NA,nrow=nsim,ncol=length(MargParm)+sum(ARMAModel))
+  TrueParam      = c(MargParm,ARParm, MAParm)
+
+  # Generate a regressor
+  set.seed(3)
+  Regressor  = data.frame(runif(n),runif(n))
+  Intercept  = TRUE
+
+  for (i in 1:nsim){
+    # simulate data
+    set.seed(i)
+    DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor, Intercept)
+
+    # call the wrapper function with less arguments
+    mod = ModelScheme(DependentVar   = DependentVar,
+                      CountDist      = CountDist,
+                      ARMAModel      = ARMAModel,
+                      Regressor      = Regressor,
+                      Intercept      = Intercept)
+
+    theta[i,] = InitialEstimates(mod)
+  }
+
+  BIAS = colMeans(theta) - TrueParam
+  RELATIVEBIAS = BIAS/TrueParam
+
+  expect_equal(RELATIVEBIAS[1], 0.028182607,tolerance=10^(-5))
+  expect_equal(RELATIVEBIAS[2], -0.022428549,tolerance=10^(-5))
+  expect_equal(RELATIVEBIAS[3], -0.004172647,tolerance=10^(-5))
+  expect_equal(RELATIVEBIAS[4], -0.048592206,tolerance=10^(-5))
+  expect_equal(RELATIVEBIAS[5], -0.194958015,tolerance=10^(-5))
+})
+
+test_that("Initial Estimation for Mixed Poisson-AR(1) with two Regressors", {
+
+  n              = 200
+  nsim           = 10
+  ARParm         = 0.5
+  MAParm         = NULL
+  ARMAModel      = c(length(ARParm),length(MAParm))
+  CountDist      = "Mixed Poisson"
+
+  # set linear predictor parameters
+  b0_0 = 0.5
+  b1_0 = 0.2
+  b2_0 = 2
+
+  b0_1 = -1
+  b1_1 = 5
+  b2_1 = 1
+
+  # set mixing probability
+  prob = 0.4
+
+  # gather Marginal Parameters
+  MargParm = c(b0_0, b1_0, b2_0,
+               b0_1, b1_1, b2_1, prob)
+
+  theta          = matrix(NA,nrow=nsim,ncol=length(MargParm)+sum(ARMAModel))
+  TrueParam      = c(MargParm,ARParm, MAParm)
+
+  # Generate a regressor
+  set.seed(3)
+  Regressor  = data.frame(runif(n),runif(n))
+  Intercept  = TRUE
+
+  for (i in 1:nsim){
+    # simulate data
+    set.seed(i)
+    DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor, Intercept)
+
+    # call the wrapper function with less arguments
+    mod = ModelScheme(DependentVar   = DependentVar,
+                      CountDist      = CountDist,
+                      ARMAModel      = ARMAModel,
+                      Regressor      = Regressor,
+                      Intercept      = Intercept)
+
+    theta[i,] = InitialEstimates(mod)
+  }
+
+
+  BIAS = colMeans(theta) - TrueParam
+  RELATIVEBIAS = BIAS/TrueParam
+
+  expect_equal(BIAS, c(-0.072727066,  0.013128037,  0.096239209, -0.040968408,  0.038659905,  0.025376310,  0.007648873,
+                       -0.362591482))
+})
+

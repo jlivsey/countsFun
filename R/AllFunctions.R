@@ -9,6 +9,7 @@ ModelScheme = function(DependentVar = NULL, Regressor=NULL, Intercept = NULL, Es
     stop("The specified distribution in not supported.")
 
   # Specify Task
+  #if( !(Task %in% c("Evaluation", "Optimization", "Synthesis"))){
   if( !(Task %in% c("Evaluation", "Optimization", "Simulation", "Synthesis"))){
     Task = "Evaluation"
     message("The selected Task is not supported. The Task has been set to 'Evaluation'")
@@ -1025,9 +1026,9 @@ InitialEstimates = function(mod){
 
       # glmPoisson            = glm(mod$DependentVar~mod$Regressor[,2:(mod$nreg+1)], family = "poisson")
       if(mod$nint){
-        glmPoisson            = glm(mod$DependentVar~mod$Regressor[,2:(mod$nreg+1)], family = "poisson")
+        glmPoisson            = glm(mod$DependentVar~ as.matrix(mod$Regressor[,2:(mod$nreg+1)]), family = "poisson")
       }else{
-        glmPoisson            = glm(mod$DependentVar~0+mod$Regressor[,1:mod$nreg], family = "poisson")
+        glmPoisson            = glm(mod$DependentVar~0 + as.matrix(mod$Regressor[,1:mod$nreg]), family = "poisson")
       }
 
       est[1:mod$nMargParms] = as.numeric(glmPoisson[1]$coef)
@@ -1051,9 +1052,9 @@ InitialEstimates = function(mod){
       #glmNB                     = glm.nb(mod$DependentVar~mod$Regressor[,2:(mod$nreg+1)])
 
       if(mod$nint){
-        glmNB            = glm.nb(mod$DependentVar~mod$Regressor[,2:(mod$nreg+1)])
+        glmNB            = glm.nb(mod$DependentVar ~ as.matrix(mod$Regressor[,2:(mod$nreg+1)]))
       }else{
-        glmNB            = glm.nb(mod$DependentVar~0+mod$Regressor[,1:mod$nreg])
+        glmNB            = glm.nb(mod$DependentVar ~ 0 + as.matrix(mod$Regressor[,1:mod$nreg]))
       }
 
       est[1:(mod$nMargParms-1)] = as.numeric(glmNegBin[1]$coef)
@@ -1086,9 +1087,9 @@ InitialEstimates = function(mod){
       # MP_fit = poisregmixEM(mod$DependentVar, mod$Regressor[,2:(mod$nreg+1)])
 
       if(mod$nint){
-        MP_fit            = poisregmixEM(mod$DependentVar, mod$Regressor[,2:(mod$nreg+1)])
+        MP_fit            = poisregmixEM(mod$DependentVar, as.matrix(mod$Regressor[,2:(mod$nreg+1)]))
       }else{
-        MP_fit            = poisregmixEM(mod$DependentVar, mod$Regressor[,1:mod$nreg],addintercept = FALSE)
+        MP_fit            = poisregmixEM(mod$DependentVar, as.matrix(mod$Regressor[,1:mod$nreg]),addintercept = FALSE)
       }
 
       if(MP_fit$lambda[1]<0.5){
@@ -1140,9 +1141,9 @@ InitialEstimates = function(mod){
     }else{
       # run GenPois GLM using VGAM package - CHECK ME: shouls surface maxit as an option to the user?
       if(mod$nint){
-        fit = VGAM::vglm( mod$DependentVar ~ mod$Regressor[,2:(1+mod$nreg)], genpoisson2, maxit=60)
+        fit = VGAM::vglm( mod$DependentVar ~ as.matrix(mod$Regressor[,2:(1+mod$nreg)]), genpoisson2, maxit=60)
       }else{
-        fit = VGAM::vglm( mod$DependentVar ~ 0+mod$Regressor[,1:mod$nreg], genpoisson2(zero=0), maxit=60,)
+        fit = VGAM::vglm( mod$DependentVar ~  0 + as.matrix(mod$Regressor[,1:mod$nreg]), genpoisson2(zero=0), maxit=60,)
       }
       # save linear predictor coefficients
       est[1:(mod$nMargParms-1)]  = as.numeric(coef(fit, matrix = TRUE)[,1])
@@ -1162,9 +1163,9 @@ InitialEstimates = function(mod){
     }else{
       #glmBinomial               = glm(cbind(mod$DependentVar,mod$ntrials-mod$DependentVar) ~ mod$Regressor[,2:(mod$nreg+1)] , family = 'binomial')
       if(mod$nint){
-        glmBinomial               = glm(cbind(mod$DependentVar,mod$ntrials-mod$DependentVar) ~ mod$Regressor[,2:(mod$nreg+1)] , family = 'binomial')
+        glmBinomial = glm(cbind(mod$DependentVar,mod$ntrials-mod$DependentVar) ~ as.matrix(mod$Regressor[,2:(mod$nreg+1)]) , family = 'binomial')
       }else{
-        glmBinomial               = glm(cbind(mod$DependentVar,mod$ntrials-mod$DependentVar) ~ 0+mod$Regressor[,1:mod$nreg] , family = 'binomial')
+        glmBinomial = glm(cbind(mod$DependentVar,mod$ntrials-mod$DependentVar) ~  0 + as.matrix(mod$Regressor[,1:mod$nreg]) , family = 'binomial')
 
       }
       est[1:mod$nMargParms] = as.numeric(glmBinomial$coef)
@@ -1186,9 +1187,9 @@ InitialEstimates = function(mod){
       #zeroinfl_reg = vglm( mod$DependentVar~ mod$Regressor[,2:(mod$nreg+1)], zipoisson(zero=1))
 
       if(mod$nint){
-        zeroinfl_reg = vglm( mod$DependentVar~ mod$Regressor[,2:(mod$nreg+1)], zipoisson(zero=1))
+        zeroinfl_reg = vglm( mod$DependentVar ~ as.matrix(mod$Regressor[,2:(mod$nreg+1)]), zipoisson(zero=1))
       }else{
-        zeroinfl_reg = vglm( mod$DependentVar~ 0+mod$Regressor[,1:mod$nreg], zipoisson(zero=0))
+        zeroinfl_reg = vglm( mod$DependentVar ~ 0 + as.matrix(mod$Regressor[,1:mod$nreg]), zipoisson(zero=0))
       }
 
       est[1:(mod$nMargParms-1)] = as.numeric(coef(zeroinfl_reg))[2:(mod$nMargParms)]
