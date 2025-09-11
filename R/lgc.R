@@ -82,11 +82,16 @@ lgc = function(formula        = NULL,
   # if simulation task has been chosen simulate the data and compute initial estimates
   # check me how fast is this?
   if(Task=='Simulation'){
+
+    # retrieve the parameters
+    Parms = RetrieveParameters(TrueParam,mod)
+
     AllSimulatedSeries <- vector(mode='list', length=nsim)
     AllInitialParam    <- vector(mode='list', length=nsim)
     for (i in 1:nsim) {
       set.seed(i)
-      AllSimulatedSeries[[i]] = mod$DependentVar =sim_lgc(SampleSize, CountDist, MargParm, ARParm, MAParm)
+      AllSimulatedSeries[[i]] = mod$DependentVar =sim_lgc(SampleSize, mod$CountDist, Parms$MargParms, Parms$AR, Parms$MA,
+                                                          mod$Regressor,mod$Intercept)
       AllInitialParam[[i]]    = InitialEstimates(mod)
     }
 
