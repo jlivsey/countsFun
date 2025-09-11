@@ -4,7 +4,7 @@
 \alias{AIC.lgc}
 \title{AIC for lgc Model}
 \usage{
-\method{AIC}{lgc}(object, ...)
+AIC.lgc(object, ...)
 }
 \arguments{
 \item{object}{An object of class \code{lgc}.}

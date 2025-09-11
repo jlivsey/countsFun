@@ -4,7 +4,7 @@
 \alias{logLik.lgc}
 \title{Log-Likelihood for lgc Model}
 \usage{
-\method{logLik}{lgc}(object, ...)
+logLik.lgc(object, ...)
 }
 \arguments{
 \item{object}{An object of class \code{lgc}.}

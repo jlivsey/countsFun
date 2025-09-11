@@ -133,8 +133,15 @@ lgc = function(formula        = NULL,
   }
 
   # create an lgc object and save the initial estimate
-  for (i in seq_along(out)) {
-    class(out[[i]]) <- "lgc"
+  # check me: also for
+  if(Task %in% c('Evaluation', 'Optimization')){
+    class(out) <- "lgc"
+  }
+
+  if(Task=='Simulation'){
+    for (i in seq_along(out)) {
+      class(out[[i]]) <- "lgc"
+    }
   }
 return(out)
 

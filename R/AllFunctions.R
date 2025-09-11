@@ -1764,7 +1764,7 @@ AIC.lgc = function(object,...){
   return(object$FitStatistics[2])
 }
 
-BIC <- function(object, ...) UseMethod("BIC")
+#BIC <- function(object, ...) UseMethod("BIC")
 
 #' @title BIC for lgc Model
 #' @description Returns the BIC value for a fitted `lgc` model.
@@ -1809,23 +1809,76 @@ model <- function(object, ...) UseMethod("model")
 #' @return A data frame with two columns: distribution and model type.
 #' @exportS3Method model lgc
 model.lgc = function(object,...){
-  if ((object$ARMAModel[1]>0) &&  (object$ARMAModel[2]>0)){
-    ARMAModel = sprintf("ARMA(%.0f, %.0f)",object$ARMAModel[1], object$ARMAModel[2])
-  }
-  if ((object$ARMAModel[1]>0) &&  (object$ARMAModel[2]==0)){
-    ARMAModel = sprintf("AR(%.0f)",object$ARMAModel[1])
-  }
-  if ((object$ARMAModel[1]==0) &&  (object$ARMAModel[2]>0)){
-    ARMAModel = sprintf("MA(%.0f)",object$ARMAModel[2])
-  }
-  if ((object$ARMAModel[1]==0) &&  (object$ARMAModel[2]==0)){
-    ARMAModel = "White Noise"
+  # if ((object$ARMAModel[1]>0) &&  (object$ARMAModel[2]>0)){
+  #   ARMAModel = sprintf("ARMA(%.0f, %.0f)",object$ARMAModel[1], object$ARMAModel[2])
+  # }
+  # if ((object$ARMAModel[1]>0) &&  (object$ARMAModel[2]==0)){
+  #   ARMAModel = sprintf("AR(%.0f)",object$ARMAModel[1])
+  # }
+  # if ((object$ARMAModel[1]==0) &&  (object$ARMAModel[2]>0)){
+  #   ARMAModel = sprintf("MA(%.0f)",object$ARMAModel[2])
+  # }
+  # if ((object$ARMAModel[1]==0) &&  (object$ARMAModel[2]==0)){
+  #   ARMAModel = "White Noise"
+  # }
+  #
+  # a = data.frame(object$CountDist, ARMAModel)
+  # names(a) = c("Distribution", "Model")
+  # return(a)
+  return(object$Model)
+}
+
+
+#' @title Summarize an lgc Model
+#' @description Provides a summary of a fitted \code{lgc} model, including
+#'   parameter estimates and fit statistics.
+#' @param object An object of class \code{lgc}.
+#' @param ... Additional arguments (currently unused).
+#' @return Invisibly returns the original \code{lgc} object.
+#' @examples
+#' \dontrun{
+#'   summary(mylgc)
+#' }
+#' @exportS3Method summary lgc
+summary.lgc <- function(object, ...) {
+  cat("Model:\n")
+  print(object$Model)
+
+  cat("\nParameter Estimates:\n")
+  print(object$ParamEstimates)
+
+  if (!is.null(object$SE)) {
+    cat("\nStandard Errors:\n")
+    print(object$SE)
   }
 
-  a = data.frame(object$CountDist, ARMAModel)
-  names(a) = c("Distribution", "Model")
-  return(a)
+  cat("\nFit Statistics:\n")
+  print(object$FitStatistics)
+
+  invisible(object)
 }
+
+print <- function(object, ...) UseMethod("print")
+
+#' @title Print an lgc Model
+#' @description Nicely formats and prints a fitted \code{lgc} model object.
+#' @param x An object of class \code{lgc}.
+#' @param ... Additional arguments (currently unused).
+#' @return Invisibly returns the input object.
+#' @examples
+#' \dontrun{
+#'   print(mylgc)
+#' }
+#' @exportS3Method print lgc
+print.lgc <- function(x, ...) {
+  cat("Latent Gaussian Count Model\n")
+  cat("Model:", x$Model, "\n")
+  cat("Log-likelihood:", x$FitStatistics["loglik"], "\n")
+  cat("Parameters:\n")
+  print(x$ParamEstimates)
+  invisible(x)
+}
+
 
 #' Compute Truncation Limits for Latent Gaussian Count Models
 #'

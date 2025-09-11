@@ -4,7 +4,7 @@
 \alias{BIC.lgc}
 \title{BIC for lgc Model}
 \usage{
-\method{BIC}{lgc}(object, ...)
+BIC.lgc(object, ...)
 }
 \arguments{
 \item{object}{An object of class \code{lgc}.}
