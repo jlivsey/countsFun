@@ -1,6 +1,6 @@
 #' #' @keywords internal
 #' @importFrom stats ARMAacf arima.sim coef dbinom dnbinom dpois filter glm arima residuals
-#' @importFrom stats pbinom plogis pnbinom pnorm ppois qbinom qnbinom qnorm
+#' @importFrom stats pbinom plogis pnbinom pnorm ppois qbinom qnbinom qnorm nobs
 #' @importFrom stats qpois rbinom rmultinom runif sd terms var
 #' @importFrom MASS glm.nb
 #' @importFrom VGAM vglm pzipois qzipois dzipois rzipois genpoisson2 loglink
@@ -1900,6 +1900,16 @@ print.lgc <- function(x, ...) {
   invisible(x)
 }
 
+
+#' @title Number of Observations in lgc Model
+#' @description Returns the number of observations used in fitting the model.
+#' @param object An object of class \code{lgc}.
+#' @param ... Additional arguments (currently unused).
+#' @return An integer, the number of observations.
+#' @exportS3Method stats::nobs lgc
+nobs.lgc <- function(object, ...) {
+  return(as.integer(object$SampleSize))
+}
 
 
 #' Compute Truncation Limits for Latent Gaussian Count Models

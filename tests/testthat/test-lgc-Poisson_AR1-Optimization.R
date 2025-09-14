@@ -52,11 +52,13 @@ formula = DependentVar~0
 a = lgc(formula,df, EstMethod, CountDist, ARMAModel, ParticleNumber,
          epsilon, initialParam, TrueParam,  Task, SampleSize, nsim, no_cores, OptMethod,
          OutputType, ParamScheme, maxdiff)
-a$ParamEstimates
 
 # for the set.seed(2) I will get the following likelihood: 302.57734
 expect_equal(a$ParamEstimates[1], 3.057192, tolerance = 10^(-4))
 expect_equal(a$ParamEstimates[2], 0.4400711, tolerance = 10^(-4))
 expect_equal(a$ParamEstimates[3], 0.07076272, tolerance = 10^(-4))
+
+nobs = nobs(a)
+expect_equal(nobs, n)
 
 })

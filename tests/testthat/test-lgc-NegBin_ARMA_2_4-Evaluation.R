@@ -56,4 +56,7 @@ test_that("LGC wrapper works for evaluation NegBin ARMA(2,4)", {
 
   expect_equal(mylgc$FitStatistics[[1]], 560.81726 )
   expect_equal(as.numeric(mylgc$ParamEstimates), est)
+
+  nobs = nobs(mylgc)
+  expect_equal(nobs, n)
 })
