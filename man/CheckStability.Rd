@@ -12,7 +12,8 @@ CheckStability(AR, MA)
 \item{MA}{Numeric vector. Moving average (MA) coefficients of the model. Can be \code{NULL} if the model has no MA part.}
 }
 \value{
-Integer. Returns \code{1} if the model is \strong{not stable} (i.e., at least one root of the AR or MA polynomial lies inside the unit circle), and \code{0} if the model is stable.
+Integer. Returns \code{1} if the model is \strong{not stable} (i.e., at least one root of the AR or MA polynomial
+lies inside the unit circle), and \code{0} if the model is stable.
 }
 \description{
 Checks whether the specified ARMA model is stable — i.e., whether the AR polynomial

@@ -1,4 +1,4 @@
-test_that("Basic S3 methods for evaluation Task", {
+test_that("Basic_S3_methods_for_Evaluation_Task", {
 
   # Specify model and methods
   n              = 200

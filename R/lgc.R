@@ -130,6 +130,10 @@ lgc = function(formula        = NULL,
 
       # gather the input information and the Fit Results in one output structure
       out = PrepareOutput(mod, FitResults)
+
+      # compute residuals
+      resid = ComputeResiduals(out)
+      out$residuals = resid
   }
 
   # create an lgc object and save the initial estimate

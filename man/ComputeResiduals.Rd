@@ -4,50 +4,14 @@
 \alias{ComputeResiduals}
 \title{Compute Residuals for Latent Gaussian Count Model}
 \usage{
-ComputeResiduals(theta, mod)
+ComputeResiduals(lgc)
 }
 \arguments{
-\item{theta}{Numeric vector. Parameter vector including marginal and ARMA parameters.}
-
-\item{mod}{A list object containing model specifications. Must include:
-\itemize{
-\item \code{DependentVar}: observed count time series
-\item \code{mycdf}: function for computing the marginal CDF
-\item \code{n}: sample size
-\item \code{ARMAModel}: AR and MA orders
-\item \code{nreg}: number of regressors
-\item \code{ConstMargParm}, \code{DynamMargParm}: if regressors are present
-}}
+\item{lgc}{A list object containing the outcome of a model fit.}
 }
 \value{
-A data frame with one column named \code{residual} containing the filtered residuals.
+A numeric vector of residuals.
 }
 \description{
-Computes time series residuals for a fitted latent Gaussian count model, as described
-in equation (66) of the paper "Latent Gaussian Count Time Series Modeling".
-This is typically used in post-estimation analysis after parameter fitting via
-particle filtering or other estimation methods.
-}
-\details{
-Residuals are computed using the inversion formula of a truncated normal distribution, as in
-equation (66) of the latent Gaussian count time series literature. A numeric approximation is
-used by applying the marginal CDF and quantile functions.
-\itemize{
-\item If \code{nreg == 0}, the marginal CDF is used directly.
-\item If regressors are present, the dynamic and constant marginal parameters are used.
-}
-
-The residuals are then filtered through the AR polynomial component.
-}
-\examples{
-\dontrun{
-mod <- list(DependentVar = y, mycdf = ppois, n = length(y),
-            ARMAModel = c(1, 0), nreg = 0)
-ComputeResiduals(theta = c(1.5, 0.3), mod = mod)
-}
-
-}
-\references{
-Kechagias, S., Livsey, J., & Pipiras, V. (2020). Latent Gaussian Count Time Series Modeling.
-\emph{arXiv:1811.00203}. \url{https://arxiv.org/abs/1811.00203}
+Compute Residuals for Latent Gaussian Count Model
 }

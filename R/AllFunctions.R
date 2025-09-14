@@ -1,5 +1,5 @@
 #' #' @keywords internal
-#' @importFrom stats ARMAacf arima.sim coef dbinom dnbinom dpois filter glm
+#' @importFrom stats ARMAacf arima.sim coef dbinom dnbinom dpois filter glm arima residuals
 #' @importFrom stats pbinom plogis pnbinom pnorm ppois qbinom qnbinom qnorm
 #' @importFrom stats qpois rbinom rmultinom runif sd terms var
 #' @importFrom MASS glm.nb
@@ -32,7 +32,7 @@
 #' @param ParticleNumber Integer. Number of particles to be used in the filter.
 #' @param epsilon Numeric. Resampling occurs when the effective sample size (ESS) drops below \code{epsilon * N}.
 #' @param initialParam Numeric vector. Initial parameter values for optimization.
-#' @param TrueParam Numeric vector. True parameter values (used in simulation).
+#' @param TrueParam Numeric vector. True parameter values (used in simulation/synthesis/evaluation).
 #' @param Task Character. One of \code{"Evaluation"}, \code{"Optimization"}, \code{"Simulation"}, or \code{"Synthesis"}.
 #' @param SampleSize Integer. Required when \code{Task == "Synthesis"}.
 #' @param OptMethod Character. Optimization method, e.g., \code{"L-BFGS-B"}.
@@ -112,7 +112,7 @@ ModelScheme = function(DependentVar = NULL, Regressor=NULL, Intercept = NULL, Es
     nint = as.numeric(Intercept)
   }
 
-
+  # get the indices of marginal parameters
   MargParmIndices = switch(CountDist,
                            "Poisson"               = 1:(1+nreg+nint-1),
                            "Negative Binomial"     = 1:(2+nreg+nint-1),
@@ -123,7 +123,7 @@ ModelScheme = function(DependentVar = NULL, Regressor=NULL, Intercept = NULL, Es
                            "ZIP"                   = 1:(2+nreg+nint-1)
   )
 
-  # retrieve marginal distribution parameters
+  # retrieve the number of  parameters
   nMargParms = length(MargParmIndices)
   nparms     = nMargParms + sum(ARMAModel)
   nAR        = ARMAModel[1]
@@ -941,6 +941,7 @@ PrepareOutput = function(mod, FitResults){
     #names(ModelOutput$FitStatistics)     = c("loglik", "AIC", "BIC", "AICc")
     #if(mod$Task=="Optimization")names(ModelOutput$OptimOutput)       = c("ConvergeStatus", "kkt1", "kkt2")
 
+    ModelOutput$mod            = mod
   }else{
     ModelOutput  = data.frame(matrix(ncol = 4*mod$nparms+16, nrow = 1))
 
@@ -1080,7 +1081,8 @@ set_rand_state <- function(state) {
 #' @param AR Numeric vector. Autoregressive (AR) coefficients of the model. Can be \code{NULL} if the model has no AR part.
 #' @param MA Numeric vector. Moving average (MA) coefficients of the model. Can be \code{NULL} if the model has no MA part.
 #'
-#' @return Integer. Returns \code{1} if the model is **not stable** (i.e., at least one root of the AR or MA polynomial lies inside the unit circle), and \code{0} if the model is stable.
+#' @return Integer. Returns \code{1} if the model is **not stable** (i.e., at least one root of the AR or MA polynomial
+#'          lies inside the unit circle), and \code{0} if the model is stable.
 #'
 #' @details
 #' The function uses \code{\link[base]{polyroot}} to compute the roots of the AR and MA characteristic polynomials:
@@ -1164,7 +1166,6 @@ CheckStability = function(AR,MA){
 #' print(init)
 #'
 #' @export
-
 InitialEstimates = function(mod){
   # require(itsmr)
 
@@ -1764,7 +1765,7 @@ AIC.lgc = function(object,...){
   return(object$FitStatistics[2])
 }
 
-#BIC <- function(object, ...) UseMethod("BIC")
+BIC <- function(object, ...) UseMethod("BIC")
 
 #' @title BIC for lgc Model
 #' @description Returns the BIC value for a fitted `lgc` model.
@@ -1829,6 +1830,26 @@ model.lgc = function(object,...){
 }
 
 
+
+#' @title Extract Residuals from an lgc Model
+#' @description Computes residuals from a fitted \code{lgc} model using the
+#'   ARMA structure specified in the model.
+#' @param object An object of class \code{lgc}.
+#' @param ... Additional arguments (currently unused).
+#' @return A numeric vector of residuals of length \code{nobs(object)}.
+#' @examples
+#' \dontrun{
+#'   residuals(mylgc)
+#' }
+#' @exportS3Method residuals lgc
+residuals.lgc <- function(object, ...) {
+  if (!inherits(object, "lgc")) stop("Object must be of class 'lgc'")
+  res <- ComputeResiduals(object)
+  res
+}
+
+
+
 #' @title Summarize an lgc Model
 #' @description Provides a summary of a fitted \code{lgc} model, including
 #'   parameter estimates and fit statistics.
@@ -1858,7 +1879,7 @@ summary.lgc <- function(object, ...) {
   invisible(object)
 }
 
-print <- function(object, ...) UseMethod("print")
+# print <- function(object, ...) UseMethod("print")
 
 #' @title Print an lgc Model
 #' @description Nicely formats and prints a fitted \code{lgc} model object.
@@ -1878,6 +1899,7 @@ print.lgc <- function(x, ...) {
   print(x$ParamEstimates)
   invisible(x)
 }
+
 
 
 #' Compute Truncation Limits for Latent Gaussian Count Models
@@ -2637,103 +2659,81 @@ GenInitVal = function(AllParms, perturbation){
 
 #' Compute Residuals for Latent Gaussian Count Model
 #'
-#' Computes time series residuals for a fitted latent Gaussian count model, as described
-#' in equation (66) of the paper "Latent Gaussian Count Time Series Modeling".
-#' This is typically used in post-estimation analysis after parameter fitting via
-#' particle filtering or other estimation methods.
-#'
-#' @param theta Numeric vector. Parameter vector including marginal and ARMA parameters.
-#' @param mod A list object containing model specifications. Must include:
-#'   \itemize{
-#'     \item \code{DependentVar}: observed count time series
-#'     \item \code{mycdf}: function for computing the marginal CDF
-#'     \item \code{n}: sample size
-#'     \item \code{ARMAModel}: AR and MA orders
-#'     \item \code{nreg}: number of regressors
-#'     \item \code{ConstMargParm}, \code{DynamMargParm}: if regressors are present
-#'   }
-#'
-#' @return A data frame with one column named \code{residual} containing the filtered residuals.
-#'
-#' @details
-#' Residuals are computed using the inversion formula of a truncated normal distribution, as in
-#' equation (66) of the latent Gaussian count time series literature. A numeric approximation is
-#' used by applying the marginal CDF and quantile functions.
-#'
-#' - If \code{nreg == 0}, the marginal CDF is used directly.
-#' - If regressors are present, the dynamic and constant marginal parameters are used.
-#'
-#' The residuals are then filtered through the AR polynomial component.
-#'
-#' @references
-#' Kechagias, S., Livsey, J., & Pipiras, V. (2020). Latent Gaussian Count Time Series Modeling.
-#' \emph{arXiv:1811.00203}. \url{https://arxiv.org/abs/1811.00203}
-#'
-#' @examples
-#' \dontrun{
-#' mod <- list(DependentVar = y, mycdf = ppois, n = length(y),
-#'             ARMAModel = c(1, 0), nreg = 0)
-#' ComputeResiduals(theta = c(1.5, 0.3), mod = mod)
-#' }
+#' @param lgc A list object containing the outcome of a model fit.
+#
+#' @return A numeric vector of residuals.
 #'
 #' @export
-ComputeResiduals= function(theta, mod){
+ComputeResiduals= function(lgc){
   #--------------------------------------------------------------------------#
-  # PURPOSE:  Compute the residuals in relation (66)
+  # PURPOSE:  Compute the residuals in relation (41)
   #
-  # NOTES:    1. See "Latent Gaussian Count Time Series Modeling" for  more
-  #           details. A first version of the paper can be found at:
-  #           https://arxiv.org/abs/1811.00203
-  #
-  # INPUTS:
-  #
-  # OUTPUT:
-  #    loglik:
   #--------------------------------------------------------------------------#
 
   # retrieve marginal distribution parameters
-  Parms = RetrieveParameters(theta,mod)
+  theta      = lgc$ParamEstimates
+  mod        = lgc$mod
+  Parms      = RetrieveParameters(theta,mod)
   nMargParms = length(Parms$MargParms)
   nparms     = length(theta)
 
   # check if the number of parameters matches the model setting
-  if(nMargParms + sum(mod$ARMAModel)!=nparms) stop('The length of theta does not match the model specification.')
+  if(nMargParms + sum(mod$ARMAModel)!=nparms) stop('The length of the provided estimated parameters does not
+                                                   match the model specification.')
 
   # allocate memory
   Zhat <- rep(NA,mod$n)
 
-  # pGpois funcion doesnt allow for vetor lambda so a for-loop is needed, however the change shouldnt
+  # pGpois function doesn't allow for vector lambda so a for-loop is needed, however the change shouldn't
   # be too hard. note the formula subtracts 1 from the counts mod$DependentVar so it may lead to negative numbers
-  # thats why there is and if else below.
+  # that's why there is and if else below.
   for (i in 1:mod$n){
     k <- mod$DependentVar[i]
     if (k != 0) {
+      # Compute limits
       if(mod$nreg==0){
-        # Compute limits
-        a = qnorm(mod$mycdf(mod$DependentVar[i]-1,t(Parms$MargParms)),0,1)
-        b = qnorm(mod$mycdf(mod$DependentVar[i],t(Parms$MargParms)),0,1)
-        Zhat[i] <- (exp(-a^2/2)-exp(-b^2/2))/sqrt(2*pi)/(mod$mycdf(k, t(Parms$MargParms))-mod$mycdf(k-1,t(Parms$MargParms)))
-      }else{
-        a = qnorm(mod$mycdf(mod$DependentVar[i]-1, mod$ConstMargParm, mod$DynamMargParm[i]) ,0,1)
-        b = qnorm(mod$mycdf(mod$DependentVar[i], mod$ConstMargParm, mod$DynamMargParm[i]) ,0,1)
-        Zhat[i] <- (exp(-a^2/2)-exp(-b^2/2))/sqrt(2*pi)/(mod$mycdf(k, mod$ConstMargParm, mod$DynamMargParm[i])-mod$mycdf(k-1,mod$ConstMargParm, mod$DynamMargParm[i]))
+        C_xt_minus1 = mod$mycdf(k-1,t(Parms$MargParms))
+        C_xt        = mod$mycdf(k,t(Parms$MargParms))
+        }else{
+          C_xt_minus1 = mod$mycdf(k-1, Parms$ConstMargParm, Parms$DynamMargParm[i])
+          C_xt        = mod$mycdf(k, Parms$ConstMargParm, Parms$DynamMargParm[i])
       }
+      a           = qnorm(C_xt_minus1,0,1)
+      b           = qnorm(C_xt ,0,1)
+      ResidNum    = exp(-a^2/2)-exp(-b^2/2)
+      ResidDenom  = sqrt(2*pi)*(C_xt-C_xt_minus1)
     }else{
       if(mod$nreg==0){
         # Compute integral limits
-        b = qnorm(mod$mycdf(mod$DependentVar[i],t(Parms$MargParms)),0,1)
-        Zhat[i] <- -exp(-b^2/2)/sqrt(2*pi)/mod$mycdf(0, t(Parms$MargParms))
+        C_xt        = mod$mycdf(0,t(Parms$MargParms))
+        b           = qnorm(C_xt,0,1)
       }else{
-        b = qnorm(mod$mycdf(mod$DependentVar[i], mod$ConstMargParm, mod$DynamMargParm[i]) ,0,1)
-        Zhat[i] <- -exp(-b^2/2)/sqrt(2*pi)/mod$mycdf(0, mod$ConstMargParm, mod$DynamMargParm[i])
+        C_xt        = mod$mycdf(0, Parms$ConstMargParm, Parms$DynamMargParm[i])
+        b           = qnorm(C_xt ,0,1)
       }
+      ResidNum    = -exp(-b^2/2)
+      ResidDenom  = sqrt(2*pi)*C_xt
     }
+    Zhat[i]     =  ResidNum/ResidDenom
   }
 
-  # apply AR filter--Fix me allow for MA as well
-  residual = data.frame(filter(Zhat,c(1,-Parms$AR))[1:(mod$n-mod$ARMAModel[1])])
+  # apply AR filter--Fix me allow for MA as well -commenting out the code below to use arima
+  # function. I am also adding centering step.
+  # residualOld = data.frame(filter(Zhat,c(1,-Parms$AR))[1:(mod$n-mod$ARMAModel[1])])
+  # names(residualOld) = "residual"
 
-  names(residual) = "residual"
+  # demean the data - initially the centering step was skipped
+  DemeanRes =  Zhat - mean(Zhat)
+
+  # Fit ARMA with fixed parameters
+  fit = arima(DemeanRes,
+               order = c(mod$nAR,0,mod$nMA),
+               fixed = c(Parms$AR,Parms$MA, 0), # AR1, AR2, AR3, intercept
+               transform.pars = FALSE)
+
+  residual = as.numeric(residuals(fit))
+  names(residual) <- NULL
+
   return(residual)
 }
 
