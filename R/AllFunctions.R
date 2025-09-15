@@ -32,7 +32,7 @@
 #' @param ParticleNumber Integer. Number of particles to be used in the filter.
 #' @param epsilon Numeric. Resampling occurs when the effective sample size (ESS) drops below \code{epsilon * N}.
 #' @param initialParam Numeric vector. Initial parameter values for optimization.
-#' @param TrueParam Numeric vector. True parameter values (used in simulation/synthesis/evaluation).
+#' @param TrueParam Numeric vector. True parameter values (used in simulation/synthesis, ignored otherwise).
 #' @param Task Character. One of \code{"Evaluation"}, \code{"Optimization"}, \code{"Simulation"}, or \code{"Synthesis"}.
 #' @param SampleSize Integer. Required when \code{Task == "Synthesis"}.
 #' @param OptMethod Character. Optimization method, e.g., \code{"L-BFGS-B"}.
@@ -70,11 +70,19 @@ ModelScheme = function(DependentVar = NULL, Regressor=NULL, Intercept = NULL, Es
     message("The selected Task is not supported. The Task has been set to 'Evaluation'")
   }
 
-  # Estimation Method
-  if( !(EstMethod %in% c("PFR"))){
+  # Estimation Method for Optimization and
+  if( !(EstMethod %in% c("PFR")) & Task %in% c("Optimization", "Simulation") ){
     EstMethod = "PFR"
     message("The selected EstMethod is not supported. EstMethod has been set to'PFR'")
   }
+
+  # If user specified EstMethod but asks for evaluation Task then no estimation takes place
+  if (Task %in% c("Evaluation") & EstMethod %in% c("PFR")){
+    EstMethod = "None"
+    message("For the Evaluation Task no estimation takes place. EstMethod has been set to None. To fit the model
+            specify the Optimzation Task.")
+  }
+
 
   # check that the ARMA order has dimension 2, the ARMA orders are integers
   if(length(ARMAModel)!=2 | !prod(ARMAModel %% 1 == c(0,0)) )
