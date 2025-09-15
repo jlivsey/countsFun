@@ -79,8 +79,8 @@ ModelScheme = function(DependentVar = NULL, Regressor=NULL, Intercept = NULL, Es
   # If user specified EstMethod but asks for evaluation Task then no estimation takes place
   if (Task %in% c("Evaluation") & EstMethod %in% c("PFR")){
     EstMethod = "None"
-    message("For the Evaluation Task no estimation takes place. EstMethod has been set to None. To fit the model
-            specify the Optimzation Task.")
+    message("For the Evaluation Task no estimation takes place. EstMethod has been set to None.\n",
+    "To fit the model specify the Optimzation Task.")
   }
 
 

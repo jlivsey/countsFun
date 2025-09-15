@@ -44,7 +44,7 @@ ModelScheme(
 
 \item{initialParam}{Numeric vector. Initial parameter values for optimization.}
 
-\item{TrueParam}{Numeric vector. True parameter values (used in simulation/synthesis/evaluation).}
+\item{TrueParam}{Numeric vector. True parameter values (used in simulation/synthesis, ignored otherwise).}
 
 \item{Task}{Character. One of \code{"Evaluation"}, \code{"Optimization"}, \code{"Simulation"}, or \code{"Synthesis"}.}
 
