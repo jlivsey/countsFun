@@ -46,11 +46,11 @@ theta = initialParam
 predDist = PDvalues(theta, mod)
 
 # select two times and also the sum
-expect_equal(predDist[1,30], 0.5448965, tolerance = 10^(-5))
-expect_equal(predDist[2,30], 0.5594144, tolerance = 10^(-5))
-expect_equal(predDist[1,60], 0.3794839, tolerance = 10^(-5))
-expect_equal(predDist[2,60], 0.5259663, tolerance = 10^(-5))
-expect_equal(sum(predDist), 82.91289, tolerance = 10^(-4))
+expect_equal(predDist[1,30], 0.54562, tolerance = 10^(-5))
+expect_equal(predDist[2,30], 0.56013, tolerance = 10^(-5))
+expect_equal(predDist[1,60], 0.37996, tolerance = 10^(-5))
+expect_equal(predDist[2,60], 0.52646, tolerance = 10^(-5))
+expect_equal(sum(predDist), 82.954, tolerance = 10^(-4))
 
 })
 

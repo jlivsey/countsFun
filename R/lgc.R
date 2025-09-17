@@ -114,10 +114,10 @@ lgc = function(formula        = NULL,
     #               'doParallel','numDeriv','VGAM','iZID','extraDistr','devtools',
     #               'parallel','MASS','mixtools', 'optextras')
 
-    out = foreach(index = 1:nsim,
+    out = foreach(ForEachIndex = 1:nsim,
                 .packages = c("optimx", 'countsFun'),.export= c("FitMultiplePF_Res_New"))  %dopar%  {
-                  mod$DependentVar =  AllSimulatedSeries[[index]]
-                  theta  = mod$initialParam = AllInitialParam[[index]]
+                  mod$DependentVar =  AllSimulatedSeries[[ForEachIndex]]
+                  theta  = mod$initialParam = AllInitialParam[[ForEachIndex]]
                   FitMultiplePF_Res_New(theta,mod)
                 }
 
