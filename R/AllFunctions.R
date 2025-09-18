@@ -353,7 +353,6 @@ ModelScheme = function(DependentVar = NULL, Regressor=NULL, Intercept = NULL, Es
 }
 
 
-
 #' Particle Filter likelihood function with Resampling for ARMA Models
 #'
 #' Uses particle filtering with resampling to approximate the likelihood of
@@ -362,14 +361,40 @@ ModelScheme = function(DependentVar = NULL, Regressor=NULL, Intercept = NULL, Es
 #' @param theta Numeric vector. Parameter vector for the model.
 #' @param mod List. A list containing all model specifications, including:
 #'   \describe{
-#'     \item{data}{Time series data.}
+#'     \item{DependentVar}{Numeric. The dependent time series variable to be modeled.}
+#'     \item{Task}{Character. The task requested by the user (e.g., Evaluation, Optimization, Synthesis, etc.).}
 #'     \item{ParticleNumber}{Integer. Number of particles to use.}
 #'     \item{Regressor}{Optional independent variable(s).}
 #'     \item{CountDist}{Character string. Specifies the count marginal distribution.}
-#'     \item{epsilon}{Numeric. Resample when the effective sample size (ESS) falls below \code{epsilon * N}.}
 #'   }
 #'
 #' @return Numeric. Approximate log-likelihood of the model.
+#'
+#' @examples
+#' # Example: Compute the log-likelihood of a Poisson-ARMA(1,0) model
+#' CountDist      <- "Poisson"
+#' n              <- 100
+#' ARMAModel      <- c(1,0)
+#' MargParm       <- 3
+#' ARParm         <- 0.5
+#' MAParm         <- NULL
+#' initialParam   <- c(3, ARParm, MAParm)
+#'
+#' # Simulate data
+#' set.seed(2)
+#' DependentVar <- sim_lgc(n, CountDist, MargParm, ARParm, MAParm)
+#'
+#' # Build model specification
+#' mod <- ModelScheme(
+#'   DependentVar   = DependentVar,
+#'   CountDist      = CountDist,
+#'   ARMAModel      = ARMAModel,
+#'   initialParam   = initialParam
+#' )
+#'
+#' # Compute log-likelihood at a given parameter point
+#' ll <- ParticleFilter_Res_ARMA(initialParam, mod)
+#' ll
 #' @export
 ParticleFilter_Res_ARMA = function(theta, mod){
 
@@ -477,268 +502,6 @@ ParticleFilter_Res_ARMA = function(theta, mod){
 
 
   return(nloglik)
-}
-
-
-
-#' Optimization wrapper to fit PF likelihood with resampling
-#'
-#' Fits the particle filter log-likelihood using resampling. This function performs
-#' multiple optimizations of the particle filter (PF) likelihood: it runs one fit
-#' for each choice of particle number in \code{mod$ParticleNumber}.
-#'
-#' @param theta Numeric vector. Initial parameter values for optimization.
-#' @param mod A list created by \code{\link{ModelScheme}} that contains all necessary model settings,
-#'   data, distribution information, ARMA structure, bounds, etc.
-#'
-#' @return A list or data frame containing parameter estimates, standard errors,
-#'   log-likelihood values, AIC, BIC, AICc, and convergence diagnostics.
-#'
-#' @details
-#' The function wraps multiple calls to a particle filtering likelihood optimizer using
-#' \code{\link[optimx]{optimx}}. It handles standard error estimation via numerical
-#' Hessian inversion and checks for identifiability issues.
-#'
-#' @seealso \code{\link{ModelScheme}}, \code{\link{FitMultiplePF_Res_New}}, \code{\link{ParticleFilter_Res_ARMA}}
-#'
-#' @export
-FitMultiplePF_Res = function(theta, mod){
-
-  # retrieve parameter, sample size etc
-  nparts   = length(mod$ParticleNumber)
-  nparms   = length(theta)
-  nfit     = 1
-  n        = length(mod$DependentVar)
-
-  # allocate memory to save parameter estimates, hessian values, and loglik values
-  ParmEst  = matrix(0,nrow=nfit*nparts,ncol=nparms)
-  se       = matrix(NA,nrow=nfit*nparts,ncol=nparms)
-  loglik   = rep(0,nfit*nparts)
-  convcode = rep(0,nfit*nparts)
-  kkt1     = rep(0,nfit*nparts)
-  kkt2     = rep(0,nfit*nparts)
-
-  # Each realization will be fitted nfit*nparts many times
-  for (j in 1:nfit){
-    set.seed(j)
-    # for each fit repeat for different number of particles
-    for (k in 1:nparts){
-      # FIX ME: I need to somehow update this in mod. (number of particles to be used). I t now works only for 1 choice of ParticleNumber
-      ParticleNumber = mod$ParticleNumber[k]
-
-      if(mod$Task == 'Optimization'){
-        # run optimization for our model --no ARMA model allowed
-        optim.output <- optimx(
-          par     = theta,
-          fn      = ParticleFilter_Res_ARMA,
-          lower   = mod$LB,
-          upper   = mod$UB,
-          hessian = TRUE,
-          method  = mod$OptMethod,
-          mod     = mod)
-        loglikelihood = optim.output["value"]
-      }else{
-        optim.output = as.data.frame(matrix(rep(NA,8+length(theta)), ncol=8+length(theta)))
-        names(optim.output) = c(mapply(sprintf, rep("p%.f",length(theta)), (1:length(theta)), USE.NAMES = FALSE),
-                                "value",  "fevals", "gevals", "niter", "convcode",  "kkt1", "kkt2", "xtime")
-
-        optim.output[,1:length(theta)] = theta
-        startTime = Sys.time()
-        loglikelihood = ParticleFilter_Res_ARMA(theta,mod)
-        endTime = Sys.time()
-        runTime = difftime(endTime, startTime, units = 'secs')
-        optim.output[,(length(theta)+1)] = loglikelihood
-        optim.output[,(length(theta)+2)] = 1
-        optim.output[,(length(theta)+3)] = 1
-        optim.output[,(length(theta)+4)] = 0
-        optim.output[,(length(theta)+8)] = as.numeric(runTime)
-      }
-
-
-      # save estimates, loglik value and diagonal hessian
-      ParmEst[nfit*(k-1)+j,]  = as.numeric(optim.output[1:nparms])
-      loglik[nfit*(k-1) +j]   = optim.output$value
-      convcode[nfit*(k-1) +j] = optim.output$convcode
-      kkt1[nfit*(k-1) +j]     = optim.output$kkt1
-      kkt2[nfit*(k-1) +j]     = optim.output$kkt2
-
-
-      # compute Hessian
-      # t5 = tic()
-      if(mod$Task == "Optimization"){
-        H = gHgen(par          = ParmEst[nfit*(k-1)+j,],
-                  fn             = ParticleFilter_Res_ARMA,
-                  mod            = mod)
-        # t5 = tic()-t5
-        # print(t5)
-        # if I get all na for one row and one col of H remove it
-        # H$Hn[rowSums(is.na(H$Hn)) != ncol(H$Hn), colSums(is.na(H$Hn)) != nrow(H$Hn)]
-
-        # t6 = tic()
-        if (!any(is.na(rowSums(H$Hn)))){
-          # save standard errors from Hessian
-          if(H$hessOK && det(H$Hn)>10^(-8)){
-            se[nfit*(k-1)+j,]   = sqrt(abs(diag(solve(H$Hn))))
-          }else{
-            se[nfit*(k-1)+j,] = rep(NA, nparms)
-          }
-        }else{
-          # remove the NA rows and columns from H
-          Hnew = H$Hn[rowSums(is.na(H$Hn)) != ncol(H$Hn), colSums(is.na(H$Hn)) != nrow(H$Hn)]
-
-          # find which rows are missing and which are not
-          NAIndex = which(colSums(is.na(H$Hn))==nparms)
-          NonNAIndex = which(colSums(is.na(H$Hn))==1)
-
-          #repeat the previous ifelse for the reduced H matrix
-          if(det(Hnew)>10^(-8)){
-            se[nfit*(k-1)+j,NonNAIndex]   = sqrt(abs(diag(solve(Hnew))))
-          }else{
-            se[nfit*(k-1)+j,NAIndex] = rep(NA, length(NAIndex))
-          }
-        }
-      }
-      # t6 = tic()-t6
-      # print(t6)
-
-    }
-  }
-
-  # Compute model selection criteria (assuming one fit)
-  Criteria = Criteria.lgc(loglik, mod)
-
-
-  if(mod$OutputType=="list"){
-    #  save the results in a list
-    ModelOutput = list()
-
-    # specify output list names
-    # names(ModelOutput)         = c("ParamEstimates", "StdErrors", "FitStatistics", "OptimOutput")
-    ModelOutput$Model          = paste(mod$CountDist,  paste("ARMA(",mod$ARMAModel[1],",",mod$ARMAModel[2],")",sep=""), sep= "-")
-    ModelOutput$ParamEstimates = ParmEst
-    ModelOutput$Task           = mod$Task
-    if(!is.null(mod$TrueParam)) ModelOutput$TrueParam      = mod$TrueParam
-    if(!is.null(mod$initialParam)) ModelOutput$initialParam   = mod$initialParam
-    if(mod$Task=="Optimization") ModelOutput$StdErrors      = se
-    ModelOutput$FitStatistics  = c(loglik, Criteria)
-    if(mod$Task=="Optimization") ModelOutput$OptimOutput    = c(convcode,kkt1,kkt2)
-    ModelOutput$EstMethod      = mod$EstMethod
-    ModelOutput$SampleSize     = mod$n
-    if(loglikelihood==mod$loglik_BadValue1) ModelOutput$WarnMessage = "WARNING: The ARMA polynomial must be causal and invertible."
-    if(loglikelihood==mod$loglik_BadValue2) ModelOutput$WarnMessage = "WARNING: Some of the weights are either too small or sum to 0."
-    # assign names to all output elements
-    if(!is.null(mod$TrueParam)) names(ModelOutput$TrueParam)      = mod$parmnames
-    colnames(ModelOutput$ParamEstimates) = mod$parmnames
-
-    if(mod$Task=="Optimization")colnames(ModelOutput$StdErrors)      = paste("se(", mod$parmnames,")", sep="")
-    names(ModelOutput$FitStatistics)     = c("loglik", "AIC", "BIC", "AICc")
-    if(mod$Task=="Optimization")names(ModelOutput$OptimOutput)       = c("ConvergeStatus", "kkt1", "kkt2")
-
-  }else{
-    ModelOutput  = data.frame(matrix(ncol = 4*mod$nparms+16, nrow = 1))
-
-    # specify output names
-    if(!is.null(mod$TrueParam)){
-      colnames(ModelOutput) = c(
-        'CountDist','ARMAModel', 'Regressor',
-        paste("True_", mod$parmnames, sep=""), paste("InitialEstim_", mod$parmnames, sep=""),
-        mod$parmnames, paste("se(", mod$parmnames,")", sep=""),
-        'EstMethod', 'SampleSize', 'ParticleNumber', 'epsilon', 'OptMethod', 'ParamScheme',
-        "loglik", "AIC", "BIC", "AICc", "ConvergeStatus", "kkt1", "kkt2")
-    }
-    colnames(ModelOutput) = c(
-      'CountDist','ARMAModel', 'Regressor',
-      paste("InitialEstim_", mod$parmnames, sep=""),
-      mod$parmnames, paste("se(", mod$parmnames,")", sep=""),
-      'EstMethod', 'SampleSize', 'ParticleNumber', 'epsilon', 'OptMethod',
-      "loglik", "AIC", "BIC", "AICc", "ConvergeStatus", "kkt1", "kkt2")
-
-    # Start Populating the output data frame
-    ModelOutput$CountDist      = mod$CountDist
-    ModelOutput$ARMAModel      = paste("ARMA(",mod$ARMAModel[1],",",mod$ARMAModel[2],")",sep="")
-    ModelOutput$Regressor      = !is.null(mod$Regressor)
-
-    offset = 4
-    # true Parameters
-    if(!is.null(mod$TrueParam)){
-      if(mod$nMargParms>0){
-        ModelOutput[, offset:(offset + mod$nMargParms -1)] = mod$TrueParam[1:mod$nMargParms]
-        offset = offset + mod$nMargParms
-      }
-
-      if(mod$nAR>0){
-        ModelOutput[, offset:(offset + mod$nAR -1)]        = mod$TrueParam[ (mod$nMargParms+1):(mod$nMargParms+mod$nAR) ]
-        offset = offset + mod$nAR
-      }
-
-      if(mod$nMA>0){
-        ModelOutput[, offset:(offset + mod$nMA -1)]        = mod$TrueParam[ (mod$nMargParms+mod$nAR+1):(mod$nMargParms+mod$nAR+mod$nMA)]
-        offset = offset + mod$nMA
-      }
-    }
-
-    # Initial Parameter Estimates
-    if(mod$nMargParms>0){
-      ModelOutput[, offset:(offset + mod$nMargParms -1 )] = mod$initialParam[1:mod$nMargParms ]
-      offset = offset + mod$nMargParms
-    }
-    if(mod$nAR>0){
-      ModelOutput[, offset:(offset + mod$nAR-1)]        = mod$initialParam[(mod$nMargParms+1):(mod$nMargParms+mod$nAR) ]
-      offset = offset + mod$nAR
-    }
-
-    if(mod$nMA>0){
-      ModelOutput[, offset:(offset + mod$nMA-1)]        = mod$initialParam[(mod$nMargParms+mod$nAR+1):(mod$nMargParms+mod$nAR+mod$nMA) ]
-      offset = offset + mod$nMA
-    }
-
-    # Parameter Estimates
-    if(mod$nMargParms>0){
-      ModelOutput[, offset:(offset + mod$nMargParms-1)] = ParmEst[,1:mod$nMargParms]
-      offset = offset + mod$nMargParms
-    }
-
-    if(mod$nAR>0){
-      ModelOutput[, offset:(offset + mod$nAR-1)]        = ParmEst[,(mod$nMargParms+1):(mod$nMargParms+mod$nAR)]
-      offset = offset + mod$nAR
-    }
-
-    if(mod$nMA>0){
-      ModelOutput[, offset:(offset + mod$nMA-1)]        = ParmEst[,(mod$nMargParms+mod$nAR+1):(mod$nMargParms+mod$nAR+mod$nMA)]
-      offset = offset + mod$nMA
-    }
-
-    # Parameter Std Errors
-    if(mod$nMargParms>0){
-      ModelOutput[, offset:(offset + mod$nMargParms-1)] = se[,1:mod$nMargParms]
-      offset = offset + mod$nMargParms
-    }
-
-    if(mod$nAR>0){
-      ModelOutput[, offset:(offset + mod$nAR-1)]        = se[,(mod$nMargParms+1):(mod$nMargParms+mod$nAR)]
-      offset = offset + mod$nAR
-    }
-
-    if(mod$nMA>0){
-      ModelOutput[, offset:(offset + mod$nMA-1)]        = se[,(mod$nMargParms+mod$nAR+1):(mod$nMargParms+mod$nAR+mod$nMA)]
-    }
-
-    ModelOutput$EstMethod      = mod$EstMethod
-    ModelOutput$SampleSize     = mod$n
-    ModelOutput$ParticleNumber = mod$ParticleNumber
-    ModelOutput$epsilon        = mod$epsilon
-    ModelOutput$OptMethod      = mod$OptMethod
-    if(!is.null(mod$TrueParam)) ModelOutput$ParamScheme    = mod$ParamScheme
-    ModelOutput$loglik         = loglik
-    ModelOutput$AIC            = Criteria[1]
-    ModelOutput$BIC            = Criteria[2]
-    ModelOutput$AICc           = Criteria[3]
-    ModelOutput$ConvergeStatus = convcode
-    ModelOutput$kkt1           = kkt1
-    ModelOutput$kkt2           = kkt2
-  }
-
-  return(ModelOutput)
 }
 
 

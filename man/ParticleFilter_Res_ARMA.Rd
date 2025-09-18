@@ -11,11 +11,11 @@ ParticleFilter_Res_ARMA(theta, mod)
 
 \item{mod}{List. A list containing all model specifications, including:
 \describe{
-\item{data}{Time series data.}
+\item{DependentVar}{Numeric. The dependent time series variable to be modeled.}
+\item{Task}{Character. The task requested by the user (e.g., Evaluation, Optimization, Synthesis, etc.).}
 \item{ParticleNumber}{Integer. Number of particles to use.}
 \item{Regressor}{Optional independent variable(s).}
 \item{CountDist}{Character string. Specifies the count marginal distribution.}
-\item{epsilon}{Numeric. Resample when the effective sample size (ESS) falls below \code{epsilon * N}.}
 }}
 }
 \value{
@@ -24,4 +24,30 @@ Numeric. Approximate log-likelihood of the model.
 \description{
 Uses particle filtering with resampling to approximate the likelihood of
 a specified count time series model with an underlying ARMA dependence structure.
+}
+\examples{
+# Example: Compute the log-likelihood of a Poisson-ARMA(1,0) model
+CountDist      <- "Poisson"
+n              <- 100
+ARMAModel      <- c(1,0)
+MargParm       <- 3
+ARParm         <- 0.5
+MAParm         <- NULL
+initialParam   <- c(3, ARParm, MAParm)
+
+# Simulate data
+set.seed(2)
+DependentVar <- sim_lgc(n, CountDist, MargParm, ARParm, MAParm)
+
+# Build model specification
+mod <- ModelScheme(
+  DependentVar   = DependentVar,
+  CountDist      = CountDist,
+  ARMAModel      = ARMAModel,
+  initialParam   = initialParam
+)
+
+# Compute log-likelihood at a given parameter point
+ll <- ParticleFilter_Res_ARMA(initialParam, mod)
+ll
 }
