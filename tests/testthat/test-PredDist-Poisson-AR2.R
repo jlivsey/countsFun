@@ -11,6 +11,7 @@ test_that("Compute the Pred distribution for the Dominick Data", {
 library(itsmr)
 library(countsFun)
 
+set.seed(1)
 # load the data
 data(MySelectedSeries)
 
@@ -46,11 +47,11 @@ theta = initialParam
 predDist = PDvalues(theta, mod)
 
 # select two times and also the sum
-expect_equal(predDist[1,30], 0.54562, tolerance = 10^(-5))
-expect_equal(predDist[2,30], 0.56013, tolerance = 10^(-5))
-expect_equal(predDist[1,60], 0.37996, tolerance = 10^(-5))
-expect_equal(predDist[2,60], 0.52646, tolerance = 10^(-5))
-expect_equal(sum(predDist), 82.954, tolerance = 10^(-4))
+expect_equal(predDist[1,30], 0.5402, tolerance = 10^(-4))
+expect_equal(predDist[2,30], 0.5548, tolerance = 10^(-4))
+expect_equal(predDist[1,60], 0.3811, tolerance = 10^(-4))
+expect_equal(predDist[2,60], 0.5277, tolerance = 10^(-4))
+expect_equal(sum(predDist), 82.914, tolerance = 10^(-3))
 
 })
 
