@@ -7,7 +7,7 @@
 InnovAlg(Parms, gamma, mod)
 }
 \arguments{
-\item{Parms}{A list containing the model parameters:
+\item{Parms}{A list containing the ARMA model parameters:
 \itemize{
 \item \code{AR}: Vector of autoregressive (AR) coefficients.
 \item \code{MA}: Vector of moving average (MA) coefficients.
@@ -16,14 +16,19 @@ InnovAlg(Parms, gamma, mod)
 \item{gamma}{Numeric vector. The autocovariance sequence of the observed time series.
 Typically length \eqn{N}, where \eqn{N} is the time series length.}
 
-\item{mod}{A list returned by \code{\link{ModelScheme}}, containing model meta-data
-such as \code{nAR}, \code{nMA}, and \code{maxdiff}. Used to define stopping
-conditions for the recursion based on model order and numerical precision.}
+\item{mod}{List. A list containing all model specifications, including:
+\describe{
+\item{DependentVar}{Numeric. The dependent time series variable to be modeled.}
+\item{Task}{Character. The task requested by the user (e.g., Evaluation, Optimization, Synthesis, etc.).}
+\item{ParticleNumber}{Integer. Number of particles to use.}
+\item{Regressor}{Optional independent variable(s).}
+\item{CountDist}{Character string. Specifies the count marginal distribution.}
+}}
 }
 \value{
 A list with the following elements:
 \describe{
-\item{\code{n}}{Number of recursion steps performed (effective model order).}
+\item{\code{n}}{Number of recursion steps performed.}
 \item{\code{thetas}}{List of innovation coefficients (one per step). Each element is a vector of length \code{q}.}
 \item{\code{v}}{Vector of innovation variances at each step (normalized by \code{v[1]}).}
 }
@@ -36,12 +41,6 @@ of a stationary time series. The algorithm uses the ARMA parameters provided in
 estimates of innovation coefficients and variances.
 }
 \details{
-This implementation handles:
-\itemize{
-\item AR-only models
-\item MA-only models
-\item Combined ARMA models
-}
 The recursion is terminated based on a fixed tolerance (\code{mod$maxdiff}) for variance convergence in MA models,
 or after a fixed number of steps in AR-only models. The \code{kappa(i,j)} function computes the autocovariance
 terms needed for recursion using model coefficients and the autocovariance vector \code{gamma}.

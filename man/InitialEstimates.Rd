@@ -7,10 +7,14 @@
 InitialEstimates(mod)
 }
 \arguments{
-\item{mod}{A list containing the full model specification, typically produced by
-\code{\link{ModelScheme}}. It must include fields such as the count distribution
-(\code{CountDist}), ARMA structure (\code{ARMAModel}), number of regressors,
-and any relevant data needed to construct initial estimates.}
+\item{mod}{List. A list containing all model specifications, including:
+\describe{
+\item{DependentVar}{Numeric. The dependent time series variable to be modeled.}
+\item{Task}{Character. The task requested by the user (e.g., Evaluation, Optimization, Synthesis, etc.).}
+\item{ParticleNumber}{Integer. Number of particles to use.}
+\item{Regressor}{Optional independent variable(s).}
+\item{CountDist}{Character string. Specifies the count marginal distribution.}
+}}
 }
 \value{
 A numeric vector of initial parameter estimates consistent with the model structure
@@ -31,10 +35,7 @@ count time series models with ARMA dependencies and various marginal count distr
 The initial estimates are heuristically determined and may depend on the distribution
 type, sample statistics (e.g., mean, variance), or defaults chosen for stability.
 These estimates are used as starting points in numerical optimization procedures.
-
-The function may include logic to handle different parameterization schemes
-(e.g., for ZIP, Negative Binomial, or Generalized Poisson models) as well as
-constraints on parameter domains.
+GLM and MoM estimates are used for marginal parameters and Yulew-Walker for ARMA.
 }
 \examples{
 mod <- ModelScheme(

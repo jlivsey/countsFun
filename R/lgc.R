@@ -115,10 +115,10 @@ lgc = function(formula        = NULL,
     #               'parallel','MASS','mixtools', 'optextras')
 
     out = foreach(ForEachIndex = 1:nsim,
-                .packages = c("optimx", 'countsFun'),.export= c("FitMultiplePF_Res_New"))  %dopar%  {
+                .packages = c("optimx", 'countsFun'),.export= c("FitMultiplePF_Res"))  %dopar%  {
                   mod$DependentVar =  AllSimulatedSeries[[ForEachIndex]]
                   theta  = mod$initialParam = AllInitialParam[[ForEachIndex]]
-                  FitMultiplePF_Res_New(theta,mod)
+                  FitMultiplePF_Res(theta,mod)
                 }
 
     stopCluster(cl)
@@ -126,7 +126,7 @@ lgc = function(formula        = NULL,
 
   if(Task %in% c('Evaluation', 'Optimization')){
       theta  = mod$initialParam
-      FitResults = FitMultiplePF_Res_New(theta, mod)
+      FitResults = FitMultiplePF_Res(theta, mod)
 
       # gather the input information and the Fit Results in one output structure
       out = PrepareOutput(mod, FitResults)

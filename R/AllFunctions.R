@@ -545,11 +545,11 @@ ParticleFilter_Res_ARMA = function(theta, mod){
 #' )
 #'
 #' # Fit the model
-#' fit <- FitMultiplePF_Res_New(initialParam, mod)
+#' fit <- FitMultiplePF_Res(initialParam, mod)
 #' fit
 #'
 #' @export
-FitMultiplePF_Res_New = function(theta, mod){
+FitMultiplePF_Res = function(theta, mod){
 
   # retrieve parameter, sample size etc
   nparts    = length(mod$ParticleNumber)
@@ -715,7 +715,8 @@ FitMultiplePF_Res_New = function(theta, mod){
 #' runs particle filtering, optimization, or simulation. It ensures consistent formatting
 #' and labeling of outputs for downstream use (e.g., summaries, diagnostics, plots).
 #'
-#'
+#' @note This function is intended for internal use by the package and is not typically called directly by users.
+#' @keywords internal
 #' @export
 PrepareOutput = function(mod, FitResults){
 
@@ -829,17 +830,17 @@ PrepareOutput = function(mod, FitResults){
 
     # Parameter Std Errors
     if(mod$nMargParms>0){
-      ModelOutput[, offset:(offset + mod$nMargParms-1)] = se[,1:mod$nMargParms]
+      ModelOutput[, offset:(offset + mod$nMargParms-1)] = FitResults$se[,1:mod$nMargParms]
       offset = offset + mod$nMargParms
     }
 
     if(mod$nAR>0){
-      ModelOutput[, offset:(offset + mod$nAR-1)]        = se[,(mod$nMargParms+1):(mod$nMargParms+mod$nAR)]
+      ModelOutput[, offset:(offset + mod$nAR-1)]        = FitResults$se[,(mod$nMargParms+1):(mod$nMargParms+mod$nAR)]
       offset = offset + mod$nAR
     }
 
     if(mod$nMA>0){
-      ModelOutput[, offset:(offset + mod$nMA-1)]        = se[,(mod$nMargParms+mod$nAR+1):(mod$nMargParms+mod$nAR+mod$nMA)]
+      ModelOutput[, offset:(offset + mod$nMA-1)]        = FitResults$se[,(mod$nMargParms+mod$nAR+1):(mod$nMargParms+mod$nAR+mod$nMA)]
     }
 
     ModelOutput$EstMethod      = mod$EstMethod
@@ -943,10 +944,14 @@ CheckStability = function(AR,MA){
 #' These starting values are typically used as input to optimization routines or simulations in
 #' count time series models with ARMA dependencies and various marginal count distributions.
 #'
-#' @param mod A list containing the full model specification, typically produced by
-#'   \code{\link{ModelScheme}}. It must include fields such as the count distribution
-#'   (\code{CountDist}), ARMA structure (\code{ARMAModel}), number of regressors,
-#'   and any relevant data needed to construct initial estimates.
+#' @param mod List. A list containing all model specifications, including:
+#'   \describe{
+#'     \item{DependentVar}{Numeric. The dependent time series variable to be modeled.}
+#'     \item{Task}{Character. The task requested by the user (e.g., Evaluation, Optimization, Synthesis, etc.).}
+#'     \item{ParticleNumber}{Integer. Number of particles to use.}
+#'     \item{Regressor}{Optional independent variable(s).}
+#'     \item{CountDist}{Character string. Specifies the count marginal distribution.}
+#'   }
 #'
 #' @return A numeric vector of initial parameter estimates consistent with the model structure
 #'   described in \code{mod}. The vector includes:
@@ -961,10 +966,7 @@ CheckStability = function(AR,MA){
 #' The initial estimates are heuristically determined and may depend on the distribution
 #' type, sample statistics (e.g., mean, variance), or defaults chosen for stability.
 #' These estimates are used as starting points in numerical optimization procedures.
-#'
-#' The function may include logic to handle different parameterization schemes
-#' (e.g., for ZIP, Negative Binomial, or Generalized Poisson models) as well as
-#' constraints on parameter domains.
+#' GLM and MoM estimates are used for marginal parameters and Yulew-Walker for ARMA.
 #'
 #' @examples
 #' mod <- ModelScheme(
@@ -1224,31 +1226,31 @@ InitialEstimates = function(mod){
 #' \code{Parms} and the autocovariance vector \code{gamma} to generate recursive
 #' estimates of innovation coefficients and variances.
 #'
-#' @param Parms A list containing the model parameters:
+#' @param Parms A list containing the ARMA model parameters:
 #'   \itemize{
 #'     \item \code{AR}: Vector of autoregressive (AR) coefficients.
 #'     \item \code{MA}: Vector of moving average (MA) coefficients.
 #'   }
 #' @param gamma Numeric vector. The autocovariance sequence of the observed time series.
 #'   Typically length \eqn{N}, where \eqn{N} is the time series length.
-#' @param mod A list returned by \code{\link{ModelScheme}}, containing model meta-data
-#'   such as \code{nAR}, \code{nMA}, and \code{maxdiff}. Used to define stopping
-#'   conditions for the recursion based on model order and numerical precision.
+#'
+#' @param mod List. A list containing all model specifications, including:
+#'   \describe{
+#'     \item{DependentVar}{Numeric. The dependent time series variable to be modeled.}
+#'     \item{Task}{Character. The task requested by the user (e.g., Evaluation, Optimization, Synthesis, etc.).}
+#'     \item{ParticleNumber}{Integer. Number of particles to use.}
+#'     \item{Regressor}{Optional independent variable(s).}
+#'     \item{CountDist}{Character string. Specifies the count marginal distribution.}
+#'   }
 #'
 #' @return A list with the following elements:
 #' \describe{
-#'   \item{\code{n}}{Number of recursion steps performed (effective model order).}
+#'   \item{\code{n}}{Number of recursion steps performed.}
 #'   \item{\code{thetas}}{List of innovation coefficients (one per step). Each element is a vector of length \code{q}.}
 #'   \item{\code{v}}{Vector of innovation variances at each step (normalized by \code{v[1]}).}
 #' }
 #'
 #' @details
-#' This implementation handles:
-#' \itemize{
-#'   \item AR-only models
-#'   \item MA-only models
-#'   \item Combined ARMA models
-#' }
 #' The recursion is terminated based on a fixed tolerance (\code{mod$maxdiff}) for variance convergence in MA models,
 #' or after a fixed number of steps in AR-only models. The \code{kappa(i,j)} function computes the autocovariance
 #' terms needed for recursion using model coefficients and the autocovariance vector \code{gamma}.
@@ -1262,64 +1264,85 @@ InitialEstimates = function(mod){
 #' str(result)
 #'
 #' @export
-InnovAlg = function(Parms,gamma, mod) {
-  # adapt the Innovation.algorithm from ITSMR
-  # check me: explain in the doc the exact modifications
-  # Compute autocovariance kappa(i,j) per equation (3.3.3)
+InnovAlg <- function(Parms, gamma, mod) {
+  # Extract AR and MA coefficients safely
+  phi <- if (!is.null(Parms$AR)) Parms$AR else numeric(0)
+  theta <- if (!is.null(Parms$MA)) Parms$MA else numeric(0)
 
-  # Optimized for i >= j and j > 0
+  p <- length(phi)
+  q <- length(theta)
+  m <- max(p, q)
 
-  kappa = function(i,j) {
-    if (j > m)
-      return(sum(theta_r[1:(q+1)] * theta_r[(i-j+1):(i-j+q+1)]))
-    else if (i > 2*m)
+  sigma2 <- 1
+  N <- length(gamma)
+  theta_r <- c(1, theta, rep(0, N))  # MA coefficients with padding
+
+  # Define the kappa function (autocovariance)
+  kappa <- function(i, j) {
+    if (j > m) {
+      idx1 <- 1:(q + 1)
+      idx2 <- (i - j + 1):(i - j + q + 1)
+      if (min(idx2) < 1 || max(idx2) > length(theta_r)) return(0)
+      return(sum(theta_r[idx1] * theta_r[idx2]))
+    } else if (i > 2 * m) {
       return(0)
-    else if (i > m)
-      return((gamma[i-j+1] - sum(phi * gamma[abs(seq(1-i+j,p-i+j))+1]))/sigma2)
-    else
-      return(gamma[i-j+1]/sigma2)
+    } else if (i > m) {
+      idx <- abs((1 - i + j):(p - i + j)) + 1
+      idx <- idx[idx >= 1 & idx <= length(gamma)]
+      return((gamma[i - j + 1] - sum(phi * gamma[idx])) / sigma2)
+    } else {
+      return(gamma[i - j + 1] / sigma2)
+    }
   }
 
-  phi     = Parms$AR
-  sigma2  = 1
-  N       = length(gamma)
-  theta_r = c(1,Parms$MA,numeric(N))
+  # Initialize
+  Theta <- list()
+  v <- rep(NA_real_, N + 1)
+  v[1] <- kappa(1, 1)
+  StopCondition <- FALSE
+  n <- 1
 
-  # Innovations algorithm
+  while (!StopCondition && n < N) {
+    Theta[[n]] <- rep(0, q)
 
-  p = ifelse(is.null(Parms$AR),0,length(Parms$AR))
-  q = ifelse(is.null(Parms$MA),0,length(Parms$MA))
-  m = max(p,q)
+    denom <- v[1]
+    if (!is.finite(denom) || denom == 0) break
 
-  Theta   = list()
-  v       = rep(NA,N+1)
-  v[1]    = kappa(1,1)
-  StopCondition = FALSE
-  n       = 1
+    Theta[[n]][n] <- kappa(n + 1, 1) / denom
+    if (n > q && mod$nAR == 0) Theta[[n]][n] <- 0
 
+    if (n > 1) {
+      for (k in 1:(n - 1)) {
+        js <- 0:(k - 1)
+        v_k1 <- v[k + 1]
+        if (!is.finite(v_k1) || v_k1 == 0) next
 
-  while(!StopCondition && n<N ) {
-    Theta[[n]] <- rep(0,q)
-    Theta[[n]][n] = kappa(n+1,1)/v[1]
-    if(n>q && mod$nAR==0) Theta[[n]][n]= 0
-    if(n>1){
-      for (k in 1:(n-1)) {
-        js <- 0:(k-1)
-        Theta[[n]][n-k] <- (kappa(n+1,k+1) - sum(Theta[[k]][k-js]*Theta[[n]][n-js]*v[js+1])) / v[k+1]
+        Theta[[n]][n - k] <- (kappa(n + 1, k + 1) -
+                                sum(Theta[[k]][k - js] * Theta[[n]][n - js] * v[js + 1])) / v_k1
       }
     }
-    js     = 0:(n-1)
-    v[n+1] = kappa(n+1,n+1) - sum(Theta[[n]][n-js]^2*v[js+1])
-    if(mod$nAR==0 && mod$nMA>0) StopCondition = (abs(v[n+1]-v[n])< mod$maxdiff)
-    if(mod$nAR>0 && mod$nMA==0) StopCondition = (n>3*m)
-    n      = n+1
+
+    js <- 0:(n - 1)
+    v[n + 1] <- kappa(n + 1, n + 1) - sum((Theta[[n]][n - js])^2 * v[js + 1])
+
+    # Stopping rules depending on model structure
+    if (mod$nAR == 0 && mod$nMA > 0) {
+      StopCondition <- abs(v[n + 1] - v[n]) < mod$maxdiff
+    } else if (mod$nAR > 0 && mod$nMA == 0) {
+      StopCondition <- n > 3 * m
+    } else {
+      StopCondition <- n >= N || abs(v[n + 1] - v[n]) < mod$maxdiff
+    }
+
+    n <- n + 1
   }
-  v = v/v[1]
 
-  StopCondition = (abs(v[n+1]-v[n])< mod$maxdiff)
-
-
-  return(list(n=n-1,thetas=lapply(Theta[ ][1:(n-1)], function(x) {x[1:q]}),v=v[1:(n-1)]))
+  v <- v / v[1]
+  return(list(
+    n = n - 1,
+    thetas = lapply(Theta[1:(n - 1)], function(x) x[1:q]),
+    v = v[1:(n - 1)]
+  ))
 }
 
 # simulate from our model
@@ -3168,6 +3191,176 @@ variable is equal to %.0f.\n", CurrentDist, t,mod$DependentVar[t]))
   z = qnorm(runif(length(Limit$a),0,1)*(pnorm(Limit$b,0,1)-pnorm(Limit$a,0,1))+pnorm(Limit$a,0,1),0,1)*Rt[index] + Zhat
 
   return(z)
+}
+
+# keeping an older version of this function in case issues show up - I update it in Sep 19.
+InnovAlgOld = function(Parms,gamma, mod) {
+  # adapt the Innovation.algorithm from ITSMR
+  # check me: explain in the doc the exact modifications
+  # Compute autocovariance kappa(i,j) per equation (3.3.3)
+
+  # Optimized for i >= j and j > 0
+
+  kappa = function(i,j) {
+    if (j > m)
+      return(sum(theta_r[1:(q+1)] * theta_r[(i-j+1):(i-j+q+1)]))
+    else if (i > 2*m)
+      return(0)
+    else if (i > m)
+      return((gamma[i-j+1] - sum(phi * gamma[abs(seq(1-i+j,p-i+j))+1]))/sigma2)
+    else
+      return(gamma[i-j+1]/sigma2)
+  }
+
+  phi     = Parms$AR
+  sigma2  = 1
+  N       = length(gamma)
+  theta_r = c(1,Parms$MA,numeric(N))
+
+  # Innovations algorithm
+
+  p = ifelse(is.null(Parms$AR),0,length(Parms$AR))
+  q = ifelse(is.null(Parms$MA),0,length(Parms$MA))
+  m = max(p,q)
+
+  Theta   = list()
+  v       = rep(NA,N+1)
+  v[1]    = kappa(1,1)
+  StopCondition = FALSE
+  n       = 1
+
+
+  while(!StopCondition && n<N ) {
+    Theta[[n]] <- rep(0,q)
+    Theta[[n]][n] = kappa(n+1,1)/v[1]
+    if(n>q && mod$nAR==0) Theta[[n]][n]= 0
+    if(n>1){
+      for (k in 1:(n-1)) {
+        js <- 0:(k-1)
+        Theta[[n]][n-k] <- (kappa(n+1,k+1) - sum(Theta[[k]][k-js]*Theta[[n]][n-js]*v[js+1])) / v[k+1]
+      }
+    }
+    js     = 0:(n-1)
+    v[n+1] = kappa(n+1,n+1) - sum(Theta[[n]][n-js]^2*v[js+1])
+    if(mod$nAR==0 && mod$nMA>0) StopCondition = (abs(v[n+1]-v[n])< mod$maxdiff)
+    if(mod$nAR>0 && mod$nMA==0) StopCondition = (n>3*m)
+    n      = n+1
+  }
+  v = v/v[1]
+
+  StopCondition = (abs(v[n+1]-v[n])< mod$maxdiff)
+
+
+  return(list(n=n-1,thetas=lapply(Theta[ ][1:(n-1)], function(x) {x[1:q]}),v=v[1:(n-1)]))
+}
+
+# writing a log lik function with the old Innov Alg so I can test
+ParticleFilter_Res_ARMAOld = function(theta, mod){
+
+  old_state <- get_rand_state()
+  on.exit(set_rand_state(old_state))
+
+  # Retrieve parameters and save them in a list called Parms
+  Parms = RetrieveParameters(theta,mod)
+
+  # check for causality
+  if( CheckStability(Parms$AR,Parms$MA) ) return(10^(8))
+
+  # Initialize the negative log likelihood computation
+  nloglik = ifelse(mod$nreg==0,  - log(mod$mypdf(mod$DependentVar[1],Parms$MargParms)),
+                   - log(mod$mypdf(mod$DependentVar[1], Parms$ConstMargParm, Parms$DynamMargParm[1,])))
+
+  # retrieve AR, MA orders and their max
+  m = max(mod$ARMAModel)
+  p = mod$ARMAModel[1]
+  q = mod$ARMAModel[2]
+
+
+  # Compute ARMA covariance up to lag n-1
+  a        = list()
+  if(!is.null(Parms$AR)){
+    a$phi = Parms$AR
+  }else{
+    a$phi = 0
+  }
+  if(!is.null(Parms$MA)){
+    a$theta = Parms$MA
+  }else{
+    a$theta = 0
+  }
+  a$sigma2 = 1
+  gamma    = itsmr::aacvf(a,mod$n)
+
+  # Compute coefficients of Innovations Algorithm see 5.2.16 and 5.3.9 in in Brockwell Davis book
+  IA       = InnovAlgOld(Parms, gamma, mod)
+  Theta    = IA$thetas
+  Rt       = sqrt(IA$v)
+
+  # Get the n such that |v_n-v_{n-1}|< mod$maxdiff. check me: does this guarantee convergence of Thetas?
+  nTheta   = IA$n
+  Theta_n  = Theta[[nTheta]]
+
+  # allocate matrices for weights, particles and predictions of the latent series
+  w        = matrix(0, mod$n, mod$ParticleNumber)
+  Z        = matrix(0, mod$n, mod$ParticleNumber)
+  Zhat     = matrix(0, mod$n, mod$ParticleNumber)
+
+  # initialize particle filter weights
+  w[1,]    = rep(1,mod$ParticleNumber)
+
+  # Compute the first integral limits Limit$a and Limit$b
+  Limit    = ComputeLimits(mod, Parms, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
+
+  # Initialize the particles using N(0,1) variables truncated to the limits computed above
+  #Z[1,]    = SampleTruncNormParticles(mod, Limit$a, Limit$b, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
+  Z[1,]    = SampleTruncNormParticles(mod, Limit, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
+
+
+  for (t in 2:mod$n){
+
+    # compute Zhat_t
+    #Zhat[t,] = ComputeZhat_t(m,Theta,Z,Zhat,t, Parms,p,q, nTheta, Theta_n)
+    Zhat[t,] = ComputeZhat_t(mod, IA, Z, Zhat,t, Parms)
+
+    # Compute integral limits
+    Limit = ComputeLimits(mod, Parms, t, Zhat[t,], Rt)
+
+    # Sample truncated normal particles
+    #Znew  = SampleTruncNormParticles(mod, Limit$a, Limit$b, t, Zhat[t,], Rt)
+    Znew  = SampleTruncNormParticles(mod, Limit, t, Zhat[t,], Rt)
+
+    # update weights
+    #w[t,] = ComputeWeights(mod, Limit$a, Limit$b, t, w[(t-1),])
+    w[t,] = ComputeWeights(mod, Limit, t, w[(t-1),])
+
+    # check me: break if I got NA weight
+    if (any(is.na(w[t,]))| sum(w[t,])==0 ){
+      #print(t)
+      #print(w[t,])
+      message(sprintf('WARNING: At t=%.0f some of the weights are either too small or sum to 0',t))
+      return(10^8)
+    }
+    # Resample the particles using common random numbers
+    old_state1 = get_rand_state()
+    Znew = ResampleParticles(mod, w, t, Znew)
+    set_rand_state(old_state1)
+
+    # save the current particle
+    Z[t,]   = Znew
+
+    # update likelihood
+    nloglik = nloglik - log(mean(w[t,]))
+  }
+
+  # for log-likelihood we use a bias correction--see par2.3 in Durbin Koopman, 1997
+  # nloglik = nloglik- (1/(2*N))*(var(na.omit(wgh[T1,]))/mean(na.omit(wgh[T1,])))/mean(na.omit(wgh[T1,]))
+
+  # if (nloglik==Inf | is.na(nloglik)){
+  #   nloglik = 10^8
+  # }
+
+
+  return(nloglik)
 }
 
 #############################################################################################

@@ -46,3 +46,7 @@ This function is designed to be called within a wrapper or high-level function t
 runs particle filtering, optimization, or simulation. It ensures consistent formatting
 and labeling of outputs for downstream use (e.g., summaries, diagnostics, plots).
 }
+\note{
+This function is intended for internal use by the package and is not typically called directly by users.
+}
+\keyword{internal}
