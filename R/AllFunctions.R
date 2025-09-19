@@ -77,11 +77,13 @@ ModelScheme = function(DependentVar = NULL, Regressor=NULL, Intercept = NULL, Es
   }
 
   # If user specified EstMethod but asks for evaluation Task then no estimation takes place
-  if (Task %in% c("Evaluation") & EstMethod %in% c("PFR")){
-    EstMethod = "None"
-    message("For the Evaluation Task no estimation takes place. EstMethod has been set to None.\n",
-    "To fit the model specify the Optimzation Task.")
-  }
+  # check me: I will reconsider this, it seems a not very high priority comunication to the user,
+  # it  will spame me in test.
+    # if (Task %in% c("Evaluation") & EstMethod %in% c("PFR")){
+  #   EstMethod = "None"
+  #   message("For the Evaluation Task no estimation takes place. EstMethod has been set to None.\n",
+  #   "To fit the model specify the Optimzation Task.")
+  # }
 
 
   # check that the ARMA order has dimension 2, the ARMA orders are integers
@@ -518,22 +520,52 @@ ParticleFilter_Res_ARMA = function(theta, mod){
 #' @return A list containing parameter estimates, standard errors, log-likelihood,
 #'   AIC, BIC, AICc, and optimization diagnostics.
 #'
+#' @examples
+#' # Specify model characteristics
+#' CountDist      <- "Poisson"
+#' n              <- 100
+#' ARMAModel      <- c(1, 0)
+#' MargParm       <- 3
+#' ARParm         <- 0.5
+#' MAParm         <- NULL
+#' initialParam   <- c(3.2, 0.9 * ARParm, 0.8 * MAParm)
+#' Task           <- "Optimization"
+#'
+#' # Simulate data
+#' set.seed(2)
+#' DependentVar <- sim_lgc(n, CountDist, MargParm, ARParm, MAParm)
+#'
+#' # Prepare the model object
+#' mod <- ModelScheme(
+#'   DependentVar   = DependentVar,
+#'   CountDist      = CountDist,
+#'   ARMAModel      = ARMAModel,
+#'   initialParam   = initialParam,
+#'   Task           = Task
+#' )
+#'
+#' # Fit the model
+#' fit <- FitMultiplePF_Res_New(initialParam, mod)
+#' fit
+#'
 #' @export
 FitMultiplePF_Res_New = function(theta, mod){
 
   # retrieve parameter, sample size etc
-  nparts   = length(mod$ParticleNumber)
-  nparms   = length(theta)
-  nfit     = 1
-  n        = length(mod$DependentVar)
+  nparts    = length(mod$ParticleNumber)
+  nparms    = length(theta)
+  nfit      = 1
+  n         = length(mod$DependentVar)
 
   # allocate memory to save parameter estimates, hessian values, and loglik values
-  ParmEst  = matrix(0,nrow=nfit*nparts,ncol=nparms)
-  se       = matrix(NA,nrow=nfit*nparts,ncol=nparms)
-  loglik   = rep(0,nfit*nparts)
-  convcode = rep(0,nfit*nparts)
-  kkt1     = rep(0,nfit*nparts)
-  kkt2     = rep(0,nfit*nparts)
+  ParmEst   = matrix(0,nrow=nfit*nparts,ncol=nparms)
+  se        = matrix(NA,nrow=nfit*nparts,ncol=nparms)
+  loglik    = rep(0,nfit*nparts)
+  convcode  = rep(0,nfit*nparts)
+  kkt1      = rep(0,nfit*nparts)
+  kkt2      = rep(0,nfit*nparts)
+
+  Criteria  = matrix(0,nrow=nfit*nparts,ncol=3)
 
   # Each realization will be fitted nfit*nparts many times
   for (j in 1:nfit){
@@ -541,18 +573,24 @@ FitMultiplePF_Res_New = function(theta, mod){
     # for each fit repeat for different number of particles
     for (k in 1:nparts){
       # FIX ME: I need to somehow update this in mod. (number of particles to be used). I t now works only for 1 choice of ParticleNumber
-      ParticleNumber = mod$ParticleNumber[k]
+      # ParticleNumber = mod$ParticleNumber[k]
 
-      if(mod$Task == 'Optimization'){
+      # Update the ParticleNumber inside mod for current iteration
+      mod_current                = mod
+      mod_current$ParticleNumber = mod$ParticleNumber[k]
+
+
+
+      if(mod_current$Task == 'Optimization'){
         # run optimization for our model --no ARMA model allowed
         optim.output <- optimx(
           par     = theta,
           fn      = ParticleFilter_Res_ARMA,
-          lower   = mod$LB,
-          upper   = mod$UB,
+          lower   = mod_current$LB,
+          upper   = mod_current$UB,
           hessian = TRUE,
-          method  = mod$OptMethod,
-          mod     = mod)
+          method  = mod_current$OptMethod,
+          mod     = mod_current)
         loglikelihood = optim.output["value"]
       }else{
         optim.output = as.data.frame(matrix(rep(NA,8+length(theta)), ncol=8+length(theta)))
@@ -561,7 +599,7 @@ FitMultiplePF_Res_New = function(theta, mod){
 
         optim.output[,1:length(theta)] = theta
         startTime = Sys.time()
-        loglikelihood = ParticleFilter_Res_ARMA(theta,mod)
+        loglikelihood = ParticleFilter_Res_ARMA(theta,mod_current)
         endTime = Sys.time()
         runTime = difftime(endTime, startTime, units = 'secs')
         optim.output[,(length(theta)+1)] = loglikelihood
@@ -582,10 +620,10 @@ FitMultiplePF_Res_New = function(theta, mod){
 
       # compute Hessian
       # t5 = tic()
-      if(mod$Task == "Optimization"){
+      if(mod_current$Task == "Optimization"){
         H = gHgen(par          = ParmEst[nfit*(k-1)+j,],
-                  fn             = ParticleFilter_Res_ARMA,
-                  mod            = mod)
+                  fn           = ParticleFilter_Res_ARMA,
+                  mod          = mod_current)
         # t5 = tic()-t5
         # print(t5)
         # if I get all na for one row and one col of H remove it
@@ -617,21 +655,23 @@ FitMultiplePF_Res_New = function(theta, mod){
       }
       # t6 = tic()-t6
       # print(t6)
-
+      # compute model selection criteria
+      Criteria[nfit*(k-1)+j,]  =  Criteria.lgc(loglik[nfit*(k-1) +j], mod_current)
     }
   }
 
+  # commenting this out to add it in the loop and allow for multiple fits
   # Compute model selection criteria (assuming one fit)
-  Criteria = Criteria.lgc(loglik, mod)
+  # Criteria = Criteria.lgc(loglik, mod_current)
 
   FitResults             = list()
   FitResults$ParmEst     = ParmEst
   FitResults$se          = se
-  FitResults$FitStatistics  = c(loglik, Criteria)
-  FitResults$OptimOutput = c(convcode,kkt1,kkt2)
+  FitResults$FitStatistics  = cbind(loglik, Criteria)
+  FitResults$OptimOutput = cbind(convcode,kkt1,kkt2)
 
-  names(FitResults$FitStatistics)     = c("loglik", "AIC", "BIC", "AICc")
-  if(mod$Task=="Optimization")names(FitResults$OptimOutput)       = c("ConvergeStatus", "kkt1", "kkt2")
+  colnames(FitResults$FitStatistics)     = c("loglik", "AIC", "BIC", "AICc")
+  if(mod_current$Task=="Optimization")colnames(FitResults$OptimOutput)       = c("ConvergeStatus", "kkt1", "kkt2")
 
   return(FitResults)
 }
@@ -702,8 +742,8 @@ PrepareOutput = function(mod, FitResults){
     ModelOutput$SampleSize     = mod$n
 
 
-    if(FitResults$FitStatistics["loglik"]==mod$loglik_BadValue1) ModelOutput$WarnMessage = "WARNING: The ARMA polynomial must be causal and invertible."
-    if(FitResults$FitStatistics["loglik"]==mod$loglik_BadValue2) ModelOutput$WarnMessage = "WARNING: Some of the weights are either too small or sum to 0."
+    if(FitResults$FitStatistics[,"loglik"]==mod$loglik_BadValue1) ModelOutput$WarnMessage = "WARNING: The ARMA polynomial must be causal and invertible."
+    if(FitResults$FitStatistics[,"loglik"]==mod$loglik_BadValue2) ModelOutput$WarnMessage = "WARNING: Some of the weights are either too small or sum to 0."
     # assign names to all output elements
     if(!is.null(mod$TrueParam)) names(ModelOutput$TrueParam)      = mod$parmnames
     colnames(ModelOutput$ParamEstimates) = mod$parmnames
@@ -808,13 +848,13 @@ PrepareOutput = function(mod, FitResults){
     ModelOutput$epsilon        = mod$epsilon
     ModelOutput$OptMethod      = mod$OptMethod
     if(!is.null(mod$TrueParam)) ModelOutput$ParamScheme    = mod$ParamScheme
-    ModelOutput$loglik         = FitResults$FitStatistics["loglkik"]
-    ModelOutput$AIC            = FitResults$FitStatistics["AIC"]
-    ModelOutput$BIC            = FitResults$FitStatistics["BIC"]
-    ModelOutput$AICc           = FitResults$FitStatistics["AICc"]
-    ModelOutput$ConvergeStatus = FitResults$OptimOutput["ConvergeStatus"]
-    ModelOutput$kkt1           = FitResults$OptimOutput["kkt1"]
-    ModelOutput$kkt2           = FitResults$OptimOutput["kkt2"]
+    ModelOutput$loglik         = FitResults$FitStatistics[,"loglik"]
+    ModelOutput$AIC            = FitResults$FitStatistics[,"AIC"]
+    ModelOutput$BIC            = FitResults$FitStatistics[,"BIC"]
+    ModelOutput$AICc           = FitResults$FitStatistics[,"AICc"]
+    ModelOutput$ConvergeStatus = FitResults$OptimOutput[,"ConvergeStatus"]
+    ModelOutput$kkt1           = FitResults$OptimOutput[,"kkt1"]
+    ModelOutput$kkt2           = FitResults$OptimOutput[,"kkt2"]
   }
 
   return(ModelOutput)

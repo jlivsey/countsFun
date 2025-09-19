@@ -21,3 +21,32 @@ Fits the particle filter log-likelihood using resampling. This version expects
 a complete model object (created by \code{\link{ModelScheme}}) and performs
 one optimization per value of \code{mod$ParticleNumber}.
 }
+\examples{
+# Specify model characteristics
+CountDist      <- "Poisson"
+n              <- 100
+ARMAModel      <- c(1, 0)
+MargParm       <- 3
+ARParm         <- 0.5
+MAParm         <- NULL
+initialParam   <- c(3.2, 0.9 * ARParm, 0.8 * MAParm)
+Task           <- "Optimization"
+
+# Simulate data
+set.seed(2)
+DependentVar <- sim_lgc(n, CountDist, MargParm, ARParm, MAParm)
+
+# Prepare the model object
+mod <- ModelScheme(
+  DependentVar   = DependentVar,
+  CountDist      = CountDist,
+  ARMAModel      = ARMAModel,
+  initialParam   = initialParam,
+  Task           = Task
+)
+
+# Fit the model
+fit <- FitMultiplePF_Res_New(initialParam, mod)
+fit
+
+}
