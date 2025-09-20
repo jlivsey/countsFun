@@ -2431,22 +2431,11 @@ CurrentDist = function(theta,mod){
 }
 
 
-#' Modifies the standard particle filtering procedure to return the **predictive distribution**
+#' Modifies the standard particle filtering procedure to return the predictive distribution
 #' at each time point of a latent Gaussian count time series model, instead of just the log-likelihood.
 #'
 #' @param theta Numeric vector. Parameter vector containing marginal and ARMA parameters.
-#' @param mod A list with model specifications, including:
-#'   \itemize{
-#'     \item \code{DependentVar}: observed count series
-#'     \item \code{CountDist}: count distribution (e.g., "Poisson", "Negative Binomial")
-#'     \item \code{ARMAModel}: vector of length 2 specifying AR and MA orders
-#'     \item \code{ParticleNumber}: number of particles to use
-#'     \item \code{nreg}: number of regressors
-#'     \item \code{mypdf}: function to compute marginal PDF
-#'     \item \code{mycdf}: function to compute marginal CDF
-#'     \item \code{n}: sample size
-#'     \item \code{maxdiff}: convergence threshold for Innovations Algorithm
-#'   }
+#' @inheritParams ParticleFilter_Res_ARMA
 #'
 #' @return A numeric matrix of dimension \code{2 x n}, where each column corresponds to a time point:
 #'   \itemize{
@@ -2458,28 +2447,45 @@ CurrentDist = function(theta,mod){
 #' This function runs a particle filter with resampling to estimate the predictive distribution
 #' of the latent state at each time point. It leverages the Innovations Algorithm to calculate
 #' ARMA-based forecasts of the latent process and approximates conditional distributions using
-#' truncated normal draws.
-#'
-#' The predictive distribution is calculated by integrating over the particle population, adjusted
-#' via importance weights. If any weights become numerically unstable (e.g., sum to 0 or include NA),
-#' the function returns a large penalty value (\code{1e8}).
-#'
-#' Random number generator state is preserved using \code{get_rand_state()} and \code{set_rand_state()}.
+#' truncated normal draws. See Section 3.4 in Jia et al. (2021)
 #'
 #' @references
-#' Kechagias, S., Livsey, J., & Pipiras, V. (2020). Latent Gaussian Count Time Series Modeling.
-#' \emph{arXiv:1811.00203}. \url{https://arxiv.org/abs/1811.00203}
+#' Jia, Y., Kechagias, S., Livsey, J., Lund, R., & Pipiras, V. (2021).
+#' Latent Gaussian Count Time Series.
+#' \emph{Journal of the American Statistical Association}, 118(541), 596–606.
+#' \doi{10.1080/01621459.2021.1944874}
 #'
 #' @seealso \code{\link{ComputeWeights}}, \code{\link{SampleTruncNormParticles}}, \code{\link{InnovAlg}}
 #'
 #' @examples
-#' \dontrun{
-#' mod <- list(DependentVar = y, CountDist = "Poisson", ARMAModel = c(1, 0),
-#'             ParticleNumber = 100, mycdf = ppois, mypdf = dpois, n = length(y),
-#'             maxdiff = 1e-4, nreg = 0)
-#' theta <- c(2.5, 0.3)
+# # specify model
+#' n              = 10
+#' Regressor      = data.frame(runif(n),runif(n))
+#' Intercept      = TRUE
+#' ARMAModel      = c(2,0)
+#' ARParm         = c(0.5, 0.2)
+#' MAParm         = NULL
+#' CountDist      = "Poisson"
+#' b0             = 1
+#' b1             = 4
+#' b2             = 2
+#' MargParm       = c(b0,b1,b2)
+#'
+#' # simulate data
+#' set.seed(2)
+#' DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor, Intercept)
+#'
+#' mod = ModelScheme(DependentVar   = DependentVar,
+#'                   Regressor      = Regressor,
+#'                   Intercept      = Intercept,
+#'                   CountDist      = CountDist,
+#'                  ARMAModel      = ARMAModel)
+#'
+#' # select a parameter point
+#' theta <- c(MargParm, ARParm, MAParm)
+#'
+#' # compute the Predictive distribution
 #' PDvalues(theta, mod)
-#' }
 #'
 #' @export
 PDvalues = function(theta, mod){
@@ -2625,7 +2631,7 @@ PDvalues = function(theta, mod){
 #' These can be plotted to assess calibration of predictive distributions.
 #'
 #' @details
-#' The PIT is used to assess the **calibration** of probabilistic forecasts. For discrete data,
+#' The PIT is used to assess the calibration of probabilistic forecasts. For discrete data,
 #' the PIT is computed using randomized methods or as a piecewise function, as detailed in
 #' the latent Gaussian count models literature.
 #'
@@ -2633,9 +2639,10 @@ PDvalues = function(theta, mod){
 #' \deqn{PIT(Y_t) \sim U(0,1)} if predictive distributions are correctly specified.
 #'
 #' @references
-#' Kechagias, S., Livsey, J., & Pipiras, V. (2020).
-#' \emph{Latent Gaussian Count Time Series Modeling}, Journal of the American Statistical Association.
-#' \url{https://arxiv.org/abs/1811.00203}
+#' Jia, Y., Kechagias, S., Livsey, J., Lund, R., & Pipiras, V. (2021).
+#' Latent Gaussian Count Time Series.
+#' \emph{Journal of the American Statistical Association}, 118(541), 596–606.
+#' \doi{10.1080/01621459.2021.1944874}
 #'
 #' @seealso \code{\link{PDvalues}}, \code{\link{ComputeResiduals}}
 #'
@@ -2725,6 +2732,7 @@ parse_formula <- function(formula) {
 #' @param x vector (column matrix) or matrix
 #'
 #' @return the vector's dimension
+#' @keywords internal
 #' @export
 DIM <- function(x){
   if (is.null(dim(x)))
