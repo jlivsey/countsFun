@@ -36,6 +36,4 @@ according to the model specification provided in \code{mod}. This includes
 marginal distribution parameters, autoregressive (AR) and moving average (MA)
 components, and dynamic GLM-type parameters when covariates are present.
 }
-\details{
-This function supports several count distrib
-}
+\keyword{internal}

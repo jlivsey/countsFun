@@ -2,16 +2,29 @@
 % Please edit documentation in R/AllFunctions.R
 \name{ComputeResiduals}
 \alias{ComputeResiduals}
-\title{Compute Residuals for Latent Gaussian Count Model}
+\title{Computes residuals from a fitted latent Gaussian count (LGC) model using the approach
+described in relation (41) of Jia et al. (2021).}
 \usage{
 ComputeResiduals(lgc)
 }
 \arguments{
-\item{lgc}{A list object containing the outcome of a model fit.}
+\item{lgc}{A list object containing the outcome of a model fit, typically returned by
+the package's main wrapper function \code{\link{lgc}}.}
 }
 \value{
-A numeric vector of residuals.
+A numeric vector of residuals, computed via the inverse-normal transformation of the
+cumulative distribution function (CDF) of the observed counts.
 }
 \description{
-Compute Residuals for Latent Gaussian Count Model
+Computes residuals from a fitted latent Gaussian count (LGC) model using the approach
+described in relation (41) of Jia et al. (2021).
+}
+\details{
+This function computes residuals as defined in relation (41) of Jia et al. (2021)
+}
+\references{
+Jia, Y., Kechagias, S., Livsey, J., Lund, R., & Pipiras, V. (2021).
+Latent Gaussian Count Time Series.
+\emph{Journal of the American Statistical Association}, 118(541), 596–606.
+\doi{10.1080/01621459.2021.1944874}
 }

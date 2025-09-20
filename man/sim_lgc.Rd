@@ -43,20 +43,11 @@ A numeric vector of length \code{n}, containing the simulated count time series.
 \description{
 Simulates a univariate count time series of length \code{n} from a specified model
 defined by a marginal distribution, ARMA dependence structure, and optional regression
-covariates. Supports various count distributions and includes options for an intercept
-and binomial trial counts.
+covariates.
 }
 \details{
 The simulation is based on a latent Gaussian copula framework, where the marginal distribution
 is applied to transformed latent variables with dependence induced by an ARMA process.
-
-The function accommodates:
-\itemize{
-\item Purely marginal models (no AR/MA)
-\item Dynamic regression models with covariates
-\item ARMA-dependent latent structure for autocorrelation
-}
-Be sure that \code{MargParm} and other arguments match the chosen \code{CountDist}.
 }
 \examples{
 # Simulate Poisson-ARMA(1,1) series

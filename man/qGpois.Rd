@@ -2,7 +2,7 @@
 % Please edit documentation in R/AllFunctions.R
 \name{qGpois}
 \alias{qGpois}
-\title{Generalized Poisson Quantile Function (vectorized)}
+\title{Generalized Poisson Quantile Function (vectorized and scalar)}
 \usage{
 qGpois(p, a, m)
 }
@@ -11,15 +11,19 @@ qGpois(p, a, m)
 
 \item{a}{Numeric. Dispersion parameter.}
 
-\item{m}{Numeric or vector. Mean parameter(s).}
+\item{m}{Numeric scalar or vector. Mean parameter(s).}
 }
 \value{
 A numeric vector or matrix of quantiles.
 }
 \description{
 Computes the quantile function (inverse CDF) of the Generalized Poisson distribution
-for one or more values of the mean parameter.
+for one or more values of the mean parameter \code{m}.
+}
+\examples{
+qGpois(0.8,0.4,3)
+
 }
 \seealso{
-\code{\link{qgpois1}}, \code{\link{rGpois}}
+\code{\link{pGpois}}
 }

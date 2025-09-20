@@ -2,7 +2,8 @@
 % Please edit documentation in R/AllFunctions.R
 \name{CurrentDist}
 \alias{CurrentDist}
-\title{Retrieve Name of Current Marginal Distribution with Parameters}
+\title{Constructs a  string that describes the marginal count distribution.
+This function is used to help with printing warnings.}
 \usage{
 CurrentDist(theta, mod)
 }
@@ -21,8 +22,8 @@ parameters will be extracted using model structure from \code{mod}.}
 A character string of the form \code{"DistName(param1=..., param2=..., ...)"}.
 }
 \description{
-Constructs a human-readable string that describes the marginal count distribution
-used in the model, including its name and parameter values formatted to two decimals.
+Constructs a  string that describes the marginal count distribution.
+This function is used to help with printing warnings.
 }
 \examples{
 mod <- list(
@@ -35,3 +36,4 @@ CurrentDist(theta, mod)
 # Returns: "Poisson(lambda=2.35)"
 
 }
+\keyword{internal}

@@ -2,7 +2,7 @@
 % Please edit documentation in R/AllFunctions.R
 \name{pGpois}
 \alias{pGpois}
-\title{Generalized Poisson CDF (vectorized)}
+\title{Generalized Poisson CDF (vectorized and scalar)}
 \usage{
 pGpois(x, a, m)
 }
@@ -11,7 +11,7 @@ pGpois(x, a, m)
 
 \item{a}{Numeric. Dispersion parameter.}
 
-\item{m}{Numeric or vector. Mean parameter(s).}
+\item{m}{Numeric scalar or vector. Mean parameter(s).}
 }
 \value{
 A numeric vector or matrix of cumulative probabilities.
@@ -20,6 +20,9 @@ A numeric vector or matrix of cumulative probabilities.
 Computes the cumulative distribution function (CDF) of the Generalized Poisson distribution
 for one or more values of the mean parameter \code{m}.
 }
+\examples{
+pGpois(3, 0.4, 2)
+}
 \seealso{
-\code{\link{pgpois1}}, \code{\link{qGpois}}
+\code{\link{dGpois}}, \code{\link{qGpois}}
 }

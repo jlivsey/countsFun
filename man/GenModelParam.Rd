@@ -32,7 +32,8 @@ A named list with three components:
 Randomly generates marginal distribution and ARMA parameters for simulation and
 testing purposes. Includes a mechanism to occasionally generate "bad" parameters
 (e.g., invalid or edge-case values) with controlled probability, useful for
-stress-testing estimation and validation routines.
+stress-testing estimation and validation routines. This function was uised in initial stages
+of testing and may need to be reworked for more sophisticated testing in the future
 }
 \details{
 For testing robustness of model fitting procedures, this function sometimes samples
@@ -42,3 +43,4 @@ non-stationary AR roots). This is controlled by the \code{BadParamProb} paramete
 When \code{Regressor} is not \code{NULL}, the function returns parameters assuming a log-linear
 model with regression effects (e.g., intercept and slope coefficients).
 }
+\keyword{internal}

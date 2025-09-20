@@ -2,32 +2,31 @@
 % Please edit documentation in R/AllFunctions.R
 \name{qmixpois1}
 \alias{qmixpois1}
-\title{Computes the quantiles (inverse CDF) of the two-component mixed Poisson distribution
-using a brute-force loop-based method.}
+\title{Vectorized Quantile Function for Mixed Poisson Distribution}
 \usage{
-qmixpois1(y, lam1, lam2, p)
+qmixpois1(p, lam1, lam2, prob)
 }
 \arguments{
-\item{y}{Numeric vector of quantile probabilities (between 0 and 1).}
+\item{p}{Numeric vector of probabilities (between 0 and 1).}
 
 \item{lam1}{Numeric or vector. Mean(s) of the first Poisson component.}
 
 \item{lam2}{Numeric or vector. Mean(s) of the second Poisson component.}
 
-\item{p}{Numeric between 0 and 1. Mixing probability for the first component.}
+\item{prob}{Numeric between 0 and 1. Mixing probability for the first component.}
 }
 \value{
-A numeric vector of quantiles corresponding to the input probabilities.
+A numeric vector of quantiles corresponding to \code{p}.
 }
 \description{
-Computes the quantiles (inverse CDF) of the two-component mixed Poisson distribution
-using a brute-force loop-based method.
+Computes quantiles of the mixed Poisson distribution using a vectorized approach
+with \code{mapply()}.
 }
 \details{
-For each value in \code{y}, the function finds the smallest integer \code{x} such that
-\code{pmixpois1(x, lam1, lam2, p) >= y}.
+This function is a vectorized version of \code{\link{qmixpois1}} using \code{mapply()}
+to compute quantiles efficiently.
 }
 \examples{
-qmixpois1(c(0.25, 0.5, 0.75), lam1 = 2, lam2 = 5, p = 0.6)
+qmixpois1(c(0.1, 0.5, 0.9), lam1 = 2, lam2 = 5, prob = 0.6)
 
 }

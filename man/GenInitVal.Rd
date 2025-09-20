@@ -37,3 +37,4 @@ true_parms <- list(MargParm = c(1, 0.5), ARParm = c(0.3), MAParm = NULL)
 GenInitVal(true_parms, perturbation = 0.1)
 
 }
+\keyword{internal}

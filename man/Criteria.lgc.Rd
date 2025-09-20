@@ -28,16 +28,7 @@ A numeric vector of length 3 containing the values:
 \description{
 Computes the Akaike Information Criterion (AIC), Bayesian Information Criterion (BIC),
 and corrected AIC (AICc) for a fitted model, based on the log-likelihood, sample size,
-and number of parameters. Adjustments are made depending on the estimation method.
-}
-\details{
-For models estimated via Gaussian likelihood (\code{EstMethod = "GL"}), the log-likelihood
-is adjusted by subtracting \code{n/2 * log(2π)} to convert it to the classic likelihood form
-used in AIC/BIC computation. For particle filter-based estimation methods (\code{"PFR"}),
-no correction is applied.
-
-This function is used to evaluate and compare model fits, especially when selecting among
-candidate models of varying complexity.
+and number of parameters.
 }
 \examples{
 mod <- list(nparms = 5, n = 100, EstMethod = "PFR")

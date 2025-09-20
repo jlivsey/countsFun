@@ -2,7 +2,8 @@
 % Please edit documentation in R/AllFunctions.R
 \name{PDvalues}
 \alias{PDvalues}
-\title{Compute Predictive Distribution via Particle Filtering}
+\title{Modifies the standard particle filtering procedure to return the \strong{predictive distribution}
+at each time point of a latent Gaussian count time series model, instead of just the log-likelihood.}
 \usage{
 PDvalues(theta, mod)
 }

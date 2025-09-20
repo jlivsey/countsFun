@@ -186,7 +186,7 @@ ModelScheme = function(DependentVar = NULL, Regressor=NULL, Intercept = NULL, Es
                       "Generalized Poisson"   = function(x, theta){    qGpois(x, theta[1], theta[2])},
                       "Generalized Poisson 2" = function(x, theta){ qgenpois2(x, theta[2], theta[1])},
                       "Binomial"              = function(x, theta){    qbinom(x, ntrials, theta[1])},
-                      "Mixed Poisson"         = function(x, theta){  qmixpois(x, theta[1], theta[2], theta[3])},
+                      "Mixed Poisson"         = function(x, theta){ qmixpois1(x, theta[1], theta[2], theta[3])},
                       "ZIP"                   = function(x, theta){   qzipois(x, theta[1], theta[2])}
     )
 
@@ -248,7 +248,7 @@ ModelScheme = function(DependentVar = NULL, Regressor=NULL, Intercept = NULL, Es
                    "Generalized Poisson"   = function(x, ConstMargParm, DynamMargParm){    qGpois(x, ConstMargParm, DynamMargParm)},
                    "Generalized Poisson 2" = function(x, ConstMargParm, DynamMargParm){ qgenpois2(x, DynamMargParm, ConstMargParm)},
                    "Binomial"              = function(x, ConstMargParm, DynamMargParm){    qbinom(x, ntrials, DynamMargParm)},
-                   "Mixed Poisson"         = function(x, ConstMargParm, DynamMargParm){  qmixpois(x, DynamMargParm[,1], DynamMargParm[,2], ConstMargParm)},
+                   "Mixed Poisson"         = function(x, ConstMargParm, DynamMargParm){ qmixpois1(x, DynamMargParm[,1], DynamMargParm[,2], ConstMargParm)},
                    "ZIP"                   = function(x, ConstMargParm, DynamMargParm){   qzipois(x, DynamMargParm, ConstMargParm)}
     )
     # lower bound contraints
@@ -1345,106 +1345,12 @@ InnovAlg <- function(Parms, gamma, mod) {
   ))
 }
 
-# simulate from our model
-sim_lgc_old = function(n, CountDist, MargParm, ARParm, MAParm, Regressor=NULL, Intercept=NULL){
-
-  # Generate latent Gaussian model
-  z  =arima.sim(model = list( ar = ARParm, ma=MAParm  ), n = n)
-  z = z/sd(z) # standardize the data
-
-  # add a column of ones in the Regressors if Intercept is present
-  if (!is.null(Intercept) && Intercept==TRUE && sum(as.matrix(Regressor)[,1])!=n){
-    Regressor = as.data.frame(cbind(rep(1,n),Regressor))
-    names(Regressor)[1] = "Intercept"
-  }
-
-
-  # number of regressors
-  nreg = ifelse(is.null(Regressor), 0, dim(Regressor)[2]-as.numeric(Intercept))
-
-  if(nreg==0){
-    # retrieve marginal inverse cdf
-    myinvcdf = switch(CountDist,
-                      "Poisson"               = qpois,
-                      "Negative Binomial"     = function(x, theta){ qnbinom (x, theta[1], 1-theta[2]) },
-                      "Generalized Poisson"   = function(x, theta){ qGpois  (x, theta[1], theta[2])},
-                      "Generalized Poisson 2" = function(x, theta){ qGpois  (x, theta[2], theta[1])},
-                      "Binomial"              = qbinom,
-                      "Mixed Poisson"         = function(x, theta){qmixpois1(x, theta[1], theta[2], theta[3])},
-                      "ZIP"                   = function(x, theta){ qzipois(x, theta[1], theta[2]) },
-                      stop("The specified distribution is not supported.")
-    )
-
-    # get the final counts
-    x = myinvcdf(pnorm(z), MargParm)
-
-  }else{
-    # retrieve inverse count cdf
-    myinvcdf = switch(CountDist,
-                      "Poisson"               = function(x, ConstMargParm, DynamMargParm){ qpois   (x, DynamMargParm)},
-                      "Negative Binomial"     = function(x, ConstMargParm, DynamMargParm){ qnbinom (x, ConstMargParm, 1-DynamMargParm)},
-                      "Generalized Poisson"   = function(x, ConstMargParm, DynamMargParm){ qGpois  (x, ConstMargParm, DynamMargParm)},
-                      "Generalized Poisson 2" = function(x, ConstMargParm, DynamMargParm){ qgenpois2  (x, DynamMargParm, ConstMargParm)},
-                      "Binomial"              = function(x, ConstMargParm, DynamMargParm){ qbinom  (x, ConstMargParm, DynamMargParm)},
-                      "Mixed Poisson"         = function(x, ConstMargParm, DynamMargParm){qmixpois1(x, DynamMargParm[,1], DynamMargParm[,2],  ConstMargParm)},
-                      "ZIP"                   = function(x, ConstMargParm, DynamMargParm){ qzipois (x, DynamMargParm[,1], DynamMargParm[,2]) },
-                      stop("The specified distribution is not supported.")
-    )
-
-    # regression parameters
-    beta  = MargParm[1:(nreg+1)]
-    m     = exp(as.matrix(Regressor)%*%beta)
-
-    if(CountDist == "Poisson" && nreg>0){
-      ConstMargParm  = NULL
-      DynamMargParm  = m
-    }
-
-    if(CountDist == "Negative Binomial" && nreg>0){
-      ConstMargParm  = 1/MargParm[nreg+2]
-      DynamMargParm  = MargParm[nreg+2]*m/(1+MargParm[nreg+2]*m)
-    }
-
-    if(CountDist == "Generalized Poisson" && nreg>0){
-      ConstMargParm  = MargParm[nreg+2]
-      DynamMargParm  = m
-    }
-
-
-    if(CountDist == "Generalized Poisson 2" && nreg>0){
-      ConstMargParm  = MargParm[nreg+2]
-      DynamMargParm  = m
-    }
-
-    if(CountDist == "Binomial" && nreg>0){
-      # ConstMargParm  = MargParm[nreg+2]
-      DynamMargParm  = m/(1+m)
-    }
-
-    if(CountDist == "Mixed Poisson" && nreg>0){
-      ConstMargParm  = c(MargParm[nreg*2+3], 1 - MargParm[nreg*2+3])
-      DynamMargParm  = cbind(exp(as.matrix(Regressor)%*%MargParm[1:(nreg+1)]),
-                             exp(as.matrix(Regressor)%*%MargParm[(nreg+2):(nreg*2+2)]))
-    }
-
-    if(CountDist == "ZIP" && nreg>0){
-      ConstMargParm  = NULL
-      DynamMargParm  = cbind(exp(as.matrix(Regressor)%*%MargParm[1:(nreg+1)]),
-                             1/(1+exp(-as.matrix(Regressor)%*%MargParm[(nreg+2):(nreg*2+2)])))
-    }
-
-    # get the final counts
-    x = myinvcdf(pnorm(z), ConstMargParm, DynamMargParm)
-  }
-  return(as.numeric(x))
-}
 
 #' Simulate Count Time Series from Specified Model
 #'
 #' Simulates a univariate count time series of length \code{n} from a specified model
 #' defined by a marginal distribution, ARMA dependence structure, and optional regression
-#' covariates. Supports various count distributions and includes options for an intercept
-#' and binomial trial counts.
+#' covariates.
 #'
 #' @param n Integer. Length of the time series to simulate.
 #' @param CountDist Character. Name of the marginal count distribution to simulate from.
@@ -1463,14 +1369,6 @@ sim_lgc_old = function(n, CountDist, MargParm, ARParm, MAParm, Regressor=NULL, I
 #' @details
 #' The simulation is based on a latent Gaussian copula framework, where the marginal distribution
 #' is applied to transformed latent variables with dependence induced by an ARMA process.
-#'
-#' The function accommodates:
-#' \itemize{
-#'   \item Purely marginal models (no AR/MA)
-#'   \item Dynamic regression models with covariates
-#'   \item ARMA-dependent latent structure for autocorrelation
-#' }
-#' Be sure that \code{MargParm} and other arguments match the chosen \code{CountDist}.
 #'
 #' @examples
 #' # Simulate Poisson-ARMA(1,1) series
@@ -1530,7 +1428,7 @@ sim_lgc = function(n, CountDist, MargParm, ARParm, MAParm, Regressor=NULL, Inter
 #'
 #' Computes the Akaike Information Criterion (AIC), Bayesian Information Criterion (BIC),
 #' and corrected AIC (AICc) for a fitted model, based on the log-likelihood, sample size,
-#' and number of parameters. Adjustments are made depending on the estimation method.
+#' and number of parameters.
 #'
 #' @param loglik Numeric. The log-likelihood value of the fitted model.
 #' @param mod A list containing model-related metadata, typically created by
@@ -1547,15 +1445,6 @@ sim_lgc = function(n, CountDist, MargParm, ARParm, MAParm, Regressor=NULL, Inter
 #'   \item{\code{BIC}}{Bayesian Information Criterion}
 #'   \item{\code{AICc}}{Corrected Akaike Information Criterion}
 #' }
-#'
-#' @details
-#' For models estimated via Gaussian likelihood (\code{EstMethod = "GL"}), the log-likelihood
-#' is adjusted by subtracting \code{n/2 * log(2π)} to convert it to the classic likelihood form
-#' used in AIC/BIC computation. For particle filter-based estimation methods (\code{"PFR"}),
-#' no correction is applied.
-#'
-#' This function is used to evaluate and compare model fits, especially when selecting among
-#' candidate models of varying complexity.
 #'
 #' @examples
 #' mod <- list(nparms = 5, n = 100, EstMethod = "PFR")
@@ -1662,7 +1551,6 @@ model.lgc = function(object,...){
   # return(a)
   return(object$Model)
 }
-
 
 
 #' @title Extract Residuals from an lgc Model
@@ -1934,8 +1822,8 @@ ResampleParticles = function(mod, wgh, t, Znew){
 #'   \item{\code{MA}}{Moving average coefficients (if present).}
 #' }
 #'
-#' @details
-#' This function supports several count distrib
+#' @keywords internal
+#' @export
 RetrieveParameters = function(theta,mod){
 
   Parms =  vector(mode = "list", length = 5)
@@ -2002,53 +1890,8 @@ RetrieveParameters = function(theta,mod){
   return(Parms)
 }
 
-# Mixed Poisson inverse cdf - this will not allow for vector lambda
-# qmixpois1 = function(y, lam1, lam2, p){
-#   yl = length(y)
-#   x  = rep(0,yl)
-#   for (n in 1:yl){
-#     while(pmixpois(x[n], lam1, lam2,p) <= y[n]){ # R qpois would use <y; this choice makes the function right-continuous; this does not really matter for our model
-#       x[n] = x[n]+1
-#     }
-#   }
-#   return(x)
-# }
 
-#' Computes the quantiles (inverse CDF) of the two-component mixed Poisson distribution
-#' using a brute-force loop-based method.
-#'
-#' @param y Numeric vector of quantile probabilities (between 0 and 1).
-#' @param lam1 Numeric or vector. Mean(s) of the first Poisson component.
-#' @param lam2 Numeric or vector. Mean(s) of the second Poisson component.
-#' @param p Numeric between 0 and 1. Mixing probability for the first component.
-#'
-#' @return A numeric vector of quantiles corresponding to the input probabilities.
-#'
-#' @details
-#' For each value in \code{y}, the function finds the smallest integer \code{x} such that
-#' \code{pmixpois1(x, lam1, lam2, p) >= y}.
-#'
-#' @examples
-#' qmixpois1(c(0.25, 0.5, 0.75), lam1 = 2, lam2 = 5, p = 0.6)
-#'
-#' @export
-qmixpois1 = function(y, lam1, lam2, p){
-  yl = length(y)  # Length of the input vector y
-  x  = rep(0, yl) # Initialize a vector of zeros to store results
-
-  for (n in 1:yl) {
-    lambda1 = ifelse(length(lam1) > 1, lam1[n], lam1)  # Use indexed lambda1 or constant
-    lambda2 = ifelse(length(lam2) > 1, lam2[n], lam2)  # Use indexed lambda2 or constant
-
-    # Increment x[n] until the CDF is greater than y[n]
-    while (pmixpois1(x[n], lambda1, lambda2, p) <= y[n]) {
-      x[n] = x[n] + 1
-    }
-  }
-
-  return(x)
-}
-
+#------------------------------ MIXED POISSON----------------------------------------------#
 #' Vectorized Quantile Function for Mixed Poisson Distribution
 #'
 #' Computes quantiles of the mixed Poisson distribution using a vectorized approach
@@ -2066,10 +1909,10 @@ qmixpois1 = function(y, lam1, lam2, p){
 #' to compute quantiles efficiently.
 #'
 #' @examples
-#' qmixpois(c(0.1, 0.5, 0.9), lam1 = 2, lam2 = 5, prob = 0.6)
+#' qmixpois1(c(0.1, 0.5, 0.9), lam1 = 2, lam2 = 5, prob = 0.6)
 #'
 #' @export
-qmixpois = function(p, lam1, lam2, prob) {
+qmixpois1 = function(p, lam1, lam2, prob) {
   # Ensure p, lam1, and lam2 are vectors
   p = as.vector(p)
 
@@ -2144,11 +1987,13 @@ dmixpois1 = function(x, lam1, lam2, p){
   y = p*dpois(x,lam1) + (1-p)*dpois(x,lam2)
   return(y)
 }
+#-----------------------------------------------------------------------------------------------#
 
-#-------------------------------------------------------------------------------------#
-# these are used when CountDist = "Generalize Poisson". I have now implemented the
-# "Generalized Poisson 2" and in the future the following will not be needed.
-# Generalized Poisson pdfs
+
+#------------------------------------    Generalized Poisson        -----------------------------#
+# dGpois, pGpois, qGpois and rGpois are used when CountDist = "Generalize Poisson". I have now
+# implemented the "Generalized Poisson 2" and in the future the following may not be needed.
+
 
 #' Computes the probability mass function (PMF) of the Generalized Poisson distribution
 #' as defined in Famoye (1994), parameterized via the mean.
@@ -2179,136 +2024,87 @@ dGpois = function(y,a,m){
   return( k^y * (1+a*y)^(y-1) * exp(-k*(1+a*y)-lgamma(y+1)))
 }
 
-# Generalized Poisson cdf for one m---------#
-#' Generalized Poisson CDF (single mean)
-#'
-#' Computes the cumulative distribution function (CDF) of the Generalized Poisson distribution
-#' for a single value of \code{m}.
-#'
-#' @param x Integer or numeric vector. Values at which to evaluate the CDF.
-#' @param a Numeric. Dispersion parameter.
-#' @param m Numeric. Mean parameter.
-#'
-#' @return Numeric vector of cumulative probabilities.
-#'
-#' @seealso \code{\link{pGpois}}, \code{\link{dGpois}}
-#'
-#' @export
-pgpois1 = function(x,a,m){
-  M = max(x,0)
-  bb = dGpois(0:M,a,m)
-  cc = cumsum(bb)
-  g = rep(0,length(x))
-  g[x>=0] = cc[x+1]
-  return(g)
-}
-
-#--------- Generalized Poisson pdf for multiple m---------#
-#' Generalized Poisson CDF (vectorized)
+#' Generalized Poisson CDF (vectorized and scalar)
 #'
 #' Computes the cumulative distribution function (CDF) of the Generalized Poisson distribution
 #' for one or more values of the mean parameter \code{m}.
 #'
 #' @param x Integer or numeric vector. Values at which to evaluate the CDF.
 #' @param a Numeric. Dispersion parameter.
-#' @param m Numeric or vector. Mean parameter(s).
+#' @param m Numeric scalar or vector. Mean parameter(s).
 #'
 #' @return A numeric vector or matrix of cumulative probabilities.
 #'
-#' @seealso \code{\link{pgpois1}}, \code{\link{qGpois}}
+#' @seealso \code{\link{dGpois}}, \code{\link{qGpois}}
 #'
+#' @examples
+#' pGpois(3, 0.4, 2)
 #' @export
-pGpois = function(x,a,m){
+pGpois <- function(x, a, m) {
 
-  if (length(m)>1){
-    r = mapply(pgpois1, x=x, a, m = m)
-  }else{
-    r = pgpois1(x, a, m)
+  compute_cdf <- function(xi, ai, mi) {
+    M <- max(xi, 0)
+    probs <- dGpois(0:M, ai, mi)
+    cum_probs <- cumsum(probs)
+    out <- rep(0, length(xi))
+    out[xi >= 0] <- cum_probs[xi[xi >= 0] + 1]
+    return(out)
   }
-  return(r)
+
+  if (length(m) > 1 || length(a) > 1) {
+    mapply(compute_cdf, x = x, ai = a, mi = m, SIMPLIFY = TRUE)
+  } else {
+    compute_cdf(x, a, m)
+  }
 }
 
-#--------- Generalized Poisson icdf for 1 m---------#
-#' Generalized Poisson Quantile Function (single mean)
+#' Generalized Poisson Quantile Function (vectorized and scalar)
 #'
 #' Computes the quantile function (inverse CDF) of the Generalized Poisson distribution
-#' for a single value of the mean.
+#' for one or more values of the mean parameter \code{m}.
 #'
 #' @param p Numeric vector of probabilities (between 0 and 1).
 #' @param a Numeric. Dispersion parameter.
-#' @param m Numeric. Mean parameter.
-#'
-#' @return A numeric vector of quantiles.
-#'
-#' @seealso \code{\link{qGpois}}, \code{\link{pGpois}}
-#'
-#' @export
-qgpois1 <- function(p,a,m) {
-  check.list <- pGpois(0:100,a,m)
-  quantile.vec <- rep(-99,length(p))
-
-  for (i in 1:length(p)) {
-    x <- which(check.list>=p[i],arr.ind = T)[1]
-    quantile.vec[i] <- x-1
-  }
-  return(quantile.vec)
-}
-
-#--------- Generalized Poisson icdf for many m---------#
-#' Generalized Poisson Quantile Function (vectorized)
-#'
-#' Computes the quantile function (inverse CDF) of the Generalized Poisson distribution
-#' for one or more values of the mean parameter.
-#'
-#' @param p Numeric vector of probabilities (between 0 and 1).
-#' @param a Numeric. Dispersion parameter.
-#' @param m Numeric or vector. Mean parameter(s).
+#' @param m Numeric scalar or vector. Mean parameter(s).
 #'
 #' @return A numeric vector or matrix of quantiles.
 #'
-#' @seealso \code{\link{qgpois1}}, \code{\link{rGpois}}
-#'
-#' @export
-qGpois = function(p,a,m){
-
-  if (length(m)>1){
-    r = mapply(qgpois1, p=p, a, m = m)
-  }else{
-    r = qgpois1(p,a,m)
-  }
-  return(r)
-}
-
-#--------- Generate Gen Poisson datas---------#
-#' Random Generation from Generalized Poisson Distribution
-#'
-#' Generates random observations from the Generalized Poisson distribution via inverse transform sampling.
-#'
-#' @param n Integer. Number of observations to generate.
-#' @param a Numeric. Dispersion parameter.
-#' @param m Numeric or vector. Mean parameter(s).
-#'
-#' @return A numeric vector of random values drawn from the Generalized Poisson distribution.
-#'
-#' @seealso \code{\link{qGpois}}, \code{\link{dGpois}}
+#' @seealso \code{\link{pGpois}}
 #'
 #' @examples
-#' rGpois(10, a = 0.1, m = 3)
+#' qGpois(0.8,0.4,3)
 #'
 #' @export
-rGpois = function(n, a,m){
-  u = runif(n)
-  x = qGpois(u,a, m)
-  return(x)
+qGpois <- function(p, a, m) {
+
+  compute_quantile <- function(pi, ai, mi) {
+    cdf_vals <- pGpois(0:100, ai, mi)
+    quantiles <- rep(NA_real_, length(pi))
+
+    for (i in seq_along(pi)) {
+      ix <- which(cdf_vals >= pi[i])[1]
+      quantiles[i] <- if (!is.na(ix)) ix - 1 else NA_real_
+    }
+
+    return(quantiles)
+  }
+
+  if (length(m) > 1 || length(a) > 1) {
+    mapply(compute_quantile, pi = p, ai = a, mi = m, SIMPLIFY = TRUE)
+  } else {
+    compute_quantile(p, a, m)
+  }
 }
-#-------------------------------------------------------------------------------------#
+#-----------------------------------------------------------------------------------------------#
+
 
 #' Generate Random Model Parameters for Testing
 #'
 #' Randomly generates marginal distribution and ARMA parameters for simulation and
 #' testing purposes. Includes a mechanism to occasionally generate "bad" parameters
 #' (e.g., invalid or edge-case values) with controlled probability, useful for
-#' stress-testing estimation and validation routines.
+#' stress-testing estimation and validation routines. This function was uised in initial stages
+#' of testing and may need to be reworked for more sophisticated testing in the future
 #'
 #' @param CountDist Character string. The name of the count distribution. Supported
 #'   values include \code{"Poisson"}, \code{"Negative Binomial"}, \code{"Mixed Poisson"}, and \code{"ZIP"}.
@@ -2334,6 +2130,7 @@ rGpois = function(n, a,m){
 #' When \code{Regressor} is not \code{NULL}, the function returns parameters assuming a log-linear
 #' model with regression effects (e.g., intercept and slope coefficients).
 #'
+#' @keywords internal
 #' @export
 GenModelParam = function(CountDist,BadParamProb, AROrder, MAOrder, Regressor){
 
@@ -2482,6 +2279,7 @@ GenModelParam = function(CountDist,BadParamProb, AROrder, MAOrder, Regressor){
 #' true_parms <- list(MargParm = c(1, 0.5), ARParm = c(0.3), MAParm = NULL)
 #' GenInitVal(true_parms, perturbation = 0.1)
 #'
+#' @keywords internal
 #' @export
 GenInitVal = function(AllParms, perturbation){
 
@@ -2501,18 +2299,27 @@ GenInitVal = function(AllParms, perturbation){
   return(PerturbedValues)
 }
 
-#' Compute Residuals for Latent Gaussian Count Model
+
+#' Computes residuals from a fitted latent Gaussian count (LGC) model using the approach
+#' described in relation (41) of Jia et al. (2021).
 #'
-#' @param lgc A list object containing the outcome of a model fit.
-#
-#' @return A numeric vector of residuals.
+#' @param lgc A list object containing the outcome of a model fit, typically returned by
+#' the package's main wrapper function \code{\link{lgc}}.
+#'
+#' @return A numeric vector of residuals, computed via the inverse-normal transformation of the
+#' cumulative distribution function (CDF) of the observed counts.
+#'
+#' @details
+#' This function computes residuals as defined in relation (41) of Jia et al. (2021)
+#'
+#' @references
+#' Jia, Y., Kechagias, S., Livsey, J., Lund, R., & Pipiras, V. (2021).
+#' Latent Gaussian Count Time Series.
+#' \emph{Journal of the American Statistical Association}, 118(541), 596–606.
+#' \doi{10.1080/01621459.2021.1944874}
 #'
 #' @export
 ComputeResiduals= function(lgc){
-  #--------------------------------------------------------------------------#
-  # PURPOSE:  Compute the residuals in relation (41)
-  #
-  #--------------------------------------------------------------------------#
 
   # retrieve marginal distribution parameters
   theta      = lgc$ParamEstimates
@@ -2582,10 +2389,8 @@ ComputeResiduals= function(lgc){
 }
 
 
-#' Retrieve Name of Current Marginal Distribution with Parameters
-#'
-#' Constructs a human-readable string that describes the marginal count distribution
-#' used in the model, including its name and parameter values formatted to two decimals.
+#' Constructs a  string that describes the marginal count distribution.
+#' This function is used to help with printing warnings.
 #'
 #' @param theta Numeric vector. The full parameter vector, from which the marginal
 #'   parameters will be extracted using model structure from \code{mod}.
@@ -2608,6 +2413,7 @@ ComputeResiduals= function(lgc){
 #' CurrentDist(theta, mod)
 #' # Returns: "Poisson(lambda=2.35)"
 #'
+#' @keywords internal
 #' @export
 CurrentDist = function(theta,mod){
   # check me: does it work for models with regressors?
@@ -2624,8 +2430,7 @@ CurrentDist = function(theta,mod){
   return(name)
 }
 
-#' Compute Predictive Distribution via Particle Filtering
-#'
+
 #' Modifies the standard particle filtering procedure to return the **predictive distribution**
 #' at each time point of a latent Gaussian count time series model, instead of just the log-likelihood.
 #'
@@ -2914,6 +2719,19 @@ parse_formula <- function(formula) {
   ))
 }
 
+#' Dimension function for vector/matrix inputs
+#' Treats vectors as length x 1 column vectors
+#'
+#' @param x vector (column matrix) or matrix
+#'
+#' @return the vector's dimension
+#' @export
+DIM <- function(x){
+  if (is.null(dim(x)))
+    c(length(x), 1)
+  else
+    dim(x)
+}
 
 #===========================================================================================#
 #--------------------------------------------------------------------------------#
@@ -3362,6 +3180,122 @@ ParticleFilter_Res_ARMAOld = function(theta, mod){
 
   return(nloglik)
 }
+
+# simulate from our model - the old function
+sim_lgc_old = function(n, CountDist, MargParm, ARParm, MAParm, Regressor=NULL, Intercept=NULL){
+
+  # Generate latent Gaussian model
+  z  =arima.sim(model = list( ar = ARParm, ma=MAParm  ), n = n)
+  z = z/sd(z) # standardize the data
+
+  # add a column of ones in the Regressors if Intercept is present
+  if (!is.null(Intercept) && Intercept==TRUE && sum(as.matrix(Regressor)[,1])!=n){
+    Regressor = as.data.frame(cbind(rep(1,n),Regressor))
+    names(Regressor)[1] = "Intercept"
+  }
+
+
+  # number of regressors
+  nreg = ifelse(is.null(Regressor), 0, dim(Regressor)[2]-as.numeric(Intercept))
+
+  if(nreg==0){
+    # retrieve marginal inverse cdf
+    myinvcdf = switch(CountDist,
+                      "Poisson"               = qpois,
+                      "Negative Binomial"     = function(x, theta){ qnbinom (x, theta[1], 1-theta[2]) },
+                      "Generalized Poisson"   = function(x, theta){ qGpois  (x, theta[1], theta[2])},
+                      "Generalized Poisson 2" = function(x, theta){ qGpois  (x, theta[2], theta[1])},
+                      "Binomial"              = qbinom,
+                      "Mixed Poisson"         = function(x, theta){qmixpois1(x, theta[1], theta[2], theta[3])},
+                      "ZIP"                   = function(x, theta){ qzipois(x, theta[1], theta[2]) },
+                      stop("The specified distribution is not supported.")
+    )
+
+    # get the final counts
+    x = myinvcdf(pnorm(z), MargParm)
+
+  }else{
+    # retrieve inverse count cdf
+    myinvcdf = switch(CountDist,
+                      "Poisson"               = function(x, ConstMargParm, DynamMargParm){ qpois   (x, DynamMargParm)},
+                      "Negative Binomial"     = function(x, ConstMargParm, DynamMargParm){ qnbinom (x, ConstMargParm, 1-DynamMargParm)},
+                      "Generalized Poisson"   = function(x, ConstMargParm, DynamMargParm){ qGpois  (x, ConstMargParm, DynamMargParm)},
+                      "Generalized Poisson 2" = function(x, ConstMargParm, DynamMargParm){ qgenpois2  (x, DynamMargParm, ConstMargParm)},
+                      "Binomial"              = function(x, ConstMargParm, DynamMargParm){ qbinom  (x, ConstMargParm, DynamMargParm)},
+                      "Mixed Poisson"         = function(x, ConstMargParm, DynamMargParm){qmixpois1(x, DynamMargParm[,1], DynamMargParm[,2],  ConstMargParm)},
+                      "ZIP"                   = function(x, ConstMargParm, DynamMargParm){ qzipois (x, DynamMargParm[,1], DynamMargParm[,2]) },
+                      stop("The specified distribution is not supported.")
+    )
+
+    # regression parameters
+    beta  = MargParm[1:(nreg+1)]
+    m     = exp(as.matrix(Regressor)%*%beta)
+
+    if(CountDist == "Poisson" && nreg>0){
+      ConstMargParm  = NULL
+      DynamMargParm  = m
+    }
+
+    if(CountDist == "Negative Binomial" && nreg>0){
+      ConstMargParm  = 1/MargParm[nreg+2]
+      DynamMargParm  = MargParm[nreg+2]*m/(1+MargParm[nreg+2]*m)
+    }
+
+    if(CountDist == "Generalized Poisson" && nreg>0){
+      ConstMargParm  = MargParm[nreg+2]
+      DynamMargParm  = m
+    }
+
+
+    if(CountDist == "Generalized Poisson 2" && nreg>0){
+      ConstMargParm  = MargParm[nreg+2]
+      DynamMargParm  = m
+    }
+
+    if(CountDist == "Binomial" && nreg>0){
+      # ConstMargParm  = MargParm[nreg+2]
+      DynamMargParm  = m/(1+m)
+    }
+
+    if(CountDist == "Mixed Poisson" && nreg>0){
+      ConstMargParm  = c(MargParm[nreg*2+3], 1 - MargParm[nreg*2+3])
+      DynamMargParm  = cbind(exp(as.matrix(Regressor)%*%MargParm[1:(nreg+1)]),
+                             exp(as.matrix(Regressor)%*%MargParm[(nreg+2):(nreg*2+2)]))
+    }
+
+    if(CountDist == "ZIP" && nreg>0){
+      ConstMargParm  = NULL
+      DynamMargParm  = cbind(exp(as.matrix(Regressor)%*%MargParm[1:(nreg+1)]),
+                             1/(1+exp(-as.matrix(Regressor)%*%MargParm[(nreg+2):(nreg*2+2)])))
+    }
+
+    # get the final counts
+    x = myinvcdf(pnorm(z), ConstMargParm, DynamMargParm)
+  }
+  return(as.numeric(x))
+}
+
+
+#' Computes the quantiles (inverse CDF) of the two-component mixed Poisson distribution
+#' using a brute-force loop-based method.
+# qmixpoisOld = function(y, lam1, lam2, p){
+#   yl = length(y)  # Length of the input vector y
+#   x  = rep(0, yl) # Initialize a vector of zeros to store results
+#
+#   for (n in 1:yl) {
+#     lambda1 = ifelse(length(lam1) > 1, lam1[n], lam1)  # Use indexed lambda1 or constant
+#     lambda2 = ifelse(length(lam2) > 1, lam2[n], lam2)  # Use indexed lambda2 or constant
+#
+#     # Increment x[n] until the CDF is greater than y[n]
+#     while (pmixpois1(x[n], lambda1, lambda2, p) <= y[n]) {
+#       x[n] = x[n] + 1
+#     }
+#   }
+#
+#   return(x)
+# }
+
+
 
 #############################################################################################
 #-------------------------------------------------------------------------------------------#
@@ -4038,19 +3972,3 @@ ParticleFilter_Res_ARMAOld = function(theta, mod){
 #
 #   return(nloglik)
 # }
-
-
-#' Dimension function for vector/matrix inputs
-#' Treats vectors as length x 1 column vectors
-#'
-#' @param x vector (column matrix) or matrix
-#'
-#' @return the vector's dimension
-#' @export
-#'
-DIM <- function(x){
-  if (is.null(dim(x)))
-    c(length(x), 1)
-else
-  dim(x)
-}
