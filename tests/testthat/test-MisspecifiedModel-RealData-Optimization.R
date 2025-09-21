@@ -3,11 +3,11 @@ test_that("The likelihood function ParticleFilter_Res_ARMA works for a 'misspeci
           model on the Dominick data.", {
 
 # load libraries
-library(optimx)
-library(ltsa)
-require(countsFun)
-library(itsmr)
-library(tictoc)
+#library(optimx)
+#library(ltsa)
+#require(countsFun)
+#library(itsmr)
+#library(tictoc)
 
 # load the data
 #mysales = read.csv("https://raw.githubusercontent.com/jlivsey/countsFun/master/data/MySelectedSeries.csv")
@@ -42,7 +42,7 @@ theta = mod$initialParam
 
 set.seed(1)
 expect_equal(ParticleFilter_Res_ARMA(theta,mod), 100000000, tolerance = 10^(-5))
-#expect_equal(ParticleFilter_Res_ARMA_MisSpec(theta,mod), 1680.537826, tolerance = 10^(-5))
+# expect_equal(ParticleFilter_Res_ARMA_MisSpec(theta,mod), 1680.537826, tolerance = 10^(-5))
 
 
 })

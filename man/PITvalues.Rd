@@ -27,7 +27,7 @@ This function processes predictive distributions and outputs the PIT histogram b
 for calibration assessment.
 }
 \details{
-The PIT is used to assess the \strong{calibration} of probabilistic forecasts. For discrete data,
+The PIT is used to assess the calibration of probabilistic forecasts. For discrete data,
 the PIT is computed using randomized methods or as a piecewise function, as detailed in
 the latent Gaussian count models literature.
 
@@ -42,9 +42,10 @@ hist(PITvalues(10, predDist), breaks = 10, main = "PIT Histogram")
 
 }
 \references{
-Kechagias, S., Livsey, J., & Pipiras, V. (2020).
-\emph{Latent Gaussian Count Time Series Modeling}, Journal of the American Statistical Association.
-\url{https://arxiv.org/abs/1811.00203}
+Jia, Y., Kechagias, S., Livsey, J., Lund, R., & Pipiras, V. (2021).
+Latent Gaussian Count Time Series.
+\emph{Journal of the American Statistical Association}, 118(541), 596–606.
+\doi{10.1080/01621459.2021.1944874}
 }
 \seealso{
 \code{\link{PDvalues}}, \code{\link{ComputeResiduals}}

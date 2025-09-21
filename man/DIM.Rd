@@ -17,3 +17,4 @@ the vector's dimension
 Dimension function for vector/matrix inputs
 Treats vectors as length x 1 column vectors
 }
+\keyword{internal}

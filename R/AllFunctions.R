@@ -1200,8 +1200,9 @@ InitialEstimates = function(mod){
     Params = RetrieveParameters(est,mod)
 
     # see comment above regarding Cxt=1 and Cxt = 0
+    # while working on #27 and testing misspecified models I came across the same issue for Poisson.
     Cxt = mod$mycdf(mod$DependentVar,Params$ConstMargParm, Params$DynamMargParm)
-    if (mod$CountDist=="Binomial" || mod$CountDist=="Mixed Poisson" ){
+    if (mod$CountDist=="Binomial" || mod$CountDist=="Mixed Poisson" || mod$CountDist=="Poisson"){
       Cxt[Cxt==1] = 1-10^(-16)
       Cxt[Cxt==0] = 0+10^(-16)
     }
@@ -2761,32 +2762,6 @@ DIM <- function(x){
 
 # PF likelihood with resampling for ARMA(p,q) - with adhoc truncations
 ParticleFilter_Res_ARMA_MisSpec = function(theta, mod){
-  #------------------------------------------------------------------------------------#
-  # PURPOSE:  Use particle filtering with resampling to approximate the likelihood
-  #           of the a specified count time series model with an underlying MA(1)
-  #           dependence structure.
-  #
-  # NOTES:    1. See "Latent Gaussian Count Time Series Modeling" for  more
-  #           details. A first version of the paper can be found at:
-  #           https://arxiv.org/abs/1811.00203
-  #           2. This function is very similar to LikSISGenDist_ARp but here
-  #           I have a resampling step.
-  #
-  # INPUTS:
-  #    theta:            parameter vector
-  #    data:             data
-  #    ParticleNumber:   number of particles to be used.
-  #    Regressor:        independent variable
-  #    CountDist:        count marginal distribution
-  #    epsilon           resampling when ESS<epsilon*N
-  #
-  # OUTPUT:
-  #    loglik:           approximate log-likelihood
-  #
-  #
-  # AUTHORS: James Livsey, Vladas Pipiras, Stefanos Kechagias,
-  # DATE:    July 2020
-  #------------------------------------------------------------------------------------#
 
   old_state <- get_rand_state()
   on.exit(set_rand_state(old_state))
@@ -2798,8 +2773,11 @@ ParticleFilter_Res_ARMA_MisSpec = function(theta, mod){
   if( CheckStability(Parms$AR,Parms$MA) ) return(10^(8))
 
   # Initialize the negative log likelihood computation
-  nloglik = ifelse(mod$nreg==0,  - log(mod$mypdf(mod$DependentVar[1],Parms$MargParms)),
-                   - log(mod$mypdf(mod$DependentVar[1], Parms$ConstMargParm, Parms$DynamMargParm[1])))
+  if(mod$nreg==0){
+    nloglik = - log(max(mod$mypdf(mod$DependentVar[1],Parms$MargParms),.Machine$double.eps))
+  }else{
+    nloglik = - log(max(mod$mypdf(mod$DependentVar[1], Parms$ConstMargParm, Parms$DynamMargParm[1]),.Machine$double.eps))
+  }
 
   # retrieve AR, MA orders and their max
   m = max(mod$ARMAModel)
@@ -2839,13 +2817,44 @@ ParticleFilter_Res_ARMA_MisSpec = function(theta, mod){
   # initialize particle filter weights
   w[1,]    = rep(1,mod$ParticleNumber)
 
+  # initialize a list to keep track of manual corrections
+  Corrections = list(
+            weights = NULL,
+           weights2 = NULL,
+             C_xt_1 = NULL,
+               C_xt = NULL,
+                a_t = NULL,
+                b_t = NULL,
+    SampleParticles = NULL
+  )
+
   # Compute the first integral limits Limit$a and Limit$b
-  Limit    = ComputeLimits_MisSpec(mod, Parms, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
+  Limit = ComputeLimits_MisSpec(mod, Parms, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
+
+  # if correction for C_xt_1 was necessary for time point t=1, then save it
+  if (Limit$Correction_C_xt_1){
+    Corrections$C_xt_1 = 1
+  }
+
+  # if correction for C_xt was necessary for time point t=1, then save it
+  if (Limit$Correction_C_xt){
+    Corrections$C_xt = 1
+  }
 
   # Initialize the particles using N(0,1) variables truncated to the limits computed above
   #Z[1,]    = SampleTruncNormParticles(mod, Limit$a, Limit$b, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
-  Z[1,]    = SampleTruncNormParticles_MisSpec(mod, Limit, Parms, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
+  SampleParticles = SampleTruncNormParticles_MisSpec(mod, Limit, Parms, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
+  Z[1,]    = SampleParticles$z
 
+  # if correction for lower limit was necessary for time point t=1, then save it
+  if (SampleParticles$Correction_a){
+    Corrections$a_t = 1
+  }
+
+  # if correction for upper limit was necessary for time point t=1, then save it
+  if (SampleParticles$Correction_b){
+    Corrections$b_t = 1
+  }
 
   for (t in 2:mod$n){
 
@@ -2853,31 +2862,51 @@ ParticleFilter_Res_ARMA_MisSpec = function(theta, mod){
     #Zhat[t,] = ComputeZhat_t(m,Theta,Z,Zhat,t, Parms,p,q, nTheta, Theta_n)
     Zhat[t,] = ComputeZhat_t(mod, IA, Z, Zhat,t, Parms)
 
+
     # Compute integral limits
     Limit = ComputeLimits_MisSpec(mod, Parms, t, Zhat[t,], Rt)
 
+    # if correction for C_xt_1 was necessary for time point t=1, then save it
+    if (Limit$Correction_C_xt_1){
+      Corrections$C_xt_1 = c(Corrections$C_xt_1,t)
+    }
+
+    # if correction for C_xt was necessary for time point t=1, then save it
+    if (Limit$Correction_C_xt){
+      Corrections$C_xt = c(Corrections$C_xt,t)
+    }
+
     # Sample truncated normal particles
     #Znew  = SampleTruncNormParticles(mod, Limit$a, Limit$b, t, Zhat[t,], Rt)
-    Znew  = SampleTruncNormParticles_MisSpec(mod, Limit, Parms, t, Zhat[t,], Rt)
+    SampleParticles = SampleTruncNormParticles_MisSpec(mod, Limit, Parms, t, Zhat[t,], Rt)
+    Znew  = SampleParticles$z
+
+    # if correction for lower limit was necessary for time point t, then save it
+    if (SampleParticles$Correction_a){
+      Corrections$a_t = c(Corrections$a_t,t)
+    }
+
+    # if correction for upper limit was necessary for time point t, then save it
+    if (SampleParticles$Correction_b){
+      Corrections$b_t = c(Corrections$b_t,t)
+    }
 
     # update weights
     #w[t,] = ComputeWeights(mod, Limit$a, Limit$b, t, w[(t-1),])
     w[t,] = ComputeWeights(mod, Limit, t, w[(t-1),])
-    #print(t)
-    #print(w[t,])
+
     # check me: In misspecified models, the weights may get equal to 0. Is it ok
     # for me to do the following? how is this different from allowing zero weights and
     # returning a large likelihood?
     if (sum(w[t,])==0){
       w[t,] = rep(10^(-64),mod$ParticleNumber)
-      message(sprintf("At t = %.0f all weights are equal to 0. They are resetted to equal 1e-64.",t))
+      Corrections$weights = c(Corrections$weights,t)
     }
 
     # check me: break if I got NA weight
     if (any(is.na(w[t,]))| sum(w[t,])==0 ){
-      #print(t)
-      #print(w[t,])
-      message(sprintf('WARNING: At t=%.0f some of the weights are either too small or sum to 0',t))
+      Corrections$weights2 = c(Corrections$weights2,t)
+      message(sprintf('WARNING: At t=%.0f some of the weights are either too small or sum to 0.\n',t))
       return(10^8)
     }
 
@@ -2894,6 +2923,9 @@ ParticleFilter_Res_ARMA_MisSpec = function(theta, mod){
 
   }
 
+  # report messages
+  ReportDiagnostics(Corrections, Parms, mod)
+
   # for log-likelihood we use a bias correction--see par2.3 in Durbin Koopman, 1997
   # nloglik = nloglik- (1/(2*N))*(var(na.omit(wgh[T1,]))/mean(na.omit(wgh[T1,])))/mean(na.omit(wgh[T1,]))
 
@@ -2901,8 +2933,119 @@ ParticleFilter_Res_ARMA_MisSpec = function(theta, mod){
   #   nloglik = 10^8
   # }
 
-
   return(nloglik)
+}
+
+# gather the messages that should be reported in a likelihood computation
+ReportDiagnostics = function(Corrections, Parms, mod){
+
+  # if there were corrections performed for C_xt_1, print an appropriate message
+  if(!is.null(Corrections$weights)){
+    message(
+      sprintf(
+        paste0(
+          "At t = %s,\n",
+          "weights sum to 0. They are all resetted to 10^(-64).\n\n"
+        ),
+        paste(  Corrections$weights, collapse = ", ")
+      )
+    )
+  }
+
+  # if there were corrections performed for C_xt_1, print an appropriate message
+  if(!is.null(Corrections$C_xt_1)){
+    message(
+      sprintf(
+        paste0(
+          "The Count CDF takes the value 1 for some time series values. When plugged in the inverse Normal\n",
+          "CDF this produces an Inf value. To avoid this, the Count CDF is set to 1-10^(-16).\n\n",
+
+          "This behavior can be caused from a misspecified marginal distribution,\n",
+          "missing covariates, or the optimizer exploring unreasonable parameter values.\n\n",
+
+          "A %s model was fitted.\n",
+          "Corrrections occured at time point(s) t = %s,\n",
+          "where the dependent variable takes value(s): %s."
+        ),
+        CurrentDist(Parms$MargParms, mod),
+        paste(Corrections$C_xt_1, collapse = ", "),
+        paste(mod$DependentVar[Corrections$C_xt_1], collapse = ", ")
+      )
+    )
+  }
+
+  # if there were corrections performed for C_xt, print an appropriate message
+  if(is.null(Corrections$C_xt_1) & !is.null(Corrections$C_xt)){
+    message(
+      sprintf(
+        paste0(
+          "The Count CDF takes the value 1 for some time series values. When plugged in the inverse Normal\n",
+          "CDF this produces an Inf value. To avoid this, the Count CDF is set to 1-10^(-16).\n\n",
+
+          "This behavior can be caused from a misspecified marginal distribution,\n",
+          "missing covariates, or the optimizer exploring unreasonable parameter values.\n\n",
+
+          "A %s model was fitted.\n",
+          "Corrrections occured at time point(s) t = %s,\n",
+          "where the dependent variable takes value(s): %s."
+        ),
+        CurrentDist(Parms$MargParms, mod),
+        paste(Corrections$C_xt, collapse = ", "),
+        paste(mod$DependentVar[Corrections$C_xt], collapse = ", ")
+      )
+    )
+  }
+
+  # if there were corrections performed for lower limit, print an appropriate message
+  if(is.null(Corrections$C_xt_1) & is.null(Corrections$C_xt) & !is.null(Corrections$a_t)){
+    message(
+      sprintf(
+        paste0(
+          "The lower limit of the truncated Normal distribution used to generate particles exceeded\n",
+          "the value 7, which could to an Inf value from the inverse CDF\n",
+          "(e.g., qpois(pnorm(20),1)). To avoid this, the limit was set to 7 - 1e-11.\n\n",
+
+          "Large limit values may result from a misspecified marginal distribution,\n",
+          "missing covariates, or the optimizer exploring unreasonable parameter values.\n\n",
+
+          "A %s model was fitted.\n",
+          "Corrrections occured at time point(s) t = %s,\n",
+          "the dependent variable takes value(s): %s."
+        ),
+        CurrentDist(Parms$MargParms, mod),
+        paste(Corrections$a_t, collapse = ", "),
+        paste(mod$DependentVar[Corrections$a_t], collapse = ", ")
+      )
+    )
+  }
+
+  # if there were corrections performed for upper limit, but no corrections for the lower limit print an
+  # appropriate message.
+  if(is.null(Corrections$C_xt_1) & is.null(Corrections$C_xt) & is.null(Corrections$a_t) & !is.null(Corrections$b_t)){
+    message(
+      sprintf(
+        paste0(
+          "The upper limit of the truncated Normal distribution used to generate particles exceeded\n",
+          "the value 7, which could to an Inf value from the inverse CDF.\n",
+          "(e.g., qpois(pnorm(20),1)). To avoid this, the limit was set to 7 - 1e-11.\n\n",
+
+          "Large limit values may result from a misspecified marginal distribution,\n",
+          "missing covariates, or the optimizer exploring unreasonable parameter values.\n\n",
+
+          "A %s model was fitted.\n",
+          "Corrrections occured at time point(s) t = %s,\n",
+          "the dependent variable takes value(s): %s."
+        ),
+        CurrentDist(Parms$MargParms, mod),
+        paste(Corrections$b_t, collapse = ", "),
+        paste(mod$DependentVar[Corrections$b_t], collapse = ", ")
+      )
+    )
+  }
+
+
+
+
 }
 
 ComputeLimits_MisSpec = function(mod, Parms, t, Zhat, Rt){
@@ -2915,45 +3058,55 @@ ComputeLimits_MisSpec = function(mod, Parms, t, Zhat, Rt){
   # add the following for White Noise models
   if(max(mod$ARMAModel)==0) index=1
 
-  if(mod$nreg==0){
+  # check me: this may need to be surfaced in the wrapper. It is small positive constant I will
+  # use to get away from zero or one. I need to think this more rigorously.
+  epsilon = 10^(-16)
 
+    # Initialize flags that track whether the limits are set to 7 - 10^(-11)
+  Lim$Correction_C_xt_1 = FALSE
+  Lim$Correction_C_xt = FALSE
+
+  # Compute C_xt and C_xt_1 in relation (19), Jia et al. (2021).
+  if(mod$nreg==0){
     C_1 = mod$mycdf(mod$DependentVar[t]-1,t(Parms$MargParms))
     C   = mod$mycdf(mod$DependentVar[t],t(Parms$MargParms))
-
-    # fix me: need to implement for regressors as well
-    if(C_1==1) {
-      C_1 = 1-10^(-16)
-
-      # retrieve the name of the current distribution
-      CurrentDist = CurrentDist(Parms$MargParms, mod)
-
-      # warn the user of the situation
-      message(sprintf("To avoid an Inf inverse cdf value, 1e-16 was
-subtracted from C_xt_1 in relation (19). C_xt_1 = 1 can be caused by
-a misspecified marginal distribution, lack of relevant covariates, or
-an optimizer seaching the parameter space away from the truth. Here a
-%s model is fitted, but at t=%.0f the dependent variable is
-equal to %.0f.\n",CurrentDist, t,mod$DependentVar[t]))
-    }
-    if(C==1 ) {
-      # retrieve the name of the current distribution
-      CurrentDist = CurrentDist(Parms$MargParms, mod)
-
-      C = 1-10^(-16)
-      message(sprintf("To avoid an Inf inverse cdf value, 1e-16 was
-subtracted from C_xt in relation (19). C_xt_1 = 1 can be caused by
-a misspecified marginal distribution, lack of relevant covariates,
-or an optimizer seaching the parameter space away from the truth. Here
-a %s model is fitted, but at t=%.0f the dependent variable is
-equal to %.0f.\n",CurrentDist,t,mod$DependentVar[t]))
-    }
-
-    Lim$a = as.numeric((qnorm(C_1,0,1)) - Zhat)/Rt[index]
-    Lim$b = as.numeric((qnorm(C  ,0,1)) - Zhat)/Rt[index]
   }else{
-    Lim$a = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t]-1,Parms$ConstMargParm, Parms$DynamMargParm[t,]),0,1)) - Zhat)/Rt[index]
-    Lim$b = as.numeric((qnorm(mod$mycdf(mod$DependentVar[t],Parms$ConstMargParm, Parms$DynamMargParm[t,]),0,1)) - Zhat)/Rt[index]
+    C_1 = mod$mycdf(mod$DependentVar[t]-1,Parms$ConstMargParm, Parms$DynamMargParm[t,])
+    C   = mod$mycdf(mod$DependentVar[t],Parms$ConstMargParm, Parms$DynamMargParm[t,])
   }
+
+  # if only C_1 is zero and C>0 we add an epsilon to C_1, but make sure that C_1 < C.
+  if(C_1==0 & C>0) {
+    C_1 = 0 + min(epsilon, 0.9*C)
+    Lim$Correction_C_xt_1 = TRUE
+  }
+
+  # if C==0 then C_1 should also be equal to zero. Then both need to be corrected but I still need C_1 < C.
+  if(C==0 ) {
+    C_1 = 0 + epsilon/2
+    C   = 0 + epsilon
+    Lim$Correction_C_xt_1 = TRUE
+    Lim$Correction_C_xt = TRUE
+  }
+
+  # If C=1 and C_1 is smaller than 1 then subtract an epsilon from C, but we still need C_1 < C.
+  if(C==1 & C_1<1) {
+    diff = C-C_1
+    C = 1 - min(epsilon,diff/2)
+    Lim$Correction_C_xt = TRUE
+  }
+
+  # If C_1 = 1 then C should also be equal to 1. Then both need to be corrected but I still need C_1 < C.
+  if(C_1==1) {
+    C_1 = 1 - epsilon
+    C = 1 - epsilon/2
+    Lim$Correction_C_xt_1 = TRUE
+    Lim$Correction_C_xt = TRUE
+  }
+
+  # compute the limits
+  Lim$a = as.numeric((qnorm(C_1,0,1)) - Zhat)/Rt[index]
+  Lim$b = as.numeric((qnorm(C  ,0,1)) - Zhat)/Rt[index]
 
   return(Lim)
 }
@@ -2964,59 +3117,61 @@ SampleTruncNormParticles_MisSpec = function(mod, Limit, Parms, t, Zhat, Rt){
   index = min(t, max(mod$ARMAModel))
   if(max(mod$ARMAModel)==0){index=1}
 
+  # Initialize flags that track whether the limits are set to 7 - 10^(-11)
+  Correction_a = FALSE
+  Correction_b = FALSE
 
+  # check me: this may need to be surfaced in the wrapper. It is small positive constant I will
+  # use to get away from zero or one. I need to think this more rigorously.
+  epsilon = 10^(-11)
+
+  #-----------------------------------------------------------------#
+  # If the upper limit is less than a threshold (here minus 7) then so will the lower limit
+  if (min(Limit$b)<=-7 ) {
+    Limit$b[Limit$b<=-7] = -7 + epsilon
+    Limit$a[Limit$a<=-7] = -7 + epsilon/2
+    Correction_a  = TRUE
+    Correction_b  = TRUE
+  }
+
+  # If only the lower limit is less than the threshold
+  if (min(Limit$b)>-7 &  min(Limit$a)<=-7 ) {
+    diff = min(Limit$b - Limit$a)
+    Limit$a[Limit$a<=-7] = -7 + min(epsilon,diff/2)
+    Correction_a  = TRUE
+  }
+  #-----------------------------------------------------------------#
+
+
+  #-----------------------------------------------------------------#
   # Check me: in the case of missspecifed models, I may get really large values for the limits
   # wchich means that the pnorm will equal 1 and then the qnorm will yield Inf. Is this ok?
-  if (min(Limit$a)>=7 ) {
-    # retrieve the name of the current distribution
-    CurrentDist = CurrentDist(Parms$MargParms, mod)
-    Limit$a[Limit$a>=7] = 7 - 10^(-11)
-    message(sprintf("To avoid an Inf inverse cdf value, 1e-11 was subtracted from
-the lower limit of the truncated Normal distribution used to generate new particles.
-Large limits can be caused by a misspecified marginal distribution, lack of relevant
-covariates, or an optimizer seaching the parameter space away from the truth among
-other things. Here a %s model is fitted, but at t=%.0f the dependent
-variable is equal to %.0f.\n", CurrentDist, t,mod$DependentVar[t]))
+  # If the lower limit is over the threshold, then so will the upper limit
+  if (max(Limit$a)>=7 ) {
+    Limit$a[Limit$a>=7] = 7 - epsilon
+    Limit$b[Limit$b>=7] = 7 - epsilon/2
+    Correction_a  = TRUE
+    Correction_b  = TRUE
   }
 
-  #   if (max(Limit$a)<=-7 ) {
-  #     # retrieve the name of the current distribution
-  #     CurrentDist = CurrentDist(Parms$MargParms, mod)
-  #     Limit$a[Limit$a<=-7] = -7 + 10^(-11)
-  #     message(sprintf("To avoid an Inf inverse cdf value, 1e-11 was added to
-  # the lower limit of the truncated Normal distribution used to generate new particles.
-  # Large limits can be caused by a misspecified marginal distribution, lack of relevant
-  # covariates, or an optimizer seaching the parameter space away from the truth among
-  # other things. Here a %s model is fitted, but at t=%.0f the dependent
-  # variable is equal to %.0f.\n", CurrentDist,t,mod$DependentVar[t]))
-  #     }
-
-  if (min(Limit$b)>=7 ) {
-    # retrieve the name of the current distribution
-    CurrentDist = CurrentDist(Parms$MargParms, mod)
-    Limit$b[Limit$b>=7] = 7 - 10^(-11)
-    message(sprintf("To avoid an Inf inverse cdf value, 1e-11 was subtracted from
-the upper limit of the truncated Normal distribution used to generate new particles.
-Large limits can be caused by a misspecified marginal distribution, lack of relevant
-covariates, or an optimizer seaching the parameter space away from the truth among
-other things. Here a %s model is fitted, but at t=%.0f the dependent
-variable is equal to %.0f.\n", CurrentDist, t,mod$DependentVar[t]))
+  # If only the upper limit is over the threshold
+  if (max(Limit$a)<7 & max(Limit$b)>=7 ) {
+    diff = min(Limit$b - Limit$a)
+    Limit$b[Limit$b>=7] = 7 - min(epsilon,diff/2)
+    Correction_b  = TRUE
   }
+  #-----------------------------------------------------------------#
 
-  #   if (max(Limit$b)<=-7 ) {
-  #     # retrieve the name of the current distribution
-  #     CurrentDist = CurrentDist(Parms$MargParms, mod)
-  #     Limit$b[Limit$b<=-7] = -7 + 10^(-11)
-  #     message(sprintf("To avoid an Inf inverse cdf value, 1e-11 was added to
-  # the upper limit of the truncated Normal distribution used to generate new particles.
-  # Large limits can be caused by a misspecified marginal distribution, lack of relevant
-  # covariates, or an optimizer seaching the parameter space away from the truth among
-  # other things. Here a %s model is fitted, but at t=%.0f the dependent
-  # variable is equal to %.0f.", CurrentDist,t,mod$DependentVar[t]))
-  #   }
   z = qnorm(runif(length(Limit$a),0,1)*(pnorm(Limit$b,0,1)-pnorm(Limit$a,0,1))+pnorm(Limit$a,0,1),0,1)*Rt[index] + Zhat
 
-  return(z)
+  # create output
+  return = list(
+    z = z,
+    Correction_a = Correction_a,
+    Correction_b = Correction_b
+  )
+
+  return(return)
 }
 
 # keeping an older version of this function in case issues show up - I update it in Sep 19.
