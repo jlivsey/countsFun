@@ -22,6 +22,7 @@ ModelScheme(
   ParamScheme = 1,
   maxdiff = 10^(-8),
   ntrials = NULL,
+  verbose = TRUE,
   ...
 )
 }
@@ -59,6 +60,9 @@ ModelScheme(
 \item{maxdiff}{Numeric. Convergence criterion for optimization.}
 
 \item{ntrials}{Integer. Number of trials (used in Binomial model).}
+
+\item{verbose}{Logical. If \code{TRUE} (default), informative messages are printed during execution.
+Set to \code{FALSE} to suppress messages.}
 
 \item{...}{Additional arguments (currently unused).}
 }

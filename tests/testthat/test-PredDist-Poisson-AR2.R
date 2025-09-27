@@ -8,16 +8,14 @@
 
 test_that("Compute the Pred distribution for the Dominick Data", {
 
-library(itsmr)
-library(countsFun)
 
 set.seed(1)
 # load the data
-data(MySelectedSeries)
+data(drinksales)
 
 # attach the datafrmae
 n = 104
-Smallsales  = mysales[1:n,]
+Smallsales  = drinksales[1:n,]
 MOVE = Smallsales$MOVE
 Buy = Smallsales$Buy
 

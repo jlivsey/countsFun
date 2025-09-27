@@ -123,7 +123,7 @@ test_that("New and old particle filter implementations give slightly un-equal re
 
   # Run particle filters
   set.seed(1)
-  a1 <- ParticleFilter_Res_ARMA(theta1, mod)
+  a1 <- ParticleFilter_Res_ARMA_MisSpec(theta1, mod)
   a2 <- ParticleFilter_Res_ARMAOld(theta1, mod)
 
   # Compare results -

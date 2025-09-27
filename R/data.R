@@ -3,8 +3,8 @@
 #' A synthetic example dataset for demonstration or testing purposes.
 #'
 #' @format A data frame with N rows and M columns (adjust as needed).
-#' @source Simulated or collected internally.
-"mysales"
+#' @source Dominick supermarket chain
+"drinksales"
 
 #' Simulated Poisson AR(1) Time Series
 #'

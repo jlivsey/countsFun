@@ -29,7 +29,8 @@ Imports:
     foreach,
     doParallel,
     VGAM,
-    MASS
+    MASS,
+    truncnorm
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
 Depends: 

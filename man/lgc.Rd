@@ -23,6 +23,7 @@ lgc(
   ParamScheme = NULL,
   maxdiff = 10^(-8),
   ntrials = NULL,
+  verbose = TRUE,
   ...
 )
 }
@@ -62,6 +63,9 @@ lgc(
 \item{maxdiff}{Numeric. Convergence threshold for the Innovations algorithm.}
 
 \item{ntrials}{Integer. Required if \code{CountDist == "Binomial"} to specify number of trials.}
+
+\item{verbose}{Logical. If \code{TRUE} (default), informative messages are printed during execution.
+Set to \code{FALSE} to suppress messages.}
 
 \item{...}{Additional arguments (currently unused).}
 }

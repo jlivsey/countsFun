@@ -13,6 +13,7 @@
 #' @importFrom parallel detectCores makeCluster stopCluster
 #' @importFrom doParallel registerDoParallel
 #' @importFrom foreach foreach %dopar%
+#' @importFrom truncnorm rtruncnorm
 "_PACKAGE"
 
 
@@ -40,6 +41,8 @@
 #' @param ParamScheme Integer. Indicates the parameter configuration scheme.
 #' @param maxdiff Numeric. Convergence criterion for optimization.
 #' @param ntrials Integer. Number of trials (used in Binomial model).
+#' @param verbose Logical. If \code{TRUE} (default), informative messages are printed during execution.
+#' Set to \code{FALSE} to suppress messages.
 #' @param ... Additional arguments (currently unused).
 #'
 #' @return A named list containing model specifications, validated inputs, marginal distribution
@@ -56,7 +59,7 @@
 #' @export
 ModelScheme = function(DependentVar = NULL, Regressor=NULL, Intercept = NULL, EstMethod="PFR", ARMAModel=c(0,0), CountDist="NULL",
                        ParticleNumber = 5, epsilon = 0.5, initialParam=NULL, TrueParam=NULL, Task="Evaluation", SampleSize=NULL,
-                       OptMethod="L-BFGS-B", OutputType="list", ParamScheme=1, maxdiff=10^(-8),ntrials= NULL,...){
+                       OptMethod="L-BFGS-B", OutputType="list", ParamScheme=1, maxdiff=10^(-8),ntrials= NULL,verbose=TRUE,...){
 
   # Distribution list
   if( !(CountDist %in% c("Poisson", "Negative Binomial", "Generalized Poisson", "Generalized Poisson 2", "Mixed Poisson",
@@ -348,7 +351,8 @@ ModelScheme = function(DependentVar = NULL, Regressor=NULL, Intercept = NULL, Es
     loglik_BadValue1 = loglik_BadValue1,
     loglik_BadValue2 = loglik_BadValue2,
     ntrials          = ntrials,
-    Intercept        = Intercept
+    Intercept        = Intercept,
+    verbose          = verbose
     )
   return(out)
 
@@ -491,6 +495,8 @@ ParticleFilter_Res_ARMA = function(theta, mod){
     # save the current particle
     Z[t,]   = Znew
 
+    #print(t)
+    #print(nloglik)
     # update likelihood
     nloglik = nloglik - log(mean(w[t,]))
   }
@@ -585,7 +591,7 @@ FitMultiplePF_Res = function(theta, mod){
         # run optimization for our model --no ARMA model allowed
         optim.output <- optimx(
           par     = theta,
-          fn      = ParticleFilter_Res_ARMA,
+          fn      = ParticleFilter_Res_ARMA_MisSpec,
           lower   = mod_current$LB,
           upper   = mod_current$UB,
           hessian = TRUE,
@@ -599,7 +605,7 @@ FitMultiplePF_Res = function(theta, mod){
 
         optim.output[,1:length(theta)] = theta
         startTime = Sys.time()
-        loglikelihood = ParticleFilter_Res_ARMA(theta,mod_current)
+        loglikelihood = ParticleFilter_Res_ARMA_MisSpec(theta,mod_current)
         endTime = Sys.time()
         runTime = difftime(endTime, startTime, units = 'secs')
         optim.output[,(length(theta)+1)] = loglikelihood
@@ -622,7 +628,7 @@ FitMultiplePF_Res = function(theta, mod){
       # t5 = tic()
       if(mod_current$Task == "Optimization"){
         H = gHgen(par          = ParmEst[nfit*(k-1)+j,],
-                  fn           = ParticleFilter_Res_ARMA,
+                  fn           = ParticleFilter_Res_ARMA_MisSpec,
                   mod          = mod_current)
         # t5 = tic()-t5
         # print(t5)
@@ -2774,9 +2780,9 @@ ParticleFilter_Res_ARMA_MisSpec = function(theta, mod){
 
   # Initialize the negative log likelihood computation
   if(mod$nreg==0){
-    nloglik = - log(max(mod$mypdf(mod$DependentVar[1],Parms$MargParms),.Machine$double.eps))
+    nloglik = - log(max(mod$mypdf(mod$DependentVar[1],Parms$MargParms),.Machine$double.xmin))
   }else{
-    nloglik = - log(max(mod$mypdf(mod$DependentVar[1], Parms$ConstMargParm, Parms$DynamMargParm[1]),.Machine$double.eps))
+    nloglik = - log(max(mod$mypdf(mod$DependentVar[1], Parms$ConstMargParm, Parms$DynamMargParm[1]),.Machine$double.xmin))
   }
 
   # retrieve AR, MA orders and their max
@@ -2898,6 +2904,7 @@ ParticleFilter_Res_ARMA_MisSpec = function(theta, mod){
     # check me: In misspecified models, the weights may get equal to 0. Is it ok
     # for me to do the following? how is this different from allowing zero weights and
     # returning a large likelihood?
+
     if (sum(w[t,])==0){
       w[t,] = rep(10^(-64),mod$ParticleNumber)
       Corrections$weights = c(Corrections$weights,t)
@@ -2906,7 +2913,9 @@ ParticleFilter_Res_ARMA_MisSpec = function(theta, mod){
     # check me: break if I got NA weight
     if (any(is.na(w[t,]))| sum(w[t,])==0 ){
       Corrections$weights2 = c(Corrections$weights2,t)
-      message(sprintf('WARNING: At t=%.0f some of the weights are either too small or sum to 0.\n',t))
+      if(mod$verbose){
+        message(sprintf('WARNING: At t=%.0f some of the weights are either too small or sum to 0.\n',t))
+      }
       return(10^8)
     }
 
@@ -2918,14 +2927,16 @@ ParticleFilter_Res_ARMA_MisSpec = function(theta, mod){
     # save the current particle
     Z[t,]   = Znew
 
+    #print(t)
+    #print(nloglik)
     # update likelihood
     nloglik = nloglik - log(mean(w[t,]))
-
   }
 
   # report messages
-  ReportDiagnostics(Corrections, Parms, mod)
-
+  if(mod$verbose){
+    ReportDiagnostics(Corrections, Parms, mod)
+  }
   # for log-likelihood we use a bias correction--see par2.3 in Durbin Koopman, 1997
   # nloglik = nloglik- (1/(2*N))*(var(na.omit(wgh[T1,]))/mean(na.omit(wgh[T1,])))/mean(na.omit(wgh[T1,]))
 
@@ -3075,40 +3086,62 @@ ComputeLimits_MisSpec = function(mod, Parms, t, Zhat, Rt){
     C   = mod$mycdf(mod$DependentVar[t],Parms$ConstMargParm, Parms$DynamMargParm[t,])
   }
 
-  # if only C_1 is zero and C>0 we add an epsilon to C_1, but make sure that C_1 < C.
-  if(C_1==0 & C>0) {
-    C_1 = 0 + min(epsilon, 0.9*C)
-    Lim$Correction_C_xt_1 = TRUE
+  if (C_1==1){
+    C_1_upper = mod$mycdf(mod$DependentVar[t]-1,t(Parms$MargParms),lower.tail = FALSE)
   }
+  if (C==1){
+    C_upper = mod$mycdf(mod$DependentVar[t],t(Parms$MargParms),lower.tail = FALSE)
+  }
+  # if only C_1 is zero and C>0 we add an epsilon to C_1, but make sure that C_1 < C.
+  # if(C_1==0 & C>0) {
+  #   C_1 = 0 + min(epsilon, 0.9*C)
+  #   Lim$Correction_C_xt_1 = TRUE
+  # }
 
   # if C==0 then C_1 should also be equal to zero. Then both need to be corrected but I still need C_1 < C.
-  if(C==0 ) {
-    C_1 = 0 + epsilon/2
-    C   = 0 + epsilon
-    Lim$Correction_C_xt_1 = TRUE
-    Lim$Correction_C_xt = TRUE
-  }
+  # if(C==0 ) {
+  #   C_1 = 0 + epsilon/2
+  #   C   = 0 + epsilon
+  #   Lim$Correction_C_xt_1 = TRUE
+  #   Lim$Correction_C_xt = TRUE
+  # }
 
   # If C=1 and C_1 is smaller than 1 then subtract an epsilon from C, but we still need C_1 < C.
-  if(C==1 & C_1<1) {
-    diff = C-C_1
-    C = 1 - min(epsilon,diff/2)
-    Lim$Correction_C_xt = TRUE
-  }
+  # if(C==1 & C_1<1) {
+  #   diff = C-C_1
+  #   C = 1 - min(epsilon,diff/2)
+  #   Lim$Correction_C_xt = TRUE
+  # }
 
   # If C_1 = 1 then C should also be equal to 1. Then both need to be corrected but I still need C_1 < C.
-  if(C_1==1) {
-    C_1 = 1 - epsilon
-    C = 1 - epsilon/2
-    Lim$Correction_C_xt_1 = TRUE
-    Lim$Correction_C_xt = TRUE
-  }
+  # if(C_1==1) {
+  #   C_1 = 1 - epsilon
+  #   C = 1 - epsilon/2
+  #   Lim$Correction_C_xt_1 = TRUE
+  #   Lim$Correction_C_xt = TRUE
+  # }
 
   # compute the limits
-  Lim$a = as.numeric((qnorm(C_1,0,1)) - Zhat)/Rt[index]
-  Lim$b = as.numeric((qnorm(C  ,0,1)) - Zhat)/Rt[index]
+  if(C_1<1){
+    Lim$a = as.numeric((qnorm(C_1,0,1)) - Zhat)/Rt[index]
+  }else{
+    Lim$a = as.numeric((-qnorm(C_1_upper ,0,1)) - Zhat)/Rt[index]
+  }
 
+  if(C<1){
+    Lim$b = as.numeric((qnorm(C  ,0,1)) - Zhat)/Rt[index]
+  }else{
+    Lim$b = as.numeric((-qnorm(C_upper  ,0,1)) - Zhat)/Rt[index]
+  }
+
+  #Lim$a = as.numeric((safe_qnorm(C_1)) - Zhat)/Rt[index]
+  #Lim$b = as.numeric((safe_qnorm(C)) - Zhat)/Rt[index]
   return(Lim)
+}
+
+safe_qnorm = function(p) {
+  p <- pmin(pmax(p, .Machine$double.eps), 1 - .Machine$double.eps)
+  qnorm(p, 0, 1)
 }
 
 SampleTruncNormParticles_MisSpec = function(mod, Limit, Parms, t, Zhat, Rt){
@@ -3123,23 +3156,23 @@ SampleTruncNormParticles_MisSpec = function(mod, Limit, Parms, t, Zhat, Rt){
 
   # check me: this may need to be surfaced in the wrapper. It is small positive constant I will
   # use to get away from zero or one. I need to think this more rigorously.
-  epsilon = 10^(-11)
+  #epsilon = 10^(-11)
 
   #-----------------------------------------------------------------#
   # If the upper limit is less than a threshold (here minus 7) then so will the lower limit
-  if (min(Limit$b)<=-7 ) {
-    Limit$b[Limit$b<=-7] = -7 + epsilon
-    Limit$a[Limit$a<=-7] = -7 + epsilon/2
-    Correction_a  = TRUE
-    Correction_b  = TRUE
-  }
+  # if (all(Limit$b<=-38.46) ) {
+  #   Limit$b[Limit$b<=-38.46] = -38.46 + epsilon
+  #   Limit$a[Limit$a<=-38.46] = -38.46 + epsilon/2
+  #   Correction_a  = TRUE
+  #   Correction_b  = TRUE
+  # }
 
-  # If only the lower limit is less than the threshold
-  if (min(Limit$b)>-7 &  min(Limit$a)<=-7 ) {
-    diff = min(Limit$b - Limit$a)
-    Limit$a[Limit$a<=-7] = -7 + min(epsilon,diff/2)
-    Correction_a  = TRUE
-  }
+  # If only the lower limit is less than the threshold we dont need to do anything
+  # if (min(Limit$b)>-37 &  min(Limit$a)<=-37 ) {
+  #   diff = min(Limit$b - Limit$a)
+  #   Limit$a[Limit$a<=-7] = -7 + min(epsilon,diff/2)
+  #   Correction_a  = TRUE
+  # }
   #-----------------------------------------------------------------#
 
 
@@ -3147,22 +3180,24 @@ SampleTruncNormParticles_MisSpec = function(mod, Limit, Parms, t, Zhat, Rt){
   # Check me: in the case of missspecifed models, I may get really large values for the limits
   # wchich means that the pnorm will equal 1 and then the qnorm will yield Inf. Is this ok?
   # If the lower limit is over the threshold, then so will the upper limit
-  if (max(Limit$a)>=7 ) {
-    Limit$a[Limit$a>=7] = 7 - epsilon
-    Limit$b[Limit$b>=7] = 7 - epsilon/2
-    Correction_a  = TRUE
-    Correction_b  = TRUE
-  }
+  # if (all(Limit$a>=8.29)) {
+  #   Limit$a[Limit$a>=8.29] = 8.29 - epsilon
+  #   Limit$b[Limit$b>=8.29] = 8.29 - epsilon/2
+  #   Correction_a  = TRUE
+  #   Correction_b  = TRUE
+  # }
 
-  # If only the upper limit is over the threshold
-  if (max(Limit$a)<7 & max(Limit$b)>=7 ) {
-    diff = min(Limit$b - Limit$a)
-    Limit$b[Limit$b>=7] = 7 - min(epsilon,diff/2)
-    Correction_b  = TRUE
-  }
+  # If only the upper limit is over the threshold we dont need to do anything
+  # if (max(Limit$a)<7 & max(Limit$b)>=7 ) {
+  #   diff = min(Limit$b - Limit$a)
+  #   Limit$b[Limit$b>=7] = 7 - min(epsilon,diff/2)
+  #   Correction_b  = TRUE
+  # }
   #-----------------------------------------------------------------#
 
-  z = qnorm(runif(length(Limit$a),0,1)*(pnorm(Limit$b,0,1)-pnorm(Limit$a,0,1))+pnorm(Limit$a,0,1),0,1)*Rt[index] + Zhat
+  z = sample_truncnorm(Limit)*Rt[index] + Zhat
+  # z = qnorm(runif(length(Limit$a),0,1)*(pnorm(Limit$b,0,1)-pnorm(Limit$a,0,1))+pnorm(Limit$a,0,1),0,1)*Rt[index] + Zhat
+  #z = rtruncnorm(length(Limit$a), Limit$a, Limit$b, mean = 0, sd = 1)*Rt[index] + Zhat
 
   # create output
   return = list(
@@ -3173,6 +3208,34 @@ SampleTruncNormParticles_MisSpec = function(mod, Limit, Parms, t, Zhat, Rt){
 
   return(return)
 }
+
+sample_truncnorm = function(Limit) {
+  n <- length(Limit$a)
+
+  # --- manual inverse CDF ---
+  u <- runif(n, 0, 1)
+  u_shifted <- u * (pnorm(Limit$b, 0, 1) - pnorm(Limit$a, 0, 1)) + pnorm(Limit$a, 0, 1)
+  z_manual <- qnorm(u_shifted, mean = 0, sd = 1)
+
+  # --- find problematic draws (Inf / -Inf / NA) ---
+  bad_idx <- which(!is.finite(z_manual))
+
+  if (length(bad_idx) > 0) {
+    # Replace bad values with rtruncnorm equivalents
+    z_manual[bad_idx] <- rtruncnorm(
+      length(bad_idx),
+      a = Limit$a[bad_idx],
+      b = Limit$b[bad_idx],
+      mean = 0, sd = 1
+    )
+  }
+
+  # apply scaling and shift
+  z <- z_manual
+  return(z)
+}
+
+
 
 # keeping an older version of this function in case issues show up - I update it in Sep 19.
 InnovAlgOld = function(Parms,gamma, mod) {

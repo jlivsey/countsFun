@@ -31,6 +31,8 @@
 #' @param ParamScheme Optional. Parameterization scheme name (if applicable).
 #' @param maxdiff Numeric. Convergence threshold for the Innovations algorithm.
 #' @param ntrials Integer. Required if \code{CountDist == "Binomial"} to specify number of trials.
+#' @param verbose Logical. If \code{TRUE} (default), informative messages are printed during execution.
+#' Set to \code{FALSE} to suppress messages.
 #' @param ... Additional arguments (currently unused).
 #'
 #' @return
@@ -111,7 +113,8 @@ lgc = function(formula        = NULL,
                OutputType     = "list",
                ParamScheme    = NULL,
                maxdiff        = 10^(-8),
-               ntrials        = NULL,...){
+               ntrials        = NULL,
+               verbose        = TRUE,...){
 
   # parse the regression formula
   parsed_formula <- parse_formula(formula)
@@ -153,7 +156,8 @@ lgc = function(formula        = NULL,
                     OutputType     = OutputType,
                     ParamScheme    = ParamScheme,
                     maxdiff        = maxdiff,
-                    ntrials        = ntrials)
+                    ntrials        = ntrials,
+                    verbose        = verbose)
 
   # if(Task=='Synthesis'){
   #   out

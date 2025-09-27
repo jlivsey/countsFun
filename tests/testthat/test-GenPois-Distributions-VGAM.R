@@ -33,7 +33,7 @@ theta1 = InitialEstimates(mod)
 
 # compute loglik
 set.seed(1)
-a1 = ParticleFilter_Res_ARMA(theta1, mod)
+a1 = ParticleFilter_Res_ARMA_MisSpec(theta1, mod)
 
 # VGAM distributions
 CountDist      = "Generalized Poisson 2"
@@ -47,7 +47,7 @@ mod = ModelScheme(DependentVar   = DependentVar,
 theta2 = InitialEstimates(mod)
 
 set.seed(1)
-a2 = ParticleFilter_Res_ARMA(theta2, mod)
+a2 = ParticleFilter_Res_ARMA_MisSpec(theta2, mod)
 
 
 # put the data in a data frame
