@@ -2,9 +2,9 @@
 % Please edit documentation in R/AllFunctions.R
 \name{pGpois}
 \alias{pGpois}
-\title{Generalized Poisson CDF (vectorized and scalar)}
+\title{Generalized Poisson CDF}
 \usage{
-pGpois(x, a, m)
+pGpois(x, a, m, lower.tail = TRUE, log.p = FALSE)
 }
 \arguments{
 \item{x}{Integer or numeric vector. Values at which to evaluate the CDF.}
@@ -12,17 +12,23 @@ pGpois(x, a, m)
 \item{a}{Numeric. Dispersion parameter.}
 
 \item{m}{Numeric scalar or vector. Mean parameter(s).}
+
+\item{lower.tail}{Logical; if \code{TRUE} (default), probabilities are \eqn{P(X \leq x)}.
+Otherwise, \eqn{P(X > x)}.}
+
+\item{log.p}{Logical; if \code{TRUE}, probabilities are returned on the log scale.}
 }
 \value{
 A numeric vector or matrix of cumulative probabilities.
 }
 \description{
-Computes the cumulative distribution function (CDF) of the Generalized Poisson distribution
-for one or more values of the mean parameter \code{m}.
+Computes the cumulative distribution function (CDF) of the Generalized Poisson distribution.
 }
 \examples{
 pGpois(3, 0.4, 2)
+pGpois(3, 0.4, 2, lower.tail = FALSE, log.p = TRUE)
+
 }
 \seealso{
-\code{\link{dGpois}}, \code{\link{qGpois}}
+\code{\link{dGpois}}
 }

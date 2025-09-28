@@ -2,30 +2,35 @@
 % Please edit documentation in R/AllFunctions.R
 \name{dmixpois1}
 \alias{dmixpois1}
-\title{Density of the Mixed Poisson Distribution}
+\title{Mixture of Two Poisson Distributions (PMF)}
 \usage{
-dmixpois1(x, lam1, lam2, p)
+dmixpois1(x, lam1, lam2, p, log = FALSE)
 }
 \arguments{
-\item{x}{Integer or numeric vector. The value(s) at which to evaluate the PMF.}
+\item{x}{Non-negative integer(s). Vector of quantiles.}
 
-\item{lam1}{Numeric. Mean of the first Poisson component.}
+\item{lam1}{Mean of the first Poisson component (must be > 0).}
 
-\item{lam2}{Numeric. Mean of the second Poisson component.}
+\item{lam2}{Mean of the second Poisson component (must be > 0).}
 
-\item{p}{Numeric between 0 and 1. Mixing probability for the first component.}
+\item{p}{Mixing probability for the first component (0 <= p <= 1).}
+
+\item{log}{Logical; if \code{TRUE}, probabilities p are given as \code{log(p)}.}
 }
 \value{
-A numeric vector of probabilities corresponding to \code{x}.
+Numeric vector of mixture probabilities (or log-probabilities).
 }
 \description{
-Computes the probability mass function (PMF) of a two-component mixed Poisson distribution.
-}
-\details{
-The mixed Poisson PMF is given by:
-\deqn{p * dpois(x, lam1) + (1 - p) * dpois(x, lam2)}
+Computes the probability mass function of a two-component mixture of Poisson distributions.
 }
 \examples{
-dmixpois1(0:10, lam1 = 2, lam2 = 5, p = 0.6)
+# Probability of observing exactly 3 under the mixture
+dmixpois1(3, lam1 = 2, lam2 = 5, p = 0.4)
+
+# Log-probability
+dmixpois1(3, lam1 = 2, lam2 = 5, p = 0.4, log = TRUE)
+
+# Vectorized input
+dmixpois1(0:5, lam1 = 2, lam2 = 5, p = 0.4)
 
 }

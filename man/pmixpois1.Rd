@@ -2,30 +2,35 @@
 % Please edit documentation in R/AllFunctions.R
 \name{pmixpois1}
 \alias{pmixpois1}
-\title{Cumulative Distribution Function of the Mixed Poisson Distribution}
+\title{Mixture of Two Poisson Distributions (CDF)}
 \usage{
-pmixpois1(x, lam1, lam2, p)
+pmixpois1(x, lam1, lam2, p, lower.tail = TRUE, log.p = FALSE)
 }
 \arguments{
-\item{x}{Integer or numeric vector. The value(s) at which to evaluate the CDF.}
+\item{x}{Non-negative integer(s). Vector of quantiles.}
 
-\item{lam1}{Numeric. Mean of the first Poisson component.}
+\item{lam1}{Mean of the first Poisson component (must be > 0).}
 
-\item{lam2}{Numeric. Mean of the second Poisson component.}
+\item{lam2}{Mean of the second Poisson component (must be > 0).}
 
-\item{p}{Numeric between 0 and 1. Mixing probability for the first component.}
+\item{p}{Mixing probability for the first component (0 <= p <= 1).}
+
+\item{lower.tail}{Logical; if \code{TRUE} (default), probabilities are \eqn{P(X \leq x)}.
+Otherwise, \eqn{P(X > x)}.}
+
+\item{log.p}{Logical; if \code{TRUE}, probabilities p are given as \code{log(p)}.}
 }
 \value{
-A numeric vector of cumulative probabilities corresponding to \code{x}.
+Numeric vector of mixture CDF values (or log-probabilities).
 }
 \description{
-Computes the cumulative distribution function (CDF) of a two-component mixed Poisson distribution.
-}
-\details{
-The mixed Poisson CDF is given by:
-\deqn{p * ppois(x, lam1) + (1 - p) * ppois(x, lam2)}
+Computes the cumulative distribution function of a two-component mixture of Poisson distributions.
 }
 \examples{
-pmixpois1(0:10, lam1 = 2, lam2 = 5, p = 0.6)
+# CDF at 3 under the mixture
+pmixpois1(3, lam1 = 2, lam2 = 5, p = 0.4)
+
+# Upper tail probability in log scale
+pmixpois1(3, lam1 = 2, lam2 = 5, p = 0.4, lower.tail = FALSE, log.p = TRUE)
 
 }

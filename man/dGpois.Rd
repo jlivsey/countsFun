@@ -2,37 +2,23 @@
 % Please edit documentation in R/AllFunctions.R
 \name{dGpois}
 \alias{dGpois}
-\title{Computes the probability mass function (PMF) of the Generalized Poisson distribution
-as defined in Famoye (1994), parameterized via the mean.}
+\title{Generalized Poisson PMF}
 \usage{
-dGpois(y, a, m)
+dGpois(y, a, m, log = FALSE)
 }
 \arguments{
-\item{y}{Integer or numeric vector. The value(s) at which to evaluate the PMF.}
+\item{y}{Non-negative integer vector of quantiles.}
 
-\item{a}{Numeric. Dispersion parameter. Must satisfy \code{a > -1/m}.}
+\item{a}{Dispersion parameter.}
 
-\item{m}{Numeric. Mean of the distribution.}
+\item{m}{Mean parameter.}
+
+\item{log}{Logical; if \code{TRUE}, probabilities are returned on the log scale.}
 }
 \value{
-Numeric vector of probabilities corresponding to \code{y}.
+A numeric vector of (log-)probabilities.
 }
 \description{
 Computes the probability mass function (PMF) of the Generalized Poisson distribution
-as defined in Famoye (1994), parameterized via the mean.
-}
-\details{
-The Generalized Poisson PMF is given by:
-\deqn{
-  P(Y = y) = \frac{k^y (1 + a y)^{y - 1} e^{-k(1 + a y)}}{y!}, \quad \text{where } k = \frac{m}{1 + a m}
-}
-This function uses the parametrization through the mean as in Famoye (1994).
-}
-\examples{
-dGpois(0:5, a = 0.1, m = 3)
-
-}
-\references{
-Famoye, F. (1994). On the generalized Poisson regression model.
-Journal of Statistical Planning and Inference, 41(1), 133–146.
+using the mean-parametrization (Famoye 1994, relation 2.4).
 }

@@ -163,24 +163,33 @@ ModelScheme = function(DependentVar = NULL, Regressor=NULL, Intercept = NULL, Es
     # retrieve marginal cdf
     mycdf = switch(CountDist,
                    "Poisson"               = ppois,
-                   "Negative Binomial"     = function(x, theta){   pnbinom(x, theta[1], 1-theta[2])},
-                   "Generalized Poisson"   = function(x, theta){    pGpois(x, theta[1], theta[2])},
-                   "Generalized Poisson 2" = function(x, theta){ pgenpois2(x, theta[2], theta[1])},,
-                   "Binomial"              = function(x, theta){    pbinom(x, ntrials, theta[1])},
-                   "Mixed Poisson"         = function(x, theta){ pmixpois1(x, theta[1], theta[2], theta[3])},
+                   "Negative Binomial"     = function(x, theta,...){   pnbinom(x, theta[1], 1-theta[2],...)},
+                   "Generalized Poisson"   = function(x, theta,...){    pGpois(x, theta[1], theta[2],...)},
+                   "Generalized Poisson 2" = function(x, theta,...,
+                                                 lower.tail = TRUE,
+                                                     log.p = FALSE){ pval = pgenpois2(x, theta[2], theta[1],lower.tail = lower.tail,...)
+                                                                     if (log.p){
+                                                                       pval = log(pval)
+                                                                     }
+                                                                       pval
+                                                                       },
+                   "Binomial"              = function(x, theta,...){    pbinom(x, ntrials, theta[1],...)},
+                   "Mixed Poisson"         = function(x, theta,...){ pmixpois1(x, theta[1], theta[2], theta[3],...)},
                    "ZIP"                   = function(x, theta){   pzipois(x, theta[1], theta[2])}
     )
 
     # retrieve marginal pdf
     mypdf = switch(CountDist,
                    "Poisson"               = dpois,
-                   "Negative Binomial"     = function(x, theta){   dnbinom(x, theta[1], 1-theta[2])},
-                   "Generalized Poisson"   = function(x, theta){    dGpois(x, theta[1], theta[2])},
-                   "Generalized Poisson 2" = function(x, theta){ dgenpois2(x, theta[2], theta[1])},
-                   "Binomial"              = function(x, theta){    dbinom(x, ntrials, theta[1])},
-                   "Mixed Poisson"         = function(x, theta){ dmixpois1(x, theta[1], theta[2], theta[3])},
+                   "Negative Binomial"     = function(x, theta,...){   dnbinom(x, theta[1], 1-theta[2],...)},
+                   "Generalized Poisson"   = function(x, theta,...){    dGpois(x, theta[1], theta[2],...)},
+                   "Generalized Poisson 2" = function(x, theta,...){ dgenpois2(x, theta[2], theta[1],...)},
+                   "Binomial"              = function(x, theta,...){    dbinom(x, ntrials, theta[1],...)},
+                   "Mixed Poisson"         = function(x, theta,...){ dmixpois1(x, theta[1], theta[2], theta[3],...)},
                    "ZIP"                   = function(x, theta){   dzipois(x, theta[1], theta[2])}
     )
+
+
 
     # retrieve marginal inverse cdf
     myinvcdf = switch(CountDist,
@@ -226,22 +235,22 @@ ModelScheme = function(DependentVar = NULL, Regressor=NULL, Intercept = NULL, Es
   }else{
     # retrieve marginal cdf
     mycdf = switch(CountDist,
-                   "Poisson"               = function(x, ConstMargParm, DynamMargParm){     ppois(x, DynamMargParm)},
-                   "Negative Binomial"     = function(x, ConstMargParm, DynamMargParm){   pnbinom(x, ConstMargParm, 1-DynamMargParm)},
-                   "Generalized Poisson"   = function(x, ConstMargParm, DynamMargParm){    pGpois(x, ConstMargParm, DynamMargParm)},
-                   "Generalized Poisson 2" = function(x, ConstMargParm, DynamMargParm){ pgenpois2(x, DynamMargParm, ConstMargParm)},
-                   "Binomial"              = function(x, ConstMargParm, DynamMargParm){    pbinom(x, ntrials, DynamMargParm)},
-                   "Mixed Poisson"         = function(x, ConstMargParm, DynamMargParm){ pmixpois1(x, DynamMargParm[1], DynamMargParm[2], ConstMargParm)},
+                   "Poisson"               = function(x, ConstMargParm, DynamMargParm,...){     ppois(x, DynamMargParm,...)},
+                   "Negative Binomial"     = function(x, ConstMargParm, DynamMargParm,...){   pnbinom(x, ConstMargParm, 1-DynamMargParm,...)},
+                   "Generalized Poisson"   = function(x, ConstMargParm, DynamMargParm,...){    pGpois(x, ConstMargParm, DynamMargParm,...)},
+                   "Generalized Poisson 2" = function(x, ConstMargParm, DynamMargParm,...){ pgenpois2(x, DynamMargParm, ConstMargParm,...)},
+                   "Binomial"              = function(x, ConstMargParm, DynamMargParm,...){    pbinom(x, ntrials, DynamMargParm,...)},
+                   "Mixed Poisson"         = function(x, ConstMargParm, DynamMargParm,...){ pmixpois1(x, DynamMargParm[1], DynamMargParm[2], ConstMargParm,...)},
                    "ZIP"                   = function(x, ConstMargParm, DynamMargParm){   pzipois(x, DynamMargParm, ConstMargParm)}
     )
     # retrieve marginal pdf
     mypdf = switch(CountDist,
-                   "Poisson"               = function(x, ConstMargParm, DynamMargParm){     dpois(x, DynamMargParm)},
-                   "Negative Binomial"     = function(x, ConstMargParm, DynamMargParm){   dnbinom(x, ConstMargParm, 1-DynamMargParm)},
-                   "Generalized Poisson"   = function(x, ConstMargParm, DynamMargParm){    dGpois(x, ConstMargParm, DynamMargParm)},
-                   "Generalized Poisson 2" = function(x, ConstMargParm, DynamMargParm){ dgenpois2(x, DynamMargParm, ConstMargParm)},
-                   "Binomial"              = function(x, ConstMargParm, DynamMargParm){    dbinom(x, ntrials, DynamMargParm)},
-                   "Mixed Poisson"         = function(x, ConstMargParm, DynamMargParm){ dmixpois1(x, DynamMargParm[1], DynamMargParm[2], ConstMargParm)},
+                   "Poisson"               = function(x, ConstMargParm, DynamMargParm,...){     dpois(x, DynamMargParm,...)},
+                   "Negative Binomial"     = function(x, ConstMargParm, DynamMargParm,...){   dnbinom(x, ConstMargParm, 1-DynamMargParm,...)},
+                   "Generalized Poisson"   = function(x, ConstMargParm, DynamMargParm,...){    dGpois(x, ConstMargParm, DynamMargParm,...)},
+                   "Generalized Poisson 2" = function(x, ConstMargParm, DynamMargParm,...){ dgenpois2(x, DynamMargParm, ConstMargParm,...)},
+                   "Binomial"              = function(x, ConstMargParm, DynamMargParm,...){    dbinom(x, ntrials, DynamMargParm,...)},
+                   "Mixed Poisson"         = function(x, ConstMargParm, DynamMargParm,...){ dmixpois1(x, DynamMargParm[1], DynamMargParm[2], ConstMargParm,...)},
                    "ZIP"                   = function(x, ConstMargParm, DynamMargParm){   dzipois(x, DynamMargParm, ConstMargParm)}
     )
     # retrieve marginal inverse cdf
@@ -1946,54 +1955,64 @@ qmixpois1 = function(p, lam1, lam2, prob) {
   return(quantiles)
 }
 
-#' Cumulative Distribution Function of the Mixed Poisson Distribution
+#' Mixture of Two Poisson Distributions (CDF)
 #'
-#' Computes the cumulative distribution function (CDF) of a two-component mixed Poisson distribution.
+#' Computes the cumulative distribution function of a two-component mixture of Poisson distributions.
 #'
-#' @param x Integer or numeric vector. The value(s) at which to evaluate the CDF.
-#' @param lam1 Numeric. Mean of the first Poisson component.
-#' @param lam2 Numeric. Mean of the second Poisson component.
-#' @param p Numeric between 0 and 1. Mixing probability for the first component.
+#' @param x Non-negative integer(s). Vector of quantiles.
+#' @param lam1 Mean of the first Poisson component (must be > 0).
+#' @param lam2 Mean of the second Poisson component (must be > 0).
+#' @param p Mixing probability for the first component (0 <= p <= 1).
+#' @param lower.tail Logical; if \code{TRUE} (default), probabilities are \eqn{P(X \leq x)}.
+#'   Otherwise, \eqn{P(X > x)}.
+#' @param log.p Logical; if \code{TRUE}, probabilities p are given as \code{log(p)}.
 #'
-#' @return A numeric vector of cumulative probabilities corresponding to \code{x}.
-#'
-#' @details
-#' The mixed Poisson CDF is given by:
-#' \deqn{p * ppois(x, lam1) + (1 - p) * ppois(x, lam2)}
-#'
+#' @return Numeric vector of mixture CDF values (or log-probabilities).
 #' @examples
-#' pmixpois1(0:10, lam1 = 2, lam2 = 5, p = 0.6)
+#' # CDF at 3 under the mixture
+#' pmixpois1(3, lam1 = 2, lam2 = 5, p = 0.4)
+#'
+#' # Upper tail probability in log scale
+#' pmixpois1(3, lam1 = 2, lam2 = 5, p = 0.4, lower.tail = FALSE, log.p = TRUE)
 #'
 #' @export
-pmixpois1 = function(x, lam1, lam2,p){
-  y = p*ppois(x,lam1) + (1-p)*ppois(x,lam2)
-  return(y)
+pmixpois1 <- function(x, lam1, lam2, p, lower.tail = TRUE, log.p = FALSE) {
+  cdf <- p * ppois(x, lam1) + (1 - p) * ppois(x, lam2)
+  if (!lower.tail) cdf <- 1 - cdf
+  if (log.p) cdf <- log(cdf)
+  cdf
 }
 
 
-#' Density of the Mixed Poisson Distribution
+#' Mixture of Two Poisson Distributions (PMF)
 #'
-#' Computes the probability mass function (PMF) of a two-component mixed Poisson distribution.
+#' Computes the probability mass function of a two-component mixture of Poisson distributions.
 #'
-#' @param x Integer or numeric vector. The value(s) at which to evaluate the PMF.
-#' @param lam1 Numeric. Mean of the first Poisson component.
-#' @param lam2 Numeric. Mean of the second Poisson component.
-#' @param p Numeric between 0 and 1. Mixing probability for the first component.
+#' @param x Non-negative integer(s). Vector of quantiles.
+#' @param lam1 Mean of the first Poisson component (must be > 0).
+#' @param lam2 Mean of the second Poisson component (must be > 0).
+#' @param p Mixing probability for the first component (0 <= p <= 1).
+#' @param log Logical; if \code{TRUE}, probabilities p are given as \code{log(p)}.
 #'
-#' @return A numeric vector of probabilities corresponding to \code{x}.
-#'
-#' @details
-#' The mixed Poisson PMF is given by:
-#' \deqn{p * dpois(x, lam1) + (1 - p) * dpois(x, lam2)}
-#'
+#' @return Numeric vector of mixture probabilities (or log-probabilities).
 #' @examples
-#' dmixpois1(0:10, lam1 = 2, lam2 = 5, p = 0.6)
+#' # Probability of observing exactly 3 under the mixture
+#' dmixpois1(3, lam1 = 2, lam2 = 5, p = 0.4)
+#'
+#' # Log-probability
+#' dmixpois1(3, lam1 = 2, lam2 = 5, p = 0.4, log = TRUE)
+#'
+#' # Vectorized input
+#' dmixpois1(0:5, lam1 = 2, lam2 = 5, p = 0.4)
 #'
 #' @export
-dmixpois1 = function(x, lam1, lam2, p){
-  y = p*dpois(x,lam1) + (1-p)*dpois(x,lam2)
-  return(y)
+dmixpois1 <- function(x, lam1, lam2, p, log = FALSE) {
+  dens <- p * dpois(x, lam1) + (1 - p) * dpois(x, lam2)
+  if (log) dens <- log(dens)
+  dens
 }
+
+
 #-----------------------------------------------------------------------------------------------#
 
 
@@ -2001,61 +2020,66 @@ dmixpois1 = function(x, lam1, lam2, p){
 # dGpois, pGpois, qGpois and rGpois are used when CountDist = "Generalize Poisson". I have now
 # implemented the "Generalized Poisson 2" and in the future the following may not be needed.
 
-
+#' Generalized Poisson PMF
+#'
 #' Computes the probability mass function (PMF) of the Generalized Poisson distribution
-#' as defined in Famoye (1994), parameterized via the mean.
+#' using the mean-parametrization (Famoye 1994, relation 2.4).
 #'
-#' @param y Integer or numeric vector. The value(s) at which to evaluate the PMF.
-#' @param a Numeric. Dispersion parameter. Must satisfy \code{a > -1/m}.
-#' @param m Numeric. Mean of the distribution.
+#' @param y Non-negative integer vector of quantiles.
+#' @param a Dispersion parameter.
+#' @param m Mean parameter.
+#' @param log Logical; if \code{TRUE}, probabilities are returned on the log scale.
 #'
-#' @return Numeric vector of probabilities corresponding to \code{y}.
-#'
-#' @details
-#' The Generalized Poisson PMF is given by:
-#' \deqn{
-#'   P(Y = y) = \frac{k^y (1 + a y)^{y - 1} e^{-k(1 + a y)}}{y!}, \quad \text{where } k = \frac{m}{1 + a m}
-#' }
-#' This function uses the parametrization through the mean as in Famoye (1994).
-#'
-#' @references Famoye, F. (1994). On the generalized Poisson regression model.
-#' Journal of Statistical Planning and Inference, 41(1), 133–146.
-#'
-#' @examples
-#' dGpois(0:5, a = 0.1, m = 3)
+#' @return A numeric vector of (log-)probabilities.
 #'
 #' @export
-dGpois = function(y,a,m){
-  #relation 2.4 in Famoye 1994, parametrization through the mean
-  k = m/(1+a*m)
-  return( k^y * (1+a*y)^(y-1) * exp(-k*(1+a*y)-lgamma(y+1)))
+dGpois <- function(y, a, m, log = FALSE) {
+  k <- m / (1 + a * m)
+  dens <- k^y * (1 + a * y)^(y - 1) * exp(-k * (1 + a * y) - lgamma(y + 1))
+  if (log) dens <- log(dens)
+  dens
 }
 
-#' Generalized Poisson CDF (vectorized and scalar)
+
+#' Generalized Poisson CDF
 #'
-#' Computes the cumulative distribution function (CDF) of the Generalized Poisson distribution
-#' for one or more values of the mean parameter \code{m}.
+#' Computes the cumulative distribution function (CDF) of the Generalized Poisson distribution.
 #'
 #' @param x Integer or numeric vector. Values at which to evaluate the CDF.
 #' @param a Numeric. Dispersion parameter.
 #' @param m Numeric scalar or vector. Mean parameter(s).
+#' @param lower.tail Logical; if \code{TRUE} (default), probabilities are \eqn{P(X \leq x)}.
+#'   Otherwise, \eqn{P(X > x)}.
+#' @param log.p Logical; if \code{TRUE}, probabilities are returned on the log scale.
 #'
 #' @return A numeric vector or matrix of cumulative probabilities.
 #'
-#' @seealso \code{\link{dGpois}}, \code{\link{qGpois}}
+#' @seealso \code{\link{dGpois}}
 #'
 #' @examples
 #' pGpois(3, 0.4, 2)
+#' pGpois(3, 0.4, 2, lower.tail = FALSE, log.p = TRUE)
+#'
 #' @export
-pGpois <- function(x, a, m) {
+pGpois <- function(x, a, m, lower.tail = TRUE, log.p = FALSE) {
 
   compute_cdf <- function(xi, ai, mi) {
     M <- max(xi, 0)
     probs <- dGpois(0:M, ai, mi)
     cum_probs <- cumsum(probs)
+
     out <- rep(0, length(xi))
     out[xi >= 0] <- cum_probs[xi[xi >= 0] + 1]
-    return(out)
+
+    # handle lower.tail
+    if (!lower.tail) {
+      out <- 1 - out
+    }
+    # handle log.p
+    if (log.p) {
+      out <- log(out)
+    }
+    out
   }
 
   if (length(m) > 1 || length(a) > 1) {
@@ -2064,6 +2088,7 @@ pGpois <- function(x, a, m) {
     compute_cdf(x, a, m)
   }
 }
+
 
 #' Generalized Poisson Quantile Function (vectorized and scalar)
 #'
@@ -2897,6 +2922,7 @@ ParticleFilter_Res_ARMA_MisSpec = function(theta, mod){
       Corrections$b_t = c(Corrections$b_t,t)
     }
 
+
     # update weights
     #w[t,] = ComputeWeights(mod, Limit$a, Limit$b, t, w[(t-1),])
     w[t,] = ComputeWeights(mod, Limit, t, w[(t-1),])
@@ -2924,11 +2950,13 @@ ParticleFilter_Res_ARMA_MisSpec = function(theta, mod){
     Znew = ResampleParticles(mod, w, t, Znew)
     set_rand_state(old_state1)
 
+
     # save the current particle
     Z[t,]   = Znew
 
     #print(t)
-    #print(nloglik)
+    #print(Z[t,])
+    # print(nloglik)
     # update likelihood
     nloglik = nloglik - log(mean(w[t,]))
   }
@@ -3059,90 +3087,83 @@ ReportDiagnostics = function(Corrections, Parms, mod){
 
 }
 
-ComputeLimits_MisSpec = function(mod, Parms, t, Zhat, Rt){
-  # a and b are the arguments in the two normal cdfs in the 4th line in equation (19) in JASA paper
-  Lim = list()
-  # fix me: this will be ok for AR or MA models but for ARMA? is it p+q instead of max(p,q)
-  # fix me: why do I have t(Parms$MargParms)?
-  index = min(t, max(mod$ARMAModel))
+ComputeLimits_MisSpec <- function(mod, Parms, t, Zhat, Rt) {
+  Lim <- list()
 
-  # add the following for White Noise models
-  if(max(mod$ARMAModel)==0) index=1
+  # index for AR/MA models
+  index <- min(t, max(mod$ARMAModel))
+  if (max(mod$ARMAModel) == 0) index <- 1   # white noise
 
-  # check me: this may need to be surfaced in the wrapper. It is small positive constant I will
-  # use to get away from zero or one. I need to think this more rigorously.
-  epsilon = 10^(-16)
+  Lim$Correction_C_xt_1 <- FALSE
+  Lim$Correction_C_xt   <- FALSE
 
-    # Initialize flags that track whether the limits are set to 7 - 10^(-11)
-  Lim$Correction_C_xt_1 = FALSE
-  Lim$Correction_C_xt = FALSE
+  # --- Step 1: compute log CDF and log PMF ---
+  y <- mod$DependentVar[t]
 
-  # Compute C_xt and C_xt_1 in relation (19), Jia et al. (2021).
-  if(mod$nreg==0){
-    C_1 = mod$mycdf(mod$DependentVar[t]-1,t(Parms$MargParms))
-    C   = mod$mycdf(mod$DependentVar[t],t(Parms$MargParms))
-  }else{
-    C_1 = mod$mycdf(mod$DependentVar[t]-1,Parms$ConstMargParm, Parms$DynamMargParm[t,])
-    C   = mod$mycdf(mod$DependentVar[t],Parms$ConstMargParm, Parms$DynamMargParm[t,])
+  if (mod$nreg == 0) {
+    logC_1 <- mod$mycdf(y - 1, t(Parms$MargParms), log.p = TRUE)   # log P(X ≤ y-1)
+    logpmf <- mod$mypdf(y,     t(Parms$MargParms), log = TRUE)     # log P(X = y)
+    logC1U <- mod$mycdf(y - 1, t(Parms$MargParms), lower.tail = FALSE, log.p = TRUE) # log P(X > y-1)
+    logCU  <- mod$mycdf(y,     t(Parms$MargParms), lower.tail = FALSE, log.p = TRUE) # log P(X > y)
+  } else {
+    logC_1 <- mod$mycdf(y - 1, Parms$ConstMargParm, Parms$DynamMargParm[t, ], log.p = TRUE)
+    logpmf <- mod$mypdf(y,     Parms$ConstMargParm, Parms$DynamMargParm[t, ], log = TRUE)
+    logC1U <- mod$mycdf(y - 1, Parms$ConstMargParm, Parms$DynamMargParm[t, ],
+                        lower.tail = FALSE, log.p = TRUE)
+    logCU  <- mod$mycdf(y,     Parms$ConstMargParm, Parms$DynamMargParm[t, ],
+                        lower.tail = FALSE, log.p = TRUE)
   }
 
-  if (C_1==1){
-    C_1_upper = mod$mycdf(mod$DependentVar[t]-1,t(Parms$MargParms),lower.tail = FALSE)
-  }
-  if (C==1){
-    C_upper = mod$mycdf(mod$DependentVar[t],t(Parms$MargParms),lower.tail = FALSE)
-  }
-  # if only C_1 is zero and C>0 we add an epsilon to C_1, but make sure that C_1 < C.
-  # if(C_1==0 & C>0) {
-  #   C_1 = 0 + min(epsilon, 0.9*C)
-  #   Lim$Correction_C_xt_1 = TRUE
-  # }
+  # --- Step 2: log-space addition for C = log(P(X ≤ y)) ---
+  logC <- logspace_add(logC_1, logpmf)
 
-  # if C==0 then C_1 should also be equal to zero. Then both need to be corrected but I still need C_1 < C.
-  # if(C==0 ) {
-  #   C_1 = 0 + epsilon/2
-  #   C   = 0 + epsilon
-  #   Lim$Correction_C_xt_1 = TRUE
-  #   Lim$Correction_C_xt = TRUE
-  # }
-
-  # If C=1 and C_1 is smaller than 1 then subtract an epsilon from C, but we still need C_1 < C.
-  # if(C==1 & C_1<1) {
-  #   diff = C-C_1
-  #   C = 1 - min(epsilon,diff/2)
-  #   Lim$Correction_C_xt = TRUE
-  # }
-
-  # If C_1 = 1 then C should also be equal to 1. Then both need to be corrected but I still need C_1 < C.
-  # if(C_1==1) {
-  #   C_1 = 1 - epsilon
-  #   C = 1 - epsilon/2
-  #   Lim$Correction_C_xt_1 = TRUE
-  #   Lim$Correction_C_xt = TRUE
-  # }
-
-  # compute the limits
-  if(C_1<1){
-    Lim$a = as.numeric((qnorm(C_1,0,1)) - Zhat)/Rt[index]
-  }else{
-    Lim$a = as.numeric((-qnorm(C_1_upper ,0,1)) - Zhat)/Rt[index]
+  # --- Step 3: safe qnorm using log-probs directly ---
+  safe_q_from_logs <- function(log_lower, log_upper) {
+    # log_lower = log P(X ≤ x)
+    # log_upper = log P(X > x)
+    if (is.finite(log_lower) && log_lower < 0) {
+      # small lower tail (probability close to 0)
+      return(qnorm(log_lower, log.p = TRUE))
+    } else if (is.finite(log_upper) && log_upper < 0) {
+      # small upper tail (probability close to 0 → lower tail ~ 1)
+      return(-qnorm(log_upper, log.p = TRUE))
+    } else {
+      # middle case: convert once safely
+      return(qnorm(exp(log_lower)))
+    }
   }
 
-  if(C<1){
-    Lim$b = as.numeric((qnorm(C  ,0,1)) - Zhat)/Rt[index]
-  }else{
-    Lim$b = as.numeric((-qnorm(C_upper  ,0,1)) - Zhat)/Rt[index]
+  # --- Step 4: compute limits ---
+  qa <- safe_q_from_logs(logC_1, logC1U)
+  qb <- safe_q_from_logs(logC,   logCU)
+
+  Lim$a <- (qa - Zhat) / Rt[index]
+  Lim$b <- (qb - Zhat) / Rt[index]
+
+  # --- Step 5: sanity check ---
+  if (any(Lim$a > Lim$b) || any(is.na(Lim$a)) || any(is.na(Lim$b))) {
+    warning("Problematic limits at time ", t)
   }
 
-  #Lim$a = as.numeric((safe_qnorm(C_1)) - Zhat)/Rt[index]
-  #Lim$b = as.numeric((safe_qnorm(C)) - Zhat)/Rt[index]
   return(Lim)
 }
 
-safe_qnorm = function(p) {
-  p <- pmin(pmax(p, .Machine$double.eps), 1 - .Machine$double.eps)
-  qnorm(p, 0, 1)
+
+logspace_add <- function(a, b) {
+  # Computes log(exp(a) + exp(b)) safely
+
+  if (a > b) {
+    # Factor out exp(a) so that exp(b - a) <= 1
+    # This avoids overflow if 'a' is very large
+    # Use log1p(x) instead of log(1 + x) for accuracy when x is tiny
+    return(a + log1p(exp(b - a)))
+  } else {
+    # Factor out exp(b) so that exp(a - b) <= 1
+    # Again use log1p for numerical stability
+    return(b + log1p(exp(a - b)))
+  }
 }
+
 
 SampleTruncNormParticles_MisSpec = function(mod, Limit, Parms, t, Zhat, Rt){
   # relation (21) in JASA paper and the inverse transform method
@@ -3234,8 +3255,6 @@ sample_truncnorm = function(Limit) {
   z <- z_manual
   return(z)
 }
-
-
 
 # keeping an older version of this function in case issues show up - I update it in Sep 19.
 InnovAlgOld = function(Parms,gamma, mod) {
@@ -3501,6 +3520,269 @@ sim_lgc_old = function(n, CountDist, MargParm, ARParm, MAParm, Regressor=NULL, I
   return(as.numeric(x))
 }
 
+
+# PF likelihood with resampling for ARMA(p,q) - with adhoc truncations, handling case when C==1 not in log space
+ParticleFilter_Res_ARMA_MisSpecOld = function(theta, mod){
+
+  old_state <- get_rand_state()
+  on.exit(set_rand_state(old_state))
+
+  # Retrieve parameters and save them in a list called Parms
+  Parms = RetrieveParameters(theta,mod)
+
+  # check for causality
+  if( CheckStability(Parms$AR,Parms$MA) ) return(10^(8))
+
+  # Initialize the negative log likelihood computation
+  if(mod$nreg==0){
+    nloglik = - log(max(mod$mypdf(mod$DependentVar[1],Parms$MargParms),.Machine$double.xmin))
+  }else{
+    nloglik = - log(max(mod$mypdf(mod$DependentVar[1], Parms$ConstMargParm, Parms$DynamMargParm[1]),.Machine$double.xmin))
+  }
+
+  # retrieve AR, MA orders and their max
+  m = max(mod$ARMAModel)
+  p = mod$ARMAModel[1]
+  q = mod$ARMAModel[2]
+
+
+  # Compute ARMA covariance up to lag n-1
+  a        = list()
+  if(!is.null(Parms$AR)){
+    a$phi = Parms$AR
+  }else{
+    a$phi = 0
+  }
+  if(!is.null(Parms$MA)){
+    a$theta = Parms$MA
+  }else{
+    a$theta = 0
+  }
+  a$sigma2 = 1
+  gamma    = itsmr::aacvf(a,mod$n)
+
+  # Compute coefficients of Innovations Algorithm see 5.2.16 and 5.3.9 in in Brockwell Davis book
+  IA       = InnovAlg(Parms, gamma, mod)
+  Theta    = IA$thetas
+  Rt       = sqrt(IA$v)
+
+  # Get the n such that |v_n-v_{n-1}|< mod$maxdiff. check me: does this guarantee convergence of Thetas?
+  nTheta   = IA$n
+  Theta_n  = Theta[[nTheta]]
+
+  # allocate matrices for weights, particles and predictions of the latent series
+  w        = matrix(0, mod$n, mod$ParticleNumber)
+  Z        = matrix(0, mod$n, mod$ParticleNumber)
+  Zhat     = matrix(0, mod$n, mod$ParticleNumber)
+
+  # initialize particle filter weights
+  w[1,]    = rep(1,mod$ParticleNumber)
+
+  # initialize a list to keep track of manual corrections
+  Corrections = list(
+    weights = NULL,
+    weights2 = NULL,
+    C_xt_1 = NULL,
+    C_xt = NULL,
+    a_t = NULL,
+    b_t = NULL,
+    SampleParticles = NULL
+  )
+
+  # Compute the first integral limits Limit$a and Limit$b
+  Limit = ComputeLimits_MisSpecOld(mod, Parms, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
+
+  # if correction for C_xt_1 was necessary for time point t=1, then save it
+  if (Limit$Correction_C_xt_1){
+    Corrections$C_xt_1 = 1
+  }
+
+  # if correction for C_xt was necessary for time point t=1, then save it
+  if (Limit$Correction_C_xt){
+    Corrections$C_xt = 1
+  }
+
+  # Initialize the particles using N(0,1) variables truncated to the limits computed above
+  #Z[1,]    = SampleTruncNormParticles(mod, Limit$a, Limit$b, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
+  SampleParticles = SampleTruncNormParticles_MisSpec(mod, Limit, Parms, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
+  Z[1,]    = SampleParticles$z
+
+  # if correction for lower limit was necessary for time point t=1, then save it
+  if (SampleParticles$Correction_a){
+    Corrections$a_t = 1
+  }
+
+  # if correction for upper limit was necessary for time point t=1, then save it
+  if (SampleParticles$Correction_b){
+    Corrections$b_t = 1
+  }
+
+  for (t in 2:mod$n){
+
+    # compute Zhat_t
+    #Zhat[t,] = ComputeZhat_t(m,Theta,Z,Zhat,t, Parms,p,q, nTheta, Theta_n)
+    Zhat[t,] = ComputeZhat_t(mod, IA, Z, Zhat,t, Parms)
+
+
+    # Compute integral limits
+    Limit = ComputeLimits_MisSpecOld(mod, Parms, t, Zhat[t,], Rt)
+
+    # if correction for C_xt_1 was necessary for time point t=1, then save it
+    if (Limit$Correction_C_xt_1){
+      Corrections$C_xt_1 = c(Corrections$C_xt_1,t)
+    }
+
+    # if correction for C_xt was necessary for time point t=1, then save it
+    if (Limit$Correction_C_xt){
+      Corrections$C_xt = c(Corrections$C_xt,t)
+    }
+
+    # Sample truncated normal particles
+    #Znew  = SampleTruncNormParticles(mod, Limit$a, Limit$b, t, Zhat[t,], Rt)
+    SampleParticles = SampleTruncNormParticles_MisSpec(mod, Limit, Parms, t, Zhat[t,], Rt)
+    Znew  = SampleParticles$z
+
+    # if correction for lower limit was necessary for time point t, then save it
+    if (SampleParticles$Correction_a){
+      Corrections$a_t = c(Corrections$a_t,t)
+    }
+
+    # if correction for upper limit was necessary for time point t, then save it
+    if (SampleParticles$Correction_b){
+      Corrections$b_t = c(Corrections$b_t,t)
+    }
+
+    # update weights
+    #w[t,] = ComputeWeights(mod, Limit$a, Limit$b, t, w[(t-1),])
+    w[t,] = ComputeWeights(mod, Limit, t, w[(t-1),])
+
+    # check me: In misspecified models, the weights may get equal to 0. Is it ok
+    # for me to do the following? how is this different from allowing zero weights and
+    # returning a large likelihood?
+
+    if (sum(w[t,])==0){
+      w[t,] = rep(10^(-64),mod$ParticleNumber)
+      Corrections$weights = c(Corrections$weights,t)
+    }
+
+    # check me: break if I got NA weight
+    if (any(is.na(w[t,]))| sum(w[t,])==0 ){
+      Corrections$weights2 = c(Corrections$weights2,t)
+      if(mod$verbose){
+        message(sprintf('WARNING: At t=%.0f some of the weights are either too small or sum to 0.\n',t))
+      }
+      return(10^8)
+    }
+
+    # Resample the particles using common random numbers
+    old_state1 = get_rand_state()
+    Znew = ResampleParticles(mod, w, t, Znew)
+    set_rand_state(old_state1)
+
+    # save the current particle
+    Z[t,]   = Znew
+
+    #print(t)
+    #print(Z[t,])
+    # print(nloglik)
+    # update likelihood
+    nloglik = nloglik - log(mean(w[t,]))
+  }
+
+  # report messages
+  if(mod$verbose){
+    ReportDiagnostics(Corrections, Parms, mod)
+  }
+  # for log-likelihood we use a bias correction--see par2.3 in Durbin Koopman, 1997
+  # nloglik = nloglik- (1/(2*N))*(var(na.omit(wgh[T1,]))/mean(na.omit(wgh[T1,])))/mean(na.omit(wgh[T1,]))
+
+  # if (nloglik==Inf | is.na(nloglik)){
+  #   nloglik = 10^8
+  # }
+
+  return(nloglik)
+}
+
+# handling case when C==1 not in log space
+ComputeLimits_MisSpecOld = function(mod, Parms, t, Zhat, Rt){
+  # a and b are the arguments in the two normal cdfs in the 4th line in equation (19) in JASA paper
+  Lim = list()
+  # fix me: this will be ok for AR or MA models but for ARMA? is it p+q instead of max(p,q)
+  # fix me: why do I have t(Parms$MargParms)?
+  index = min(t, max(mod$ARMAModel))
+
+  # add the following for White Noise models
+  if(max(mod$ARMAModel)==0) index=1
+
+  # check me: this may need to be surfaced in the wrapper. It is small positive constant I will
+  # use to get away from zero or one. I need to think this more rigorously.
+  epsilon = 10^(-16)
+
+  # Initialize flags that track whether the limits are set to 7 - 10^(-11)
+  Lim$Correction_C_xt_1 = FALSE
+  Lim$Correction_C_xt = FALSE
+
+  # Compute C_xt and C_xt_1 in relation (19), Jia et al. (2021).
+  if(mod$nreg==0){
+    C_1 = mod$mycdf(mod$DependentVar[t]-1,t(Parms$MargParms))
+    C   = mod$mycdf(mod$DependentVar[t],t(Parms$MargParms))
+  }else{
+    C_1 = mod$mycdf(mod$DependentVar[t]-1,Parms$ConstMargParm, Parms$DynamMargParm[t,])
+    C   = mod$mycdf(mod$DependentVar[t],Parms$ConstMargParm, Parms$DynamMargParm[t,])
+  }
+
+  if (C_1==1){
+    C_1_upper = mod$mycdf(mod$DependentVar[t]-1,t(Parms$MargParms),lower.tail = FALSE)
+  }
+  if (C==1){
+    C_upper = mod$mycdf(mod$DependentVar[t],t(Parms$MargParms),lower.tail = FALSE)
+  }
+  # if only C_1 is zero and C>0 we add an epsilon to C_1, but make sure that C_1 < C.
+  # if(C_1==0 & C>0) {
+  #   C_1 = 0 + min(epsilon, 0.9*C)
+  #   Lim$Correction_C_xt_1 = TRUE
+  # }
+
+  # if C==0 then C_1 should also be equal to zero. Then both need to be corrected but I still need C_1 < C.
+  # if(C==0 ) {
+  #   C_1 = 0 + epsilon/2
+  #   C   = 0 + epsilon
+  #   Lim$Correction_C_xt_1 = TRUE
+  #   Lim$Correction_C_xt = TRUE
+  # }
+
+  # If C=1 and C_1 is smaller than 1 then subtract an epsilon from C, but we still need C_1 < C.
+  # if(C==1 & C_1<1) {
+  #   diff = C-C_1
+  #   C = 1 - min(epsilon,diff/2)
+  #   Lim$Correction_C_xt = TRUE
+  # }
+
+  # If C_1 = 1 then C should also be equal to 1. Then both need to be corrected but I still need C_1 < C.
+  # if(C_1==1) {
+  #   C_1 = 1 - epsilon
+  #   C = 1 - epsilon/2
+  #   Lim$Correction_C_xt_1 = TRUE
+  #   Lim$Correction_C_xt = TRUE
+  # }
+
+  # compute the limits
+  if(C_1<1){
+    Lim$a = as.numeric((qnorm(C_1,0,1)) - Zhat)/Rt[index]
+  }else{
+    Lim$a = as.numeric((-qnorm(C_1_upper ,0,1)) - Zhat)/Rt[index]
+  }
+
+  if(C<1){
+    Lim$b = as.numeric((qnorm(C  ,0,1)) - Zhat)/Rt[index]
+  }else{
+    Lim$b = as.numeric((-qnorm(C_upper  ,0,1)) - Zhat)/Rt[index]
+  }
+
+  #Lim$a = as.numeric((safe_qnorm(C_1)) - Zhat)/Rt[index]
+  #Lim$b = as.numeric((safe_qnorm(C)) - Zhat)/Rt[index]
+  return(Lim)
+}
 
 #' Computes the quantiles (inverse CDF) of the two-component mixed Poisson distribution
 #' using a brute-force loop-based method.

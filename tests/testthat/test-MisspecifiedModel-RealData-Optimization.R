@@ -35,6 +35,10 @@ theta = mod$initialParam
 
 set.seed(1)
 expect_equal(ParticleFilter_Res_ARMA(theta,mod), 100000000, tolerance = 10^(-5))
-expect_equal(ParticleFilter_Res_ARMA_MisSpec(theta,mod), 1442.823, tolerance = 10^(-5))
+
+# after changing the function to compute limits ion log space when C_1 = 1 the value changes a
+# bit
+#expect_equal(ParticleFilter_Res_ARMA_MisSpec(theta,mod), 1442.823, tolerance = 10^(-5))
+expect_equal(ParticleFilter_Res_ARMA_MisSpec(theta,mod), 1442.785, tolerance = 10^(-5))
 
 })
