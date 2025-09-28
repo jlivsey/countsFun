@@ -3,11 +3,11 @@
 #' @importFrom stats pbinom plogis pnbinom pnorm ppois qbinom qnbinom qnorm nobs
 #' @importFrom stats qpois rbinom rmultinom runif sd terms var
 #' @importFrom MASS glm.nb
-#' @importFrom VGAM vglm pzipois qzipois dzipois rzipois genpoisson2 loglink
+#' @importFrom VGAM vglm genpoisson2 loglink
 #' @importFrom VGAM dgenpois2 qgenpois2 pgenpois2 rgenpois2 zipoisson
 #' @importFrom iZID poisson.zihmle
 #' @importFrom mixtools poisregmixEM
-#' @importFrom extraDistr dmixpois pmixpois rmixpois
+#' @importFrom extraDistr dmixpois pmixpois rmixpois dzip pzip qzip
 #' @importFrom optimx optimx
 #' @importFrom optextras gHgen
 #' @importFrom parallel detectCores makeCluster stopCluster
@@ -175,7 +175,7 @@ ModelScheme = function(DependentVar = NULL, Regressor=NULL, Intercept = NULL, Es
                                                                        },
                    "Binomial"              = function(x, theta,...){    pbinom(x, ntrials, theta[1],...)},
                    "Mixed Poisson"         = function(x, theta,...){ pmixpois1(x, theta[1], theta[2], theta[3],...)},
-                   "ZIP"                   = function(x, theta){   pzipois(x, theta[1], theta[2])}
+                   "ZIP"                   = function(x, theta,...){          pzip(x, theta[1], theta[2],...)}
     )
 
     # retrieve marginal pdf
@@ -186,7 +186,7 @@ ModelScheme = function(DependentVar = NULL, Regressor=NULL, Intercept = NULL, Es
                    "Generalized Poisson 2" = function(x, theta,...){ dgenpois2(x, theta[2], theta[1],...)},
                    "Binomial"              = function(x, theta,...){    dbinom(x, ntrials, theta[1],...)},
                    "Mixed Poisson"         = function(x, theta,...){ dmixpois1(x, theta[1], theta[2], theta[3],...)},
-                   "ZIP"                   = function(x, theta){   dzipois(x, theta[1], theta[2])}
+                   "ZIP"                   = function(x, theta,...){          dzip(x, theta[1], theta[2],...)}
     )
 
 
@@ -199,7 +199,7 @@ ModelScheme = function(DependentVar = NULL, Regressor=NULL, Intercept = NULL, Es
                       "Generalized Poisson 2" = function(x, theta){ qgenpois2(x, theta[2], theta[1])},
                       "Binomial"              = function(x, theta){    qbinom(x, ntrials, theta[1])},
                       "Mixed Poisson"         = function(x, theta){ qmixpois1(x, theta[1], theta[2], theta[3])},
-                      "ZIP"                   = function(x, theta){   qzipois(x, theta[1], theta[2])}
+                      "ZIP"                   = function(x, theta){      qzip(x, theta[1], theta[2])}
     )
 
     # lower bound constraints
@@ -241,7 +241,7 @@ ModelScheme = function(DependentVar = NULL, Regressor=NULL, Intercept = NULL, Es
                    "Generalized Poisson 2" = function(x, ConstMargParm, DynamMargParm,...){ pgenpois2(x, DynamMargParm, ConstMargParm,...)},
                    "Binomial"              = function(x, ConstMargParm, DynamMargParm,...){    pbinom(x, ntrials, DynamMargParm,...)},
                    "Mixed Poisson"         = function(x, ConstMargParm, DynamMargParm,...){ pmixpois1(x, DynamMargParm[1], DynamMargParm[2], ConstMargParm,...)},
-                   "ZIP"                   = function(x, ConstMargParm, DynamMargParm){   pzipois(x, DynamMargParm, ConstMargParm)}
+                   "ZIP"                   = function(x, ConstMargParm, DynamMargParm,...){          pzip(x, DynamMargParm, ConstMargParm,...)}
     )
     # retrieve marginal pdf
     mypdf = switch(CountDist,
@@ -251,7 +251,7 @@ ModelScheme = function(DependentVar = NULL, Regressor=NULL, Intercept = NULL, Es
                    "Generalized Poisson 2" = function(x, ConstMargParm, DynamMargParm,...){ dgenpois2(x, DynamMargParm, ConstMargParm,...)},
                    "Binomial"              = function(x, ConstMargParm, DynamMargParm,...){    dbinom(x, ntrials, DynamMargParm,...)},
                    "Mixed Poisson"         = function(x, ConstMargParm, DynamMargParm,...){ dmixpois1(x, DynamMargParm[1], DynamMargParm[2], ConstMargParm,...)},
-                   "ZIP"                   = function(x, ConstMargParm, DynamMargParm){   dzipois(x, DynamMargParm, ConstMargParm)}
+                   "ZIP"                   = function(x, ConstMargParm, DynamMargParm,...){          dzip(x, DynamMargParm, ConstMargParm,...)}
     )
     # retrieve marginal inverse cdf
     myinvcdf = switch(CountDist,
@@ -261,7 +261,7 @@ ModelScheme = function(DependentVar = NULL, Regressor=NULL, Intercept = NULL, Es
                    "Generalized Poisson 2" = function(x, ConstMargParm, DynamMargParm){ qgenpois2(x, DynamMargParm, ConstMargParm)},
                    "Binomial"              = function(x, ConstMargParm, DynamMargParm){    qbinom(x, ntrials, DynamMargParm)},
                    "Mixed Poisson"         = function(x, ConstMargParm, DynamMargParm){ qmixpois1(x, DynamMargParm[,1], DynamMargParm[,2], ConstMargParm)},
-                   "ZIP"                   = function(x, ConstMargParm, DynamMargParm){   qzipois(x, DynamMargParm, ConstMargParm)}
+                   "ZIP"                   = function(x, ConstMargParm, DynamMargParm){      qzip(x, DynamMargParm, ConstMargParm)}
     )
     # lower bound contraints
     LB = switch(CountDist,
