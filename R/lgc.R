@@ -119,8 +119,13 @@ lgc = function(formula        = NULL,
   # parse the regression formula
   parsed_formula <- parse_formula(formula)
 
-  # retrieve the Dependent variable
-  DependentVar = data[parsed_formula$DependentVar]
+  # if task is Simulation or Synthesis the data frame will not have a dependent variable
+  if (Task %in% c("Simulation", "Synthesis")){
+    DependentVar = NULL
+  }else{
+    # retrieve the Dependent variable
+    DependentVar = data[parsed_formula$DependentVar]
+  }
 
   # retrieve the Regressors variable
   if(is.null(parsed_formula$Regressor)){
@@ -128,7 +133,6 @@ lgc = function(formula        = NULL,
   } else{
     Regressor =   data[parsed_formula$Regressor]
   }
-
 
   # retrieve intercept
   Intercept = parsed_formula$intercept
@@ -157,17 +161,9 @@ lgc = function(formula        = NULL,
                     ParamScheme    = ParamScheme,
                     maxdiff        = maxdiff,
                     ntrials        = ntrials,
-                    verbose        = verbose)
+                    verbose        = verbose,
+                    nsim           = nsim)
 
-  # if(Task=='Synthesis'){
-  #   out
-  # }
-
-
-  # compute initial parameters if they haven't been provided
-  if (is.null(mod$initialParam)){
-    mod$initialParam = InitialEstimates(mod)
-  }
 
   # if simulation task has been chosen simulate the data and compute initial estimates
   # check me how fast is this?
@@ -204,39 +200,55 @@ lgc = function(formula        = NULL,
     #               'doParallel','numDeriv','VGAM','iZID','extraDistr','devtools',
     #               'parallel','MASS','mixtools', 'optextras')
 
-    out = foreach(ForEachIndex = 1:nsim,
+    SimResults = foreach(ForEachIndex = 1:nsim,
                 .packages = c("optimx", 'countsFun'),.export= c("FitMultiplePF_Res"))  %dopar%  {
                   mod$DependentVar =  AllSimulatedSeries[[ForEachIndex]]
                   theta  = mod$initialParam = AllInitialParam[[ForEachIndex]]
-                  FitMultiplePF_Res(theta,mod)
+                  #FitMultiplePF_Res(theta,mod)
+
+                  # Fit the model
+                  fit_result <- FitMultiplePF_Res(theta, mod)
+
+                  # Attach initial parameters to the result
+                  fit_result$initialParam <- theta
+
+                  # Return the full object
+                  fit_result
                 }
 
     stopCluster(cl)
+
+    # revert the task back to Simulation
+    mod$Task = 'Simulation'
+
   }
 
   if(Task %in% c('Evaluation', 'Optimization')){
-      theta  = mod$initialParam
-      FitResults = FitMultiplePF_Res(theta, mod)
+    # compute initial parameters if they haven't been provided
+    if (is.null(mod$initialParam)){
+      mod$initialParam = InitialEstimates(mod)
+    }
+    theta  = mod$initialParam
+    FitResults = FitMultiplePF_Res(theta, mod)
 
-      # gather the input information and the Fit Results in one output structure
-      out = PrepareOutput(mod, FitResults)
+    # gather the input information and the Fit Results in one output structure
+    out = PrepareOutput(mod, FitResults)
 
-      # compute residuals
-      resid = ComputeResiduals(out)
-      out$residuals = resid
-  }
+    # compute residuals
+    resid = ComputeResiduals(out)
+    out$residuals = resid
 
-  # create an lgc object and save the initial estimate
-  # check me: also for
-  if(Task %in% c('Evaluation', 'Optimization')){
+    # create an lgc object
     class(out) <- "lgc"
   }
 
   if(Task=='Simulation'){
-    for (i in seq_along(out)) {
-      class(out[[i]]) <- "lgc"
-    }
+    # gather the input information and the Fit Results in one output structure
+    out = PrepareOutput(mod, SimResults)
+
   }
+
+
 return(out)
 
 }

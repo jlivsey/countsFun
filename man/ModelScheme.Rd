@@ -23,6 +23,7 @@ ModelScheme(
   maxdiff = 10^(-8),
   ntrials = NULL,
   verbose = TRUE,
+  nsim = NULL,
   ...
 )
 }
@@ -61,7 +62,9 @@ ModelScheme(
 
 \item{ntrials}{Integer. Number of trials (used in Binomial model).}
 
-\item{verbose}{Logical. If \code{TRUE} (default), informative messages are printed during execution.
+\item{verbose}{Logical. If \code{TRUE} (default), informative messages are printed during execution.}
+
+\item{nsim}{Integer. Number of replications. Required when \code{Task == "Simulation"}.
 Set to \code{FALSE} to suppress messages.}
 
 \item{...}{Additional arguments (currently unused).}

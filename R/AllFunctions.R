@@ -42,6 +42,7 @@
 #' @param maxdiff Numeric. Convergence criterion for optimization.
 #' @param ntrials Integer. Number of trials (used in Binomial model).
 #' @param verbose Logical. If \code{TRUE} (default), informative messages are printed during execution.
+#' @param nsim Integer. Number of replications. Required when \code{Task == "Simulation"}.
 #' Set to \code{FALSE} to suppress messages.
 #' @param ... Additional arguments (currently unused).
 #'
@@ -59,7 +60,7 @@
 #' @export
 ModelScheme = function(DependentVar = NULL, Regressor=NULL, Intercept = NULL, EstMethod="PFR", ARMAModel=c(0,0), CountDist="NULL",
                        ParticleNumber = 5, epsilon = 0.5, initialParam=NULL, TrueParam=NULL, Task="Evaluation", SampleSize=NULL,
-                       OptMethod="L-BFGS-B", OutputType="list", ParamScheme=1, maxdiff=10^(-8),ntrials= NULL,verbose=TRUE,...){
+                       OptMethod="L-BFGS-B", OutputType="list", ParamScheme=1, maxdiff=10^(-8),ntrials= NULL,verbose=TRUE,nsim=NULL,...){
 
   # Distribution list
   if( !(CountDist %in% c("Poisson", "Negative Binomial", "Generalized Poisson", "Generalized Poisson 2", "Mixed Poisson",
@@ -93,16 +94,20 @@ ModelScheme = function(DependentVar = NULL, Regressor=NULL, Intercept = NULL, Es
   if(length(ARMAModel)!=2 | !prod(ARMAModel %% 1 == c(0,0)) )
     stop("The specified ARMA model is not supported.")
 
-  # make the dependent variable numeric
-  if(is.data.frame(DependentVar)){
-    DependentVar = DependentVar[,1]
+  # if evaluation or Optimization is requested dependent variable cannot be NULL
+  if (Task %in% c("Evaluation", "Optimization") && is.null(DependentVar)){
+    stop("Dependent variable is NULL")
   }
 
-  # retrieve sample size
-  if(Task=="Synthesis"){
+  # retrieve sample size and make the dependent variable numeric if Evaluation or Optimization has been requested
+  if(Task %in% c("Synthesis", "Simulation")){
     n = SampleSize
   }else{
     n = length(DependentVar)
+    if(is.data.frame(DependentVar)){
+      DependentVar = DependentVar[,1]
+      n = length(DependentVar)
+    }
   }
 
   # fix me: do I need a warning here is there is no samplesize in simulation
@@ -142,7 +147,7 @@ ModelScheme = function(DependentVar = NULL, Regressor=NULL, Intercept = NULL, Es
   nAR        = ARMAModel[1]
   nMA        = ARMAModel[2]
 
-  if(Task=="Synthesis"){
+  if(Task %in% c("Synthesis", "Simulation")){
     if (nparms!=length(TrueParam)){
       stop("The length of the specified true parameter does not comply with the
            model or the number of regressors.")
@@ -335,6 +340,7 @@ ModelScheme = function(DependentVar = NULL, Regressor=NULL, Intercept = NULL, Es
     MargParmIndices  = MargParmIndices,
     initialParam     = initialParam,
     TrueParam        = TrueParam,
+    nsim             = nsim,
     parmnames        = parmnames,
     nMargParms       = nMargParms,
     nAR              = nAR,
@@ -736,7 +742,8 @@ FitMultiplePF_Res = function(theta, mod){
 PrepareOutput = function(mod, FitResults){
 
 
-  if(mod$OutputType=="list"){
+  # if(mod$OutputType=="list"){
+  if(mod$Task %in% c("Evaluation","Optimization")){
     #  save the results in a list
     ModelOutput = list()
 
@@ -769,24 +776,25 @@ PrepareOutput = function(mod, FitResults){
     #if(mod$Task=="Optimization")names(ModelOutput$OptimOutput)       = c("ConvergeStatus", "kkt1", "kkt2")
 
     ModelOutput$mod            = mod
-  }else{
-    ModelOutput  = data.frame(matrix(ncol = 4*mod$nparms+16, nrow = 1))
+  }else if(mod$Task %in% c("Simulation")){
+    ModelOutput  = data.frame(matrix(ncol = 4*mod$nparms+16, nrow = mod$nsim))
 
     # specify output names
     if(!is.null(mod$TrueParam)){
       colnames(ModelOutput) = c(
         'CountDist','ARMAModel', 'Regressor',
-        paste("True_", mod$parmnames, sep=""), paste("InitialEstim_", mod$parmnames, sep=""),
+        paste("True_", mod$parmnames, sep=""), paste("InitEst_", mod$parmnames, sep=""),
         mod$parmnames, paste("se(", mod$parmnames,")", sep=""),
         'EstMethod', 'SampleSize', 'ParticleNumber', 'epsilon', 'OptMethod', 'ParamScheme',
         "loglik", "AIC", "BIC", "AICc", "ConvergeStatus", "kkt1", "kkt2")
     }
-    colnames(ModelOutput) = c(
-      'CountDist','ARMAModel', 'Regressor',
-      paste("InitialEstim_", mod$parmnames, sep=""),
-      mod$parmnames, paste("se(", mod$parmnames,")", sep=""),
-      'EstMethod', 'SampleSize', 'ParticleNumber', 'epsilon', 'OptMethod',
-      "loglik", "AIC", "BIC", "AICc", "ConvergeStatus", "kkt1", "kkt2")
+    # if mod$Task = Simulation then I must have TrueParam
+    # colnames(ModelOutput) = c(
+    #   'CountDist','ARMAModel', 'Regressor',
+    #   paste("InitialEstim_", mod$parmnames, sep=""),
+    #   mod$parmnames, paste("se(", mod$parmnames,")", sep=""),
+    #   'EstMethod', 'SampleSize', 'ParticleNumber', 'epsilon', 'OptMethod',
+    #   "loglik", "AIC", "BIC", "AICc", "ConvergeStatus", "kkt1", "kkt2")
 
     # Start Populating the output data frame
     ModelOutput$CountDist      = mod$CountDist
@@ -812,65 +820,73 @@ PrepareOutput = function(mod, FitResults){
       }
     }
 
-    # Initial Parameter Estimates
-    if(mod$nMargParms>0){
-      ModelOutput[, offset:(offset + mod$nMargParms -1 )] = mod$initialParam[1:mod$nMargParms ]
-      offset = offset + mod$nMargParms
-    }
-    if(mod$nAR>0){
-      ModelOutput[, offset:(offset + mod$nAR-1)]        = mod$initialParam[(mod$nMargParms+1):(mod$nMargParms+mod$nAR) ]
-      offset = offset + mod$nAR
-    }
+    LastOffset = offset
+    for (i in seq_along(FitResults)) {
 
-    if(mod$nMA>0){
-      ModelOutput[, offset:(offset + mod$nMA-1)]        = mod$initialParam[(mod$nMargParms+mod$nAR+1):(mod$nMargParms+mod$nAR+mod$nMA) ]
-      offset = offset + mod$nMA
-    }
+      fit_i <- FitResults[[i]]
+      offset = LastOffset
 
-    # Parameter Estimates
-    if(mod$nMargParms>0){
-      ModelOutput[, offset:(offset + mod$nMargParms-1)] = FitResults$ParmEst[,1:mod$nMargParms]
-      offset = offset + mod$nMargParms
-    }
+      # Initial Parameter Estimates
+      if(mod$nMargParms>0){
+        ModelOutput[i, offset:(offset + mod$nMargParms -1 )] = fit_i$initialParam[1:mod$nMargParms ]
+        offset = offset + mod$nMargParms
+      }
+      if(mod$nAR>0){
+        ModelOutput[i, offset:(offset + mod$nAR-1)]        = fit_i$initialParam[(mod$nMargParms+1):(mod$nMargParms+mod$nAR) ]
+        offset = offset + mod$nAR
+      }
 
-    if(mod$nAR>0){
-      ModelOutput[, offset:(offset + mod$nAR-1)]        = FitResults$ParmEst[,(mod$nMargParms+1):(mod$nMargParms+mod$nAR)]
-      offset = offset + mod$nAR
-    }
+      if(mod$nMA>0){
+        ModelOutput[i, offset:(offset + mod$nMA-1)]        = fit_i$initialParam[(mod$nMargParms+mod$nAR+1):(mod$nMargParms+mod$nAR+mod$nMA) ]
+        offset = offset + mod$nMA
+      }
 
-    if(mod$nMA>0){
-      ModelOutput[, offset:(offset + mod$nMA-1)]        = FitResults$ParmEst[,(mod$nMargParms+mod$nAR+1):(mod$nMargParms+mod$nAR+mod$nMA)]
-      offset = offset + mod$nMA
-    }
+      # Parameter Estimates
+      if(mod$nMargParms>0){
+        ModelOutput[i, offset:(offset + mod$nMargParms-1)] = fit_i$ParmEst[,1:mod$nMargParms]
+        offset = offset + mod$nMargParms
+      }
 
-    # Parameter Std Errors
-    if(mod$nMargParms>0){
-      ModelOutput[, offset:(offset + mod$nMargParms-1)] = FitResults$se[,1:mod$nMargParms]
-      offset = offset + mod$nMargParms
-    }
+      if(mod$nAR>0){
+        ModelOutput[i, offset:(offset + mod$nAR-1)]        = fit_i$ParmEst[,(mod$nMargParms+1):(mod$nMargParms+mod$nAR)]
+        offset = offset + mod$nAR
+      }
 
-    if(mod$nAR>0){
-      ModelOutput[, offset:(offset + mod$nAR-1)]        = FitResults$se[,(mod$nMargParms+1):(mod$nMargParms+mod$nAR)]
-      offset = offset + mod$nAR
-    }
+      if(mod$nMA>0){
+        ModelOutput[i, offset:(offset + mod$nMA-1)]        = fit_i$ParmEst[,(mod$nMargParms+mod$nAR+1):(mod$nMargParms+mod$nAR+mod$nMA)]
+        offset = offset + mod$nMA
+      }
 
-    if(mod$nMA>0){
-      ModelOutput[, offset:(offset + mod$nMA-1)]        = FitResults$se[,(mod$nMargParms+mod$nAR+1):(mod$nMargParms+mod$nAR+mod$nMA)]
-    }
+      # Parameter Std Errors
+      if(mod$nMargParms>0){
+        ModelOutput[i, offset:(offset + mod$nMargParms-1)] = fit_i$se[,1:mod$nMargParms]
+        offset = offset + mod$nMargParms
+      }
 
+      if(mod$nAR>0){
+        ModelOutput[i, offset:(offset + mod$nAR-1)]        = fit_i$se[,(mod$nMargParms+1):(mod$nMargParms+mod$nAR)]
+        offset = offset + mod$nAR
+      }
+
+      if(mod$nMA>0){
+        ModelOutput[i, offset:(offset + mod$nMA-1)]        = fit_i$se[,(mod$nMargParms+mod$nAR+1):(mod$nMargParms+mod$nAR+mod$nMA)]
+      }
+
+      ModelOutput[i,]$loglik         = fit_i$FitStatistics[,"loglik"]
+      ModelOutput[i,]$AIC            = fit_i$FitStatistics[,"AIC"]
+      ModelOutput[i,]$BIC            = fit_i$FitStatistics[,"BIC"]
+      ModelOutput[i,]$AICc           = fit_i$FitStatistics[,"AICc"]
+      ModelOutput[i,]$ConvergeStatus = fit_i$OptimOutput[,"ConvergeStatus"]
+      ModelOutput[i,]$kkt1           = fit_i$OptimOutput[,"kkt1"]
+      ModelOutput[i,]$kkt2           = fit_i$OptimOutput[,"kkt2"]
+
+    }
     ModelOutput$EstMethod      = mod$EstMethod
     ModelOutput$SampleSize     = mod$n
     ModelOutput$ParticleNumber = mod$ParticleNumber
     ModelOutput$epsilon        = mod$epsilon
     ModelOutput$OptMethod      = mod$OptMethod
     if(!is.null(mod$TrueParam)) ModelOutput$ParamScheme    = mod$ParamScheme
-    ModelOutput$loglik         = FitResults$FitStatistics[,"loglik"]
-    ModelOutput$AIC            = FitResults$FitStatistics[,"AIC"]
-    ModelOutput$BIC            = FitResults$FitStatistics[,"BIC"]
-    ModelOutput$AICc           = FitResults$FitStatistics[,"AICc"]
-    ModelOutput$ConvergeStatus = FitResults$OptimOutput[,"ConvergeStatus"]
-    ModelOutput$kkt1           = FitResults$OptimOutput[,"kkt1"]
-    ModelOutput$kkt2           = FitResults$OptimOutput[,"kkt2"]
   }
 
   return(ModelOutput)
@@ -3426,99 +3442,99 @@ ParticleFilter_Res_ARMAOld = function(theta, mod){
   return(nloglik)
 }
 
-# simulate from our model - the old function
-sim_lgc_old = function(n, CountDist, MargParm, ARParm, MAParm, Regressor=NULL, Intercept=NULL){
-
-  # Generate latent Gaussian model
-  z  =arima.sim(model = list( ar = ARParm, ma=MAParm  ), n = n)
-  z = z/sd(z) # standardize the data
-
-  # add a column of ones in the Regressors if Intercept is present
-  if (!is.null(Intercept) && Intercept==TRUE && sum(as.matrix(Regressor)[,1])!=n){
-    Regressor = as.data.frame(cbind(rep(1,n),Regressor))
-    names(Regressor)[1] = "Intercept"
-  }
-
-
-  # number of regressors
-  nreg = ifelse(is.null(Regressor), 0, dim(Regressor)[2]-as.numeric(Intercept))
-
-  if(nreg==0){
-    # retrieve marginal inverse cdf
-    myinvcdf = switch(CountDist,
-                      "Poisson"               = qpois,
-                      "Negative Binomial"     = function(x, theta){ qnbinom (x, theta[1], 1-theta[2]) },
-                      "Generalized Poisson"   = function(x, theta){ qGpois  (x, theta[1], theta[2])},
-                      "Generalized Poisson 2" = function(x, theta){ qGpois  (x, theta[2], theta[1])},
-                      "Binomial"              = qbinom,
-                      "Mixed Poisson"         = function(x, theta){qmixpois1(x, theta[1], theta[2], theta[3])},
-                      "ZIP"                   = function(x, theta){ qzipois(x, theta[1], theta[2]) },
-                      stop("The specified distribution is not supported.")
-    )
-
-    # get the final counts
-    x = myinvcdf(pnorm(z), MargParm)
-
-  }else{
-    # retrieve inverse count cdf
-    myinvcdf = switch(CountDist,
-                      "Poisson"               = function(x, ConstMargParm, DynamMargParm){ qpois   (x, DynamMargParm)},
-                      "Negative Binomial"     = function(x, ConstMargParm, DynamMargParm){ qnbinom (x, ConstMargParm, 1-DynamMargParm)},
-                      "Generalized Poisson"   = function(x, ConstMargParm, DynamMargParm){ qGpois  (x, ConstMargParm, DynamMargParm)},
-                      "Generalized Poisson 2" = function(x, ConstMargParm, DynamMargParm){ qgenpois2  (x, DynamMargParm, ConstMargParm)},
-                      "Binomial"              = function(x, ConstMargParm, DynamMargParm){ qbinom  (x, ConstMargParm, DynamMargParm)},
-                      "Mixed Poisson"         = function(x, ConstMargParm, DynamMargParm){qmixpois1(x, DynamMargParm[,1], DynamMargParm[,2],  ConstMargParm)},
-                      "ZIP"                   = function(x, ConstMargParm, DynamMargParm){ qzipois (x, DynamMargParm[,1], DynamMargParm[,2]) },
-                      stop("The specified distribution is not supported.")
-    )
-
-    # regression parameters
-    beta  = MargParm[1:(nreg+1)]
-    m     = exp(as.matrix(Regressor)%*%beta)
-
-    if(CountDist == "Poisson" && nreg>0){
-      ConstMargParm  = NULL
-      DynamMargParm  = m
-    }
-
-    if(CountDist == "Negative Binomial" && nreg>0){
-      ConstMargParm  = 1/MargParm[nreg+2]
-      DynamMargParm  = MargParm[nreg+2]*m/(1+MargParm[nreg+2]*m)
-    }
-
-    if(CountDist == "Generalized Poisson" && nreg>0){
-      ConstMargParm  = MargParm[nreg+2]
-      DynamMargParm  = m
-    }
-
-
-    if(CountDist == "Generalized Poisson 2" && nreg>0){
-      ConstMargParm  = MargParm[nreg+2]
-      DynamMargParm  = m
-    }
-
-    if(CountDist == "Binomial" && nreg>0){
-      # ConstMargParm  = MargParm[nreg+2]
-      DynamMargParm  = m/(1+m)
-    }
-
-    if(CountDist == "Mixed Poisson" && nreg>0){
-      ConstMargParm  = c(MargParm[nreg*2+3], 1 - MargParm[nreg*2+3])
-      DynamMargParm  = cbind(exp(as.matrix(Regressor)%*%MargParm[1:(nreg+1)]),
-                             exp(as.matrix(Regressor)%*%MargParm[(nreg+2):(nreg*2+2)]))
-    }
-
-    if(CountDist == "ZIP" && nreg>0){
-      ConstMargParm  = NULL
-      DynamMargParm  = cbind(exp(as.matrix(Regressor)%*%MargParm[1:(nreg+1)]),
-                             1/(1+exp(-as.matrix(Regressor)%*%MargParm[(nreg+2):(nreg*2+2)])))
-    }
-
-    # get the final counts
-    x = myinvcdf(pnorm(z), ConstMargParm, DynamMargParm)
-  }
-  return(as.numeric(x))
-}
+# # simulate from our model - the old function
+# sim_lgc_old = function(n, CountDist, MargParm, ARParm, MAParm, Regressor=NULL, Intercept=NULL){
+#
+#   # Generate latent Gaussian model
+#   z  =arima.sim(model = list( ar = ARParm, ma=MAParm  ), n = n)
+#   z = z/sd(z) # standardize the data
+#
+#   # add a column of ones in the Regressors if Intercept is present
+#   if (!is.null(Intercept) && Intercept==TRUE && sum(as.matrix(Regressor)[,1])!=n){
+#     Regressor = as.data.frame(cbind(rep(1,n),Regressor))
+#     names(Regressor)[1] = "Intercept"
+#   }
+#
+#
+#   # number of regressors
+#   nreg = ifelse(is.null(Regressor), 0, dim(Regressor)[2]-as.numeric(Intercept))
+#
+#   if(nreg==0){
+#     # retrieve marginal inverse cdf
+#     myinvcdf = switch(CountDist,
+#                       "Poisson"               = qpois,
+#                       "Negative Binomial"     = function(x, theta){ qnbinom (x, theta[1], 1-theta[2]) },
+#                       "Generalized Poisson"   = function(x, theta){ qGpois  (x, theta[1], theta[2])},
+#                       "Generalized Poisson 2" = function(x, theta){ qGpois  (x, theta[2], theta[1])},
+#                       "Binomial"              = qbinom,
+#                       "Mixed Poisson"         = function(x, theta){qmixpois1(x, theta[1], theta[2], theta[3])},
+#                       "ZIP"                   = function(x, theta){ qzipois(x, theta[1], theta[2]) },
+#                       stop("The specified distribution is not supported.")
+#     )
+#
+#     # get the final counts
+#     x = myinvcdf(pnorm(z), MargParm)
+#
+#   }else{
+#     # retrieve inverse count cdf
+#     myinvcdf = switch(CountDist,
+#                       "Poisson"               = function(x, ConstMargParm, DynamMargParm){ qpois   (x, DynamMargParm)},
+#                       "Negative Binomial"     = function(x, ConstMargParm, DynamMargParm){ qnbinom (x, ConstMargParm, 1-DynamMargParm)},
+#                       "Generalized Poisson"   = function(x, ConstMargParm, DynamMargParm){ qGpois  (x, ConstMargParm, DynamMargParm)},
+#                       "Generalized Poisson 2" = function(x, ConstMargParm, DynamMargParm){ qgenpois2  (x, DynamMargParm, ConstMargParm)},
+#                       "Binomial"              = function(x, ConstMargParm, DynamMargParm){ qbinom  (x, ConstMargParm, DynamMargParm)},
+#                       "Mixed Poisson"         = function(x, ConstMargParm, DynamMargParm){qmixpois1(x, DynamMargParm[,1], DynamMargParm[,2],  ConstMargParm)},
+#                       "ZIP"                   = function(x, ConstMargParm, DynamMargParm){ qzipois (x, DynamMargParm[,1], DynamMargParm[,2]) },
+#                       stop("The specified distribution is not supported.")
+#     )
+#
+#     # regression parameters
+#     beta  = MargParm[1:(nreg+1)]
+#     m     = exp(as.matrix(Regressor)%*%beta)
+#
+#     if(CountDist == "Poisson" && nreg>0){
+#       ConstMargParm  = NULL
+#       DynamMargParm  = m
+#     }
+#
+#     if(CountDist == "Negative Binomial" && nreg>0){
+#       ConstMargParm  = 1/MargParm[nreg+2]
+#       DynamMargParm  = MargParm[nreg+2]*m/(1+MargParm[nreg+2]*m)
+#     }
+#
+#     if(CountDist == "Generalized Poisson" && nreg>0){
+#       ConstMargParm  = MargParm[nreg+2]
+#       DynamMargParm  = m
+#     }
+#
+#
+#     if(CountDist == "Generalized Poisson 2" && nreg>0){
+#       ConstMargParm  = MargParm[nreg+2]
+#       DynamMargParm  = m
+#     }
+#
+#     if(CountDist == "Binomial" && nreg>0){
+#       # ConstMargParm  = MargParm[nreg+2]
+#       DynamMargParm  = m/(1+m)
+#     }
+#
+#     if(CountDist == "Mixed Poisson" && nreg>0){
+#       ConstMargParm  = c(MargParm[nreg*2+3], 1 - MargParm[nreg*2+3])
+#       DynamMargParm  = cbind(exp(as.matrix(Regressor)%*%MargParm[1:(nreg+1)]),
+#                              exp(as.matrix(Regressor)%*%MargParm[(nreg+2):(nreg*2+2)]))
+#     }
+#
+#     if(CountDist == "ZIP" && nreg>0){
+#       ConstMargParm  = NULL
+#       DynamMargParm  = cbind(exp(as.matrix(Regressor)%*%MargParm[1:(nreg+1)]),
+#                              1/(1+exp(-as.matrix(Regressor)%*%MargParm[(nreg+2):(nreg*2+2)])))
+#     }
+#
+#     # get the final counts
+#     x = myinvcdf(pnorm(z), ConstMargParm, DynamMargParm)
+#   }
+#   return(as.numeric(x))
+# }
 
 
 # PF likelihood with resampling for ARMA(p,q) - with adhoc truncations, handling case when C==1 not in log space
