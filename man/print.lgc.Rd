@@ -2,23 +2,41 @@
 % Please edit documentation in R/AllFunctions.R
 \name{print.lgc}
 \alias{print.lgc}
-\title{Print an lgc Model}
+\title{Print a Latent Gaussian Count (LGC) Model}
 \usage{
-\method{print}{lgc}(x, ...)
+\method{print}{lgc}(x, digits = 4, ...)
 }
 \arguments{
-\item{x}{An object of class \code{lgc}.}
+\item{x}{An object of class \code{"lgc"}.}
+
+\item{digits}{Integer; number of significant digits to display (default = 4).}
 
 \item{...}{Additional arguments (currently unused).}
 }
 \value{
-Invisibly returns the input object.
+Invisibly returns the input object \code{x}.
 }
 \description{
-Nicely formats and prints a fitted \code{lgc} model object.
+Nicely formats and prints a fitted \code{lgc} model object, including model type,
+estimation details, fit statistics, and parameter estimates. Designed to provide
+a concise summary suitable for quick inspection by statisticians and
+time-series practitioners.
+}
+\details{
+This method provides a human-readable printout of an LGC model object.
+For more comprehensive model information, including diagnostic metrics
+and statistical inference, use \code{summary.lgc()}.
 }
 \examples{
 \dontrun{
+  # Fit an example LGC model
+  mylgc <- lgc(formula = y ~ x, data = simdata, EstMethod = "PFR")
+
+  # Print the model summary
   print(mylgc)
 }
+
+}
+\seealso{
+\code{\link{summary.lgc}} for a detailed summary method.
 }

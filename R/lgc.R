@@ -178,7 +178,12 @@ lgc = function(formula        = NULL,
       set.seed(i)
       AllSimulatedSeries[[i]] = mod$DependentVar =sim_lgc(SampleSize, mod$CountDist, Parms$MargParms, Parms$AR, Parms$MA,
                                                           mod$Regressor,mod$Intercept)
-      AllInitialParam[[i]]    = InitialEstimates(mod)
+
+      if(is.null(mod$initialParam)){
+        AllInitialParam[[i]]    = InitialEstimates(mod)
+      }else{
+        AllInitialParam[[i]]    = mod$initialParam
+      }
     }
 
     # renew the task (after we simulated we need to fit)
@@ -193,18 +198,11 @@ lgc = function(formula        = NULL,
     #clusterSetRNGStream(cl, 1001) #make the bootstrapping exactly the same as above to equate computation time
     registerDoParallel(cl)
 
-    # run foreach
-    # fix me: need to be very careful here with packages - and run tests for all distributions with and without regressors
-
-    # .packages = c("ltsa", "optimx", 'tictoc', 'countsFun', 'itsmr',
-    #               'doParallel','numDeriv','VGAM','iZID','extraDistr','devtools',
-    #               'parallel','MASS','mixtools', 'optextras')
-
+    # use foreach to run the simulations in parallel
     SimResults = foreach(ForEachIndex = 1:nsim,
                 .packages = c("optimx", 'countsFun'),.export= c("FitMultiplePF_Res"))  %dopar%  {
                   mod$DependentVar =  AllSimulatedSeries[[ForEachIndex]]
                   theta  = mod$initialParam = AllInitialParam[[ForEachIndex]]
-                  #FitMultiplePF_Res(theta,mod)
 
                   # Fit the model
                   fit_result <- FitMultiplePF_Res(theta, mod)

@@ -38,7 +38,7 @@ Supported values include \code{"Poisson"}, \code{"Negative Binomial"}, \code{"ZI
 \item{...}{Additional arguments (currently unused).}
 }
 \value{
-A numeric vector of length \code{n}, containing the simulated count time series.
+A ts object containing the simulated count time series.
 }
 \description{
 Simulates a univariate count time series of length \code{n} from a specified model

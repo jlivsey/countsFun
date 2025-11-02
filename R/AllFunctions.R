@@ -1,7 +1,7 @@
 #' #' @keywords internal
 #' @importFrom stats ARMAacf arima.sim coef dbinom dnbinom dpois filter glm arima residuals
 #' @importFrom stats pbinom plogis pnbinom pnorm ppois qbinom qnbinom qnorm nobs
-#' @importFrom stats qpois rbinom rmultinom runif sd terms var
+#' @importFrom stats qpois rbinom rmultinom runif sd terms var ts
 #' @importFrom MASS glm.nb
 #' @importFrom VGAM vglm genpoisson2 loglink
 #' @importFrom VGAM dgenpois2 qgenpois2 pgenpois2 rgenpois2 zipoisson
@@ -1080,7 +1080,7 @@ InitialEstimates = function(mod){
   if(mod$CountDist=="Mixed Poisson"){
     if(mod$nreg==0){
       # pmle for marginal parameters
-      MixPois_PMLE <- pmle.pois(mod$DependentVar,2)
+      MixPois_PMLE <- pmle.pois(as.numeric(mod$DependentVar),2)
 
       pEst  = MixPois_PMLE[[1]][1]
       l1Est = MixPois_PMLE[[2]][1]
@@ -1396,7 +1396,7 @@ InnovAlg <- function(Parms, gamma, mod) {
 #' @param ntrials Integer. Number of trials for the Binomial model (required if \code{CountDist == "Binomial"}).
 #' @param ... Additional arguments (currently unused).
 #'
-#' @return A numeric vector of length \code{n}, containing the simulated count time series.
+#' @return A ts object containing the simulated count time series.
 #'
 #' @details
 #' The simulation is based on a latent Gaussian copula framework, where the marginal distribution
@@ -1452,7 +1452,8 @@ sim_lgc = function(n, CountDist, MargParm, ARParm, MAParm, Regressor=NULL, Inter
     x = mod$myinvcdf(pnorm(z), Parms$ConstMargParm, Parms$DynamMargParm)
   }
   # FIX ME: Should I be returning ts objects?
-  return(as.numeric(x))
+  # return(as.numeric(x))
+  return(ts(x))
 }
 
 
@@ -1635,22 +1636,133 @@ summary.lgc <- function(object, ...) {
 
 # print <- function(object, ...) UseMethod("print")
 
-#' @title Print an lgc Model
-#' @description Nicely formats and prints a fitted \code{lgc} model object.
-#' @param x An object of class \code{lgc}.
+#' @title Print a Latent Gaussian Count (LGC) Model
+#' @description
+#' Nicely formats and prints a fitted \code{lgc} model object, including model type,
+#' estimation details, fit statistics, and parameter estimates. Designed to provide
+#' a concise summary suitable for quick inspection by statisticians and
+#' time-series practitioners.
+#'
+#' @param x An object of class \code{"lgc"}.
+#' @param digits Integer; number of significant digits to display (default = 4).
 #' @param ... Additional arguments (currently unused).
-#' @return Invisibly returns the input object.
+#'
+#' @details
+#' This method provides a human-readable printout of an LGC model object.
+#' For more comprehensive model information, including diagnostic metrics
+#' and statistical inference, use \code{summary.lgc()}.
+#'
+#' @return Invisibly returns the input object \code{x}.
+#'
 #' @examples
 #' \dontrun{
+#'   # Fit an example LGC model
+#'   mylgc <- lgc(formula = y ~ x, data = simdata, EstMethod = "PFR")
+#'
+#'   # Print the model summary
 #'   print(mylgc)
 #' }
-#' @exportS3Method print lgc
-print.lgc <- function(x, ...) {
-  cat("Latent Gaussian Count Model\n")
+#'
+#' @seealso \code{\link{summary.lgc}} for a detailed summary method.
+#' @export
+#' @method print lgc
+print.lgc <- function(x, digits = 4, ...) {
+  # cat("========================================\n")
+  # cat("     Latent Gaussian Count Model (LGC)  \n")
+  # cat("========================================\n")
   cat("Model:", x$Model, "\n")
-  cat("Log-likelihood:", x$FitStatistics["loglik"], "\n")
-  cat("Parameters:\n")
-  print(x$ParamEstimates)
+  if (!is.null(x$CountDist)) cat("Count Dist.:    ", x$CountDist, "\n")
+  if (!is.null(x$ARMAModel)) cat("ARMA Structure: ", x$ARMAModel, "\n")
+  #if (!is.null(x$SampleSize)) cat("Sample Size:    ", x$SampleSize, "\n")
+  #if (!is.null(x$EstMethod)) cat("Estimation:     ", x$EstMethod, "\n")
+
+  # Add optimization method if available
+  # if (!is.null(x$mod) && !is.null(x$mod$OptMethod)) {
+  #   cat("Optimizer:      ", x$mod$OptMethod, "\n")
+  # } else if (!is.null(x$OptMethod)) {
+  #   # fallback if optimizer stored directly in object
+  #   cat("Optimizer:      ", x$OptMethod, "\n")
+  # }
+  #
+  # cat("\n")
+  cat("\n")
+  ## --- Parameter estimates (+ optional SEs) ---
+  if (!is.null(x$ParamEstimates)) {
+    cat("Parameter Estimates:\n")
+
+    # pull estimates
+    est <- as.numeric(x$ParamEstimates)
+    names(est) <- colnames(x$ParamEstimates)
+
+    # pull std errors if present
+    if (!is.null(x$StdErrors)) {
+      se <- as.numeric(x$StdErrors)
+      names(se) <- names(est)
+    } else {
+      se <- rep(NA_real_, length(est))
+    }
+
+    # how wide should each column be?
+    # we take the max of: parameter name length vs formatted number length
+    digits <- 4
+    est_fmt <- formatC(est, digits = digits, format = "f")
+    se_fmt  <- ifelse(is.na(se), "", formatC(se, digits = digits, format = "f"))
+
+    col_widths <- pmax(
+      nchar(names(est)),
+      nchar(est_fmt),
+      nchar(se_fmt),
+      6L # minimum width so it's not too cramped
+    ) + 2L  # add some padding between columns
+
+    # helper: print a row given a character vector (one cell per param)
+    print_row <- function(cells, left_label = "", left_width = 6) {
+      cat(format(left_label, width = left_width, justify = "right"))
+      for (j in seq_along(cells)) {
+        cat(format(cells[j], width = col_widths[j], justify = "right"))
+      }
+      cat("\n")
+    }
+
+    # 1) header row: parameter names
+    print_row(names(est), left_label = "", left_width = 6)
+
+    # 2) estimates row
+    print_row(est_fmt, left_label = "", left_width = 6)
+
+    # 3) std. errors row (only if we have any)
+    if (any(!is.na(se))) {
+      print_row(se_fmt, left_label = "s.e.", left_width = 6)
+    }
+
+    cat("\n")
+  } else {
+    cat("  (No parameter estimates available)\n\n")
+  }
+
+
+
+  ## --- Fit statistics ---
+  if (!is.null(x$FitStatistics)) {
+    cat("Fit Statistics:\n")
+    fs <- as.data.frame(x$FitStatistics)
+    print(round(fs, digits), row.names = FALSE)
+    cat("\n")
+  }
+
+  ## --- Optimization diagnostics ---
+  # if (!is.null(x$OptimOutput)) {
+  #   cat("Optimization Diagnostics:\n")
+  #   opt <- as.data.frame(x$OptimOutput)
+  #   print(opt, row.names = FALSE)
+  # }
+
+  ## --- Other info ---
+  # if (!is.null(x$Converged))  cat("Converged:      ", ifelse(x$Converged, "Yes", "No"), "\n")
+  # if (!is.null(x$NumParams))  cat("Num Parameters: ", x$NumParams, "\n")
+
+
+
   invisible(x)
 }
 
