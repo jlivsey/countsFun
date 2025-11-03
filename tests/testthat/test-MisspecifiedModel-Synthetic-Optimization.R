@@ -40,7 +40,7 @@
 # # Run the Optim function for now, later I ll do the test with the lgc wrapper
 # optim.output <- optimx(
 #   par     = theta,
-#   fn      = ParticleFilter_Res_ARMA_MisSpec,
+#   fn      = ParticleFilter,
 #   lower   = mod$LB,
 #   upper   = mod$UB,
 #   hessian = TRUE,
@@ -55,7 +55,7 @@
 
 
 
-test_that("The likelihood function ParticleFilter_Res_ARMA_MisSpec works for a 'misspecified'
+test_that("The likelihood function ParticleFilter works for a 'misspecified'
           model on synthetic data - Using the new misspec version of the loglik function.", {
 
 
@@ -96,7 +96,7 @@ test_that("The likelihood function ParticleFilter_Res_ARMA_MisSpec works for a '
             # Run the Optim function for now, later I ll do the test with the lgc wrapper
             optim.output <- optimx(
               par     = theta,
-              fn      = ParticleFilter_Res_ARMA_MisSpec,
+              fn      = ParticleFilter,
               lower   = mod$LB,
               upper   = mod$UB,
               hessian = TRUE,

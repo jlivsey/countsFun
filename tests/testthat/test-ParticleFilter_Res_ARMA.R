@@ -35,7 +35,7 @@ test_that("Likelihood Poisson-AR(1)", {
                     initialParam, TrueParam, Task,SampleSize, OptMethod, OutputType, ParamScheme, maxdiff)
 
   # evaluate the likleihood
-  a1 = ParticleFilter_Res_ARMA_MisSpec(initialParam,mod)
+  a1 = ParticleFilter(initialParam,mod)
 
   # for the set.seed(2) I will get the following likelihood: 302.57734
   expect_equal(a1,289.4542947,tolerance=10^(-5))

@@ -1,5 +1,5 @@
 
-test_that("The ParticleFilter_Res_ARMA is the same as ParticleFilter_Res_ARMA_MisSpec", {
+test_that("The ParticleFilter_Res_ARMA is the same as ParticleFilter", {
 
 # Specify model and methods
 n              = 200
@@ -32,7 +32,7 @@ mod = ModelScheme(DependentVar, Regressor, Intercept, EstMethod, ARMAModel, Coun
 
 # evaluate the likleihood
 a1 = ParticleFilter_Res_ARMA(initialParam,mod)
-a2 = ParticleFilter_Res_ARMA_MisSpec(initialParam,mod)
+a2 = ParticleFilter(initialParam,mod)
 expect_equal(a1,a2, tolerance = 10^(-4))
 
 })

@@ -189,32 +189,42 @@ lgc = function(formula        = NULL,
     # renew the task (after we simulated we need to fit)
     mod$Task = 'Optimization'
 
-    # we need some cores in order to fit the data - we ll use all but one
-    if(is.null(no_cores)) no_cores = detectCores() - 1
+    # --- Parallel or sequential fitting ---
+    if (is.null(no_cores) || no_cores <= 1) {
+      message("Running simulations sequentially...")
 
-    # initiate and register the cluster
-    cl <- makeCluster(no_cores)
+      SimResults <- vector("list", nsim)
+      for (i in seq_len(nsim)) {
+        mod$DependentVar <- AllSimulatedSeries[[i]]
+        theta <- mod$initialParam <- AllInitialParam[[i]]
 
-    #clusterSetRNGStream(cl, 1001) #make the bootstrapping exactly the same as above to equate computation time
-    registerDoParallel(cl)
+        fit_result <- FitMultiplePF_Res(theta, mod)
+        fit_result$initialParam <- theta
+        SimResults[[i]] <- fit_result
+      }
 
-    # use foreach to run the simulations in parallel
-    SimResults = foreach(ForEachIndex = 1:nsim,
-                .packages = c("optimx", 'countsFun'),.export= c("FitMultiplePF_Res"))  %dopar%  {
-                  mod$DependentVar =  AllSimulatedSeries[[ForEachIndex]]
-                  theta  = mod$initialParam = AllInitialParam[[ForEachIndex]]
+    } else {
+      message(sprintf("Running simulations in parallel using %d cores...", no_cores))
 
-                  # Fit the model
-                  fit_result <- FitMultiplePF_Res(theta, mod)
+      # initiate and register the cluster
+      cl <- parallel::makeCluster(no_cores)
+      doParallel::registerDoParallel(cl)
 
-                  # Attach initial parameters to the result
-                  fit_result$initialParam <- theta
+      # Parallel execution with foreach
+      SimResults <- foreach(
+        ForEachIndex = seq_len(nsim),
+        .packages = c("optimx", "countsFun"),
+        .export   = c("FitMultiplePF_Res")
+      ) %dopar% {
+        mod$DependentVar <- AllSimulatedSeries[[ForEachIndex]]
+        theta <- mod$initialParam <- AllInitialParam[[ForEachIndex]]
+        fit_result <- FitMultiplePF_Res(theta, mod)
+        fit_result$initialParam <- theta
+        fit_result
+      }
 
-                  # Return the full object
-                  fit_result
-                }
-
-    stopCluster(cl)
+      stopCluster(cl)
+    }
 
     # revert the task back to Simulation
     mod$Task = 'Simulation'

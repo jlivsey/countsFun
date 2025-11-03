@@ -39,7 +39,7 @@ mod = ModelScheme(DependentVar   = DependentVar,
 
 theta = c(54.99986, 0.8015283, -0.2920431)
 a1 = ParticleFilter_Res_ARMA(theta,mod)
-a2 = ParticleFilter_Res_ARMA_MisSpec(theta,mod)
+a2 = ParticleFilter(theta,mod)
 
 expect_equal(a1,631.808,tolerance=10^(-3))
 expect_equal(a2,631.6743,tolerance=10^(-3))

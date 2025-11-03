@@ -606,7 +606,7 @@ FitMultiplePF_Res = function(theta, mod){
         # run optimization for our model --no ARMA model allowed
         optim.output <- optimx(
           par     = theta,
-          fn      = ParticleFilter_Res_ARMA_MisSpec,
+          fn      = ParticleFilter,
           lower   = mod_current$LB,
           upper   = mod_current$UB,
           hessian = TRUE,
@@ -620,7 +620,7 @@ FitMultiplePF_Res = function(theta, mod){
 
         optim.output[,1:length(theta)] = theta
         startTime = Sys.time()
-        loglikelihood = ParticleFilter_Res_ARMA_MisSpec(theta,mod_current)
+        loglikelihood = ParticleFilter(theta,mod_current)
         endTime = Sys.time()
         runTime = difftime(endTime, startTime, units = 'secs')
         optim.output[,(length(theta)+1)] = loglikelihood
@@ -643,7 +643,7 @@ FitMultiplePF_Res = function(theta, mod){
       # t5 = tic()
       if(mod_current$Task == "Optimization"){
         H = gHgen(par          = ParmEst[nfit*(k-1)+j,],
-                  fn           = ParticleFilter_Res_ARMA_MisSpec,
+                  fn           = ParticleFilter,
                   mod          = mod_current)
         # t5 = tic()-t5
         # print(t5)
@@ -1211,7 +1211,8 @@ InitialEstimates = function(mod){
 
   #------------ARMA Initial Estimates
   # Transform (1) in the JASA paper to retrieve the "observed" latent series and fit an ARMA
-  if(mod$nreg==0){
+  # check me: Oct 2025 - the following needs to be refactored
+    if(mod$nreg==0){
 
     Cxt = mod$mycdf(mod$DependentVar,est[1:mod$nMargParms])
     # if Cxt = 1, I will need to deal with this somehow. In the Binomial case it seems very likely to get 1
@@ -1765,7 +1766,6 @@ print.lgc <- function(x, digits = 4, ...) {
 
   invisible(x)
 }
-
 
 #' @title Number of Observations in lgc Model
 #' @description Returns the number of observations used in fitting the model.
@@ -2904,7 +2904,7 @@ DIM <- function(x){
 #===========================================================================================#
 #--------------------------------------------------------------------------------#
 # On August 2024 for Issue #27, I created a modified likelihood function called
-# ParticleFilter_Res_ARMA_MisSpec with three changes:
+# ParticleFilter with three changes:
 #
 # 1. The value 1 for the count CDF calculations is changed to 1-10^(-16), so that
 #    when inverse normal is applied in the copula, we do not receive an inf value.
@@ -2914,13 +2914,48 @@ DIM <- function(x){
 # 3. If the weights in the particle filter likelihood become 0 I set them equal to
 #    10^(-64).
 #
-# I have added the changes in the ParticleFilter_Res_ARMA_MisSpec, ComputeLimits_MisSpec
+# I have added the changes in the ParticleFilter, ComputeLimits_MisSpec
 # and SampleTruncNormParticles_MisSpec files and will continue  working with the
 # standard versions below until I perform adequate testing.
 
 
-# PF likelihood with resampling for ARMA(p,q) - with adhoc truncations
-ParticleFilter_Res_ARMA_MisSpec = function(theta, mod){
+#' @title Particle Filter Latent Gaussian Count Models
+#'
+#' @description
+#' Implements a particle filtering algorithm for latent Gaussian count time series models
+#' with potentially misspecified ARMA dependence structures.
+#' The algorithm sequentially updates latent Gaussian states, particle weights, and the log-likelihood,
+#' using the Innovations Algorithm to obtain one-step-ahead predictors and innovation variances.
+#' Corrections are applied to truncated normal sampling limits and particle weights
+#' when numerical instability or boundary issues occur.
+#'
+#' @param theta Numeric vector. Current parameter estimates including marginal, AR, and MA parameters.
+#'
+#' @param mod List. Model specification object containing all necessary elements for filtering, such as:
+#'   \describe{
+#'     \item{\code{DependentVar}}{Numeric vector of observed counts.}
+#'     \item{\code{CountDist}}{Character string specifying the count distribution (e.g., \code{"Poisson"}, \code{"Binomial"}).}
+#'     \item{\code{ARMAModel}}{Numeric vector \code{c(p, q)} specifying AR and MA orders.}
+#'     \item{\code{ParticleNumber}}{Integer. Number of particles used in the filter.}
+#'     \item{\code{n}}{Integer. Length of the observed time series.}
+#'     \item{\code{mycdf}}{User-supplied function returning the marginal CDF of the count distribution.}
+#'     \item{\code{mypdf}}{User-supplied function returning the marginal PDF of the count distribution.}
+#'     \item{\code{Regressor}}{Optional numeric vector or matrix of regressors.}
+#'     \item{\code{nreg}}{Integer. Number of regressors.}
+#'     \item{\code{verbose}}{Logical. If \code{TRUE}, prints diagnostic messages during filtering.}
+#'     \item{\code{maxdiff}}{Numeric tolerance used in the Innovations Algorithm convergence criterion.}
+#'   }
+#'
+#' @details
+#' The function evaluates the (negative) log-likelihood for an LGC model under ARMA dynamics.
+#'
+#' @return
+#' Returns the numeric value of the negative log-likelihood (\eqn{-\ell(\theta)}).
+#' If numerical issues occur (e.g., unstable ARMA coefficients, degenerate weights, or non-finite log-likelihood),
+#' the function returns a large penalty value (\eqn{10^8}) to guide optimization away from invalid parameter regions.
+#
+#' @export
+ParticleFilter = function(theta, mod){
 
   old_state <- get_rand_state()
   on.exit(set_rand_state(old_state))
