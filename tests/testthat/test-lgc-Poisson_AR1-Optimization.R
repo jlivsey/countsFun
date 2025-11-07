@@ -1,12 +1,3 @@
-# load libraries
-# library(countsFun)
-# library(tictoc)
-# library(optimx)
-# library(ltsa)
-# library(itsmr)
-# library(numDeriv)
-# library(MASS)
-
 test_that("LGC wrapper works for ARMA(1,1) with bad initial param.", {
 
 # Specify model and methods

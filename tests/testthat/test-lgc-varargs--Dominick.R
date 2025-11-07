@@ -7,15 +7,6 @@
 
 test_that("LGC wrapper works for evaluation MixPois AR(1)", {
 
-# load libraries
-# library(optimx)
-# library(ltsa)
-# require(countsFun)
-# library(itsmr)
-# library(tictoc)
-# library(devtools)
-# library(VGAM)
-# library(iZID)
 
 # load the data
 data(drinksales)

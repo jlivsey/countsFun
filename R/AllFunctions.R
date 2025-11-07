@@ -1,4 +1,3 @@
-#' #' @keywords internal
 #' @importFrom stats ARMAacf arima.sim coef dbinom dnbinom dpois filter glm arima residuals
 #' @importFrom stats pbinom plogis pnbinom pnorm ppois qbinom qnbinom qnorm nobs
 #' @importFrom stats qpois rbinom rmultinom runif sd terms var ts
