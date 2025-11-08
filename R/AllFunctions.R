@@ -1403,16 +1403,29 @@ InnovAlg <- function(Parms, gamma, mod) {
 #' is applied to transformed latent variables with dependence induced by an ARMA process.
 #'
 #' @examples
-#' # Simulate Poisson-ARMA(1,1) series
-#' sim <- sim_lgc(
-#'   n = 100,
-#'   CountDist = "Poisson",
-#'   MargParm = 3,
-#'   ARParm = 0.5,
-#'   MAParm = -0.3
-#' )
-#' ts.plot(sim)
+#' # Example: Simulate a Poisson-AR(1) time series
 #'
+#' # Model specification
+#' SampleSize <- 200
+#' CountDist  <- "Poisson"
+#' MargParm   <- 3
+#' ARParm     <- 0.5
+#' MAParm     <- NULL
+#'
+#' # Simulate from the specified model
+#' set.seed(2)
+#' y <- sim_lgc(SampleSize, CountDist, MargParm, ARParm, MAParm)
+#'
+#' # The function returns a univariate time-series (ts) object class(y)
+#'
+#' # Inspect or visualize the simulated data
+#' print(y)
+#' plot(y, main = "Simulated Poisson–AR(1) Series",
+#'      ylab = "Counts", xlab = "Time", col = "steelblue")
+#'
+#' # Optional: store in a data frame for downstream analysis
+#' counts_df <- data.frame(y = as.numeric(y))
+
 #' @export
 sim_lgc = function(n, CountDist, MargParm, ARParm, MAParm, Regressor=NULL, Intercept=NULL, ntrials=NULL,...){
 

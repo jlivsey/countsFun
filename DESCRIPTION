@@ -1,23 +1,27 @@
 Package: countsFun
 Type: Package
-Title: Fit count time series models
+Title: Fit Count Time Series Models
 Version: 0.5
-Authors@R: c(person("Stefanos", "Kechagias", email = "stefanoskeh@gmail.com", role = c("cre", "aut")),
+Authors@R: c(
+    person("Stefanos", "Kechagias", email = "stefanoskeh@gmail.com", role = c("cre", "aut")),
     person("James", "Livsey", email = "james.a.livsey@gmail.com", role = "aut"),
     person("Robert", "Lund", email = "lund@clemson.edu", role = "aut"),
-    person("Vladas", "Pipiras", email = "pipiras@email.unc.edu", role = "aut"))
-Maintainer: Stefanos Kechagias <stefanoskeh@gmail.com>
-Description: The lgc package fits Latent Gaussian Count time series models using the copula transformations and simulation inference techniques developed by Jia et al. (2023).
+    person("Vladas", "Pipiras", email = "pipiras@email.unc.edu", role = "aut")
+  )
+Description: The lgc package fits Latent Gaussian Count time series models using copula 
+    transformations and simulation inference techniques developed by Jia et al. (2023).
 License: GPL (>= 3)
 Encoding: UTF-8
 LazyData: true
 Suggests: 
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
-Imports: doParallel, itsmr, iZID, mixtools, optextras, extraDistr, optimx, parallel, foreach, VGAM, MASS, truncnorm
+Imports: 
+    doParallel, itsmr, iZID, mixtools, optextras, extraDistr, optimx, parallel, foreach, VGAM, MASS, truncnorm
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
 Depends: 
     R (>= 3.5)
-References: Jia, Y., Kechagias, S., Livsey, J., Lund, R. and Pipiras, V., 2023. 
-  Latent Gaussian count time series. Journal of the American Statistical Association, 118(541), pp.596-606.
+References: Jia, Y., Kechagias, S., Livsey, J., Lund, R., and Pipiras, V. (2023). 
+    Latent Gaussian count time series. Journal of the American Statistical Association, 
+    118(541), 596–606.

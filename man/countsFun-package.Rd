@@ -4,9 +4,9 @@
 \name{countsFun-package}
 \alias{countsFun}
 \alias{countsFun-package}
-\title{countsFun: Fit count time series models}
+\title{countsFun: Fit Count Time Series Models}
 \description{
-The lgc package fits Latent Gaussian Count time series models using the copula transformations and simulation inference techniques developed by Jia et al. (2023)
+The lgc package fits Latent Gaussian Count time series models using copula transformations and simulation inference techniques developed by Jia et al. (2023).
 }
 \author{
 \strong{Maintainer}: Stefanos Kechagias \email{stefanoskeh@gmail.com}
