@@ -2,7 +2,6 @@ test_that("LGC wrapper works for evaluation Poisson ARMA(2,4)", {
 
 # Specify model and methods
 n              = 200
-Regressor      = NULL
 CountDist      = "Poisson"
 MargParm       = 3
 ARParm         = c(0.4, 0.4)
@@ -22,20 +21,19 @@ OutputType     = "list"
 ParamScheme    = NULL
 maxdiff        = 10^(-8)
 
+# specify the regression model
+RegModel = DependentVar~0
 
 # simulate data
 set.seed(2)
-DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor)
+DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, RegModel)
 
 # save the data in a data frame
 df = data.frame(DependentVar)
 
-# specify the regression model
-formula = DependentVar~0
-
 # Run the wrapper
-mylgc = lgc(formula        = formula,
-            data           = df,
+mylgc = lgc(RegModel       = RegModel,
+            df             = df,
             EstMethod      = EstMethod,
             CountDist      = CountDist,
             ARMAModel      = ARMAModel,

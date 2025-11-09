@@ -28,14 +28,26 @@ test_that("Simulation for Poisson-AR(1)", {
   no_cores       = 1
   OptMethod      = "L-BFGS-B"
   data           = NULL
-  formula        = DependentVar~0
+  RegModel       = DependentVar~0
   set.seed(203)
   #----------------------------------------------------------------------------------------#
 
 
   #--------------------------------   Run the main wrapper   ------------------------------#
-  df = lgc(formula, data, EstMethod, CountDist, ARMAModel, ParticleNumber,
-          epsilon, initialParam, TrueParam,  Task, SampleSize, nsim, no_cores, OptMethod)
+  df = lgc(RegModel = RegModel,
+                 df = df,
+          EstMethod = EstMethod,
+          CountDist = CountDist,
+          ARMAModel = ARMAModel,
+     ParticleNumber = ParticleNumber,
+            epsilon = epsilon,
+       initialParam = initialParam,
+          TrueParam = TrueParam,
+               Task = Task,
+         SampleSize = SampleSize,
+               nsim = nsim,
+           no_cores = no_cores,
+          OptMethod = OptMethod)
   #----------------------------------------------------------------------------------------#
 
 

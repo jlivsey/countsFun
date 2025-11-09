@@ -5,9 +5,8 @@
 \title{Create and Validate Model Specification for Particle Filtering}
 \usage{
 ModelScheme(
-  DependentVar = NULL,
-  Regressor = NULL,
-  Intercept = NULL,
+  RegModel = NULL,
+  df = NULL,
   EstMethod = "PFR",
   ARMAModel = c(0, 0),
   CountDist = "NULL",
@@ -28,11 +27,10 @@ ModelScheme(
 )
 }
 \arguments{
-\item{DependentVar}{Numeric vector or data frame. The response (count) time series.}
+\item{RegModel}{An object of class \code{formula}, typically in the form \code{y ~ x1 + x2} used to specify
+the regression model to be fitted, evaluated, generated, etc.}
 
-\item{Regressor}{Optional matrix or data frame of covariates.}
-
-\item{Intercept}{Logical. Whether to include an intercept in the model.}
+\item{df}{Data frame with the series to be modeled and possible regressor variables.}
 
 \item{EstMethod}{Character. Estimation method. Currently only \code{"PFR"} is supported.}
 

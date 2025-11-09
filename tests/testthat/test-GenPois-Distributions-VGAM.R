@@ -10,23 +10,30 @@
 test_that("VGAM versus our implementation of GenPois", {
 
 # Specify model and methods
-n              = 100
-CountDist      = "Generalized Poisson"
-alpha          = 1
-mu             = 3
-MargParm       = c(alpha,mu)
-ARParm         = 0.75
-MAParm         = NULL
-ARMAModel      = c(length(ARParm),length(MAParm))
+n            = 100
+CountDist    = "Generalized Poisson"
+alpha        = 1
+mu           = 3
+MargParm     = c(alpha,mu)
+ARParm       = 0.75
+MAParm       = NULL
+ARMAModel    = c(length(ARParm),length(MAParm))
 
 # simulate data
 set.seed(2)
-DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm)
+
+# specify the regression formula (no regressors here)
+RegModel     = DependentVar ~ 0
+
+# generate data
+DependentVar = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, RegModel)
+df         = data.frame(DependentVar)
 
 # Run the wrapper
-mod = ModelScheme(DependentVar   = DependentVar,
-            CountDist      = CountDist,
-            ARMAModel      = ARMAModel)
+mod = ModelScheme(RegModel = RegModel,
+                       df  = df,
+                 CountDist = CountDist,
+                 ARMAModel = ARMAModel)
 
 # get Initial Estimate
 theta1 = InitialEstimates(mod)
@@ -39,11 +46,12 @@ a1 = ParticleFilter(theta1, mod)
 CountDist      = "Generalized Poisson 2"
 
 # Run the wrapper
-mod = ModelScheme(DependentVar   = DependentVar,
-                  CountDist      = CountDist,
-                  ARMAModel      = ARMAModel)
+mod = ModelScheme(RegModel = RegModel,
+                       df  = df,
+                 CountDist = CountDist,
+                 ARMAModel = ARMAModel)
 
-#
+# compute initial estimates
 theta2 = InitialEstimates(mod)
 
 set.seed(1)
@@ -54,12 +62,12 @@ a2 = ParticleFilter(theta2, mod)
 df = data.frame(DependentVar)
 
 set.seed(1)
-formula = DependentVar~0
+RegModel = DependentVar~0
 # Run the wrapper
-mylgc = lgc(formula = formula,
-               data = df,
-          CountDist = CountDist,
-          ARMAModel = ARMAModel)
+mylgc = lgc(RegModel = RegModel,
+                  df = df,
+           CountDist = CountDist,
+           ARMAModel = ARMAModel)
 
 
 # check the likelihoods

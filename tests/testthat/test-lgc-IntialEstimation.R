@@ -8,7 +8,6 @@
 test_that("Initial Estimation for Poisson-AR(2)", {
 
 # regressor variable with intercept
-Regressor      = NULL
 n              = 100
 ARParm         = c(0.5, 0.2)
 MAParm         = NULL
@@ -18,16 +17,21 @@ CountDist      = "Poisson"
 MargParm       = 3
 TrueParam      = c(MargParm,ARParm, MAParm)
 theta = matrix(NA,nrow=nsim,ncol=length(MargParm)+sum(ARMAModel))
+
+# specify the regression formula (no regressors here)
+RegModel       = DependentVar ~ 1
+
 for (i in 1:nsim){
   # simulate data
   set.seed(i)
-  DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor)
+  DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, RegModel)
+  df = data.frame(DependentVar)
 
-  # call the wrapper function with less arguments
-  mod = ModelScheme(DependentVar   = DependentVar,
-            Regressor      = Regressor,
-            CountDist      = CountDist,
-            ARMAModel      = ARMAModel)
+  # populate a list with the model characteristics
+  mod = ModelScheme(RegModel = RegModel,
+                          df = df,
+                   CountDist = CountDist,
+                   ARMAModel = ARMAModel)
 
   theta[i,] = InitialEstimates(mod)
 }
@@ -46,7 +50,6 @@ expect_identical(prod(abs(RELATIVEBIAS)<0.1), 1)
 test_that("Initial Estimation for Negative Binomial-MA(2)", {
 
   # regressor variable with intercept
-  Regressor      = NULL
   n              = 100
   ARParm         = NULL
   MAParm         = c(0.5, 0.2)
@@ -56,16 +59,22 @@ test_that("Initial Estimation for Negative Binomial-MA(2)", {
   MargParm       = c(5,0.3)
   TrueParam      = c(MargParm,ARParm, MAParm)
   theta          = matrix(NA,nrow=nsim,ncol=length(MargParm)+sum(ARMAModel))
+
+  # specify the regression formula (no regressors here)
+  RegModel       = DependentVar ~ 1
+
   for (i in 1:nsim){
     # simulate data
     set.seed(i)
-    DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor)
+    DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, RegModel)
+    df = data.frame(DependentVar)
 
-    # call the wrapper function with less arguments
-    mod = ModelScheme(DependentVar   = DependentVar,
-                      Regressor      = Regressor,
-                      CountDist      = CountDist,
-                      ARMAModel      = ARMAModel)
+    # populate a list with the model characteristics
+    mod = ModelScheme(RegModel = RegModel,
+                      df = df,
+                      CountDist = CountDist,
+                      ARMAModel = ARMAModel)
+
 
     theta[i,] = InitialEstimates(mod)
   }
@@ -86,28 +95,30 @@ test_that("Initial Estimation for Negative Binomial-MA(2)", {
 test_that("Initial Estimation for Mixed Poisson-ARMA(1,1)", {
 
   # regressor variable with intercept
-  Regressor      = NULL
   n              = 100
-
   ARParm         = 0.7
   MAParm         = 0.2
   ARMAModel      = c(length(ARParm),length(MAParm))
-
   nsim           = 20
   CountDist      = "Mixed Poisson"
   MargParm       = c(2,10,0.5)
   theta          = matrix(NA,nrow=nsim,ncol=length(MargParm)+sum(ARMAModel))
   TrueParam      = c(MargParm,ARParm, MAParm)
+
+  # specify the regression formula (no regressors here)
+  RegModel       = DependentVar ~ 1
+
   for (i in 1:nsim){
     # simulate data
     set.seed(i)
-    DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor)
+    DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, RegModel)
+    df = data.frame(DependentVar)
 
-    # call the wrapper function with less arguments
-    mod = ModelScheme(DependentVar   = DependentVar,
-                      Regressor      = Regressor,
-                      CountDist      = CountDist,
-                      ARMAModel      = ARMAModel)
+    # populate a list with the model characteristics
+    mod = ModelScheme(RegModel = RegModel,
+                      df = df,
+                      CountDist = CountDist,
+                      ARMAModel = ARMAModel)
 
     theta[i,] = InitialEstimates(mod)
   }
@@ -129,7 +140,6 @@ test_that("Initial Estimation for Mixed Poisson-ARMA(1,1)", {
 test_that("Initial Estimation for Generalized Poisson-AR(2)", {
 
   # regressor variable with intercept
-  Regressor      = NULL
   n              = 100
   ARParm         = c(0.5, 0.2)
   MAParm         = NULL
@@ -142,16 +152,20 @@ test_that("Initial Estimation for Generalized Poisson-AR(2)", {
   nsim           = 20
   theta          = matrix(NA,nrow=nsim,ncol=length(MargParm)+sum(ARMAModel))
 
+  # specify the regression formula (no regressors here)
+  RegModel       = DependentVar ~ 1
+
   for (i in 1:nsim){
     # simulate data
     set.seed(i)
-    DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor)
+    DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, RegModel)
+    df = data.frame(DependentVar)
 
-    # call the wrapper function with less arguments
-    mod = ModelScheme(DependentVar   = DependentVar,
-                      Regressor      = Regressor,
-                      CountDist      = CountDist,
-                      ARMAModel      = ARMAModel)
+    # populate a list with the model characteristics
+    mod = ModelScheme(RegModel = RegModel,
+                      df = df,
+                      CountDist = CountDist,
+                      ARMAModel = ARMAModel)
 
     theta[i,] = InitialEstimates(mod)
   }
@@ -169,7 +183,6 @@ test_that("Initial Estimation for Generalized Poisson-AR(2)", {
 
 test_that("Initial Estimation for Binomial-AR(2)", {
 n              = 100
-Regressor      = NULL
 ARParm         = c(0.8, -0.5)
 MAParm         = NULL
 ARMAModel      = c(length(ARParm),length(MAParm))
@@ -180,19 +193,22 @@ p              = 0.3
 MargParm       = p
 TrueParam      = c(MargParm,ARParm, MAParm)
 theta          = matrix(NA,nrow=nsim,ncol=length(MargParm)+sum(ARMAModel))
-Intercept      = FALSE
+
+# specify the regression formula (no regressors here)
+RegModel       = DependentVar ~ 1
 
 for (i in 1:nsim){
   # simulate data
   set.seed(i)
-  DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor,Intercept, ntrials)
+  DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, RegModel, df=NULL, ntrials)
+  df = data.frame(DependentVar)
 
-  # call the wrapper function with less arguments
-  mod = ModelScheme(DependentVar   = DependentVar,
-                    Regressor      = Regressor,
-                    CountDist      = CountDist,
-                    ARMAModel      = ARMAModel,
-                      ntrials      = ntrials)
+  # populate a list with the model characteristics
+  mod = ModelScheme(RegModel = RegModel,
+                          df = df,
+                   CountDist = CountDist,
+                   ARMAModel = ARMAModel,
+                     ntrials = ntrials)
 
   theta[i,] = InitialEstimates(mod)
 }
@@ -219,16 +235,20 @@ test_that("Initial Estimation for ZIP-ARMA(1,1)", {
   theta          = matrix(NA,nrow=nsim,ncol=length(MargParm)+sum(ARMAModel))
   TrueParam      = c(MargParm,ARParm, MAParm)
 
+  # specify the regression formula (no regressors here)
+  RegModel       = DependentVar ~ 1
 
   for (i in 1:nsim){
     # simulate data
     set.seed(i)
-    DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm)
+    DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, RegModel)
+    df = data.frame(DependentVar)
 
-    # call the wrapper function with less arguments
-    mod = ModelScheme(DependentVar   = DependentVar,
-                      CountDist      = CountDist,
-                      ARMAModel      = ARMAModel)
+    # populate a list with the model characteristics
+    mod = ModelScheme(RegModel = RegModel,
+                            df = df,
+                     CountDist = CountDist,
+                     ARMAModel = ARMAModel)
 
     theta[i,] = InitialEstimates(mod)
   }
@@ -260,22 +280,24 @@ n              = 100
 #Regressor      = cbind(rep(1,n),e)
 set.seed(3)
 Regressor      = runif(n)
-Intercept      = TRUE
 nsim           = 20
 theta          = matrix(NA,nrow=nsim,ncol=length(MargParm)+sum(ARMAModel))
 
+# specify the regression formula (no regressors here)
+RegModel       = DependentVar ~ 1 + Regressor
+df             = data.frame(Regressor)
 
 for (i in 1:nsim){
   # simulate data
   set.seed(i)
-  DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor, Intercept)
+  DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, RegModel, df)
+  df = data.frame(DependentVar, Regressor)
 
-  # call the wrapper function with less arguments
-  mod = ModelScheme(DependentVar   = DependentVar,
-                    Regressor      = Regressor,
-                    Intercept      = Intercept,
-                    CountDist      = CountDist,
-                    ARMAModel      = ARMAModel)
+  # populate a list with the model characteristics
+  mod = ModelScheme(RegModel = RegModel,
+                    df = df,
+                    CountDist = CountDist,
+                    ARMAModel = ARMAModel)
 
   theta[i,] = InitialEstimates(mod)
 }
@@ -310,17 +332,22 @@ test_that("Initial Estimation for Poisson-AR(2) with Regressor", {
   TrueParam      = c(MargParm,ARParm, MAParm)
   theta = matrix(NA,nrow=nsim,ncol=length(MargParm)+sum(ARMAModel))
 
-  for (i in 1:nsim){
-    # simulate data
-    set.seed(i)
-    DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor, Intercept)
+  # specify the regression formula (no regressors here)
+  RegModel       = DependentVar ~ 1 + Regressor
+  df             = data.frame(Regressor)
 
-    # call the wrapper function with less arguments
-    mod = ModelScheme(DependentVar   = DependentVar,
-                      Regressor      = Regressor,
-                      Intercept      = Intercept,
-                      CountDist      = CountDist,
-                      ARMAModel      = ARMAModel)
+    for (i in 1:nsim){
+    # simulate data
+
+    set.seed(i)
+    DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, RegModel, df)
+    df = data.frame(DependentVar, Regressor)
+
+    # populate a list with the model characteristics
+    mod = ModelScheme(RegModel = RegModel,
+                      df = df,
+                      CountDist = CountDist,
+                      ARMAModel = ARMAModel)
 
     theta[i,] = InitialEstimates(mod)
   }
@@ -365,21 +392,23 @@ test_that("Initial Estimation for Binomial-MA(3) with Regressor", {
   theta = matrix(NA,nrow=nsim,ncol=length(MargParm)+sum(ARMAModel))
   set.seed(3)
   Regressor = rnorm(n,0,1)
-  Intercept = TRUE
 
-    for (i in 1:nsim){
+  # specify the regression formula (no regressors here)
+  RegModel       = DependentVar ~ 1 + Regressor
+  df             = data.frame(Regressor)
+
+  for (i in 1:nsim){
     # simulate data
     set.seed(i)
-    # Generate a regressor that will be used as a linear predictor
-    DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor,Intercept, ntrials)
+    DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, RegModel, df,ntrials)
+    df = data.frame(DependentVar, Regressor)
 
-    # call the wrapper function with less arguments
-    mod = ModelScheme(DependentVar   = DependentVar,
-                      Regressor      = Regressor,
-                      Intercept      = Intercept,
-                      CountDist      = CountDist,
-                      ARMAModel      = ARMAModel,
-                      ntrials      = ntrials)
+    # populate a list with the model characteristics
+    mod = ModelScheme(RegModel = RegModel,
+                      df = df,
+                      CountDist = CountDist,
+                      ARMAModel = ARMAModel,
+                      ntrials = ntrials)
 
     theta[i,] = InitialEstimates(mod)
   }
@@ -412,20 +441,23 @@ test_that("Initial Estimation for ZIP-AR(1) with Regressor", {
   # Generate a regressor
   set.seed(3)
   Regressor  = runif(n)
-  Intercept  = TRUE
 
+  # specify the regression formula (no regressors here)
+  RegModel       = DependentVar ~ 1 + Regressor
+  df             = data.frame(Regressor)
 
   for (i in 1:nsim){
     # simulate data
-    set.seed(i)
-    DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor, Intercept)
 
-    # call the wrapper function with less arguments
-    mod = ModelScheme(DependentVar   = DependentVar,
-                      CountDist      = CountDist,
-                      ARMAModel      = ARMAModel,
-                      Regressor      = Regressor,
-                      Intercept      = Intercept)
+    set.seed(i)
+    DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, RegModel, df)
+    df = data.frame(DependentVar, Regressor)
+
+    # populate a list with the model characteristics
+    mod = ModelScheme(RegModel = RegModel,
+                      df = df,
+                      CountDist = CountDist,
+                      ARMAModel = ARMAModel)
 
     theta[i,] = InitialEstimates(mod)
   }
@@ -467,20 +499,23 @@ test_that("Initial Estimation for Mixed Poisson-AR(1) with Regressor", {
   # Generate a regressor
   set.seed(3)
   Regressor  = runif(n)
-  Intercept  = TRUE
 
+  # specify the regression formula (no regressors here)
+  RegModel       = DependentVar ~ 1 + Regressor
+  df             = data.frame(Regressor)
 
   for (i in 1:nsim){
     # simulate data
-    set.seed(i)
-    DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor, Intercept)
 
-    # call the wrapper function with less arguments
-    mod = ModelScheme(DependentVar   = DependentVar,
-                      CountDist      = CountDist,
-                      ARMAModel      = ARMAModel,
-                      Regressor      = Regressor,
-                      Intercept      = Intercept)
+    set.seed(i)
+    DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, RegModel, df)
+    df = data.frame(DependentVar, Regressor)
+
+    # populate a list with the model characteristics
+    mod = ModelScheme(RegModel = RegModel,
+                      df = df,
+                      CountDist = CountDist,
+                      ARMAModel = ARMAModel)
 
     theta[i,] = InitialEstimates(mod)
   }
@@ -516,17 +551,21 @@ test_that("Initial Estimation for Poisson-AR(2) with Regressor no intercept", {
   TrueParam      = c(MargParm,ARParm, MAParm)
   theta = matrix(NA,nrow=nsim,ncol=length(MargParm)+sum(ARMAModel))
 
+  # specify the regression formula (no regressors here)
+  RegModel       = DependentVar ~ 0 + Regressor
+  df             = data.frame(Regressor)
+
   for (i in 1:nsim){
     # simulate data
     set.seed(i)
-    DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor, Intercept)
+    DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, RegModel, df)
+    df = data.frame(DependentVar, Regressor)
 
-    # call the wrapper function with less arguments
-    mod = ModelScheme(DependentVar   = DependentVar,
-                      Regressor      = Regressor,
-                      Intercept      = Intercept,
-                      CountDist      = CountDist,
-                      ARMAModel      = ARMAModel)
+    # populate a list with the model characteristics
+    mod = ModelScheme(RegModel = RegModel,
+                      df = df,
+                      CountDist = CountDist,
+                      ARMAModel = ARMAModel)
 
     theta[i,] = InitialEstimates(mod)
   }
@@ -569,21 +608,23 @@ test_that("Initial Estimation for Binomial-MA(3) with Regressor no intercept", {
   theta = matrix(NA,nrow=nsim,ncol=length(MargParm)+sum(ARMAModel))
   set.seed(3)
   Regressor = rnorm(n,0,1)
-  Intercept = FALSE
+
+  # specify the regression formula (no regressors here)
+  RegModel       = DependentVar ~ 0 + Regressor
+  df             = data.frame(Regressor)
 
   for (i in 1:nsim){
     # simulate data
     set.seed(i)
-    # Generate a regressor that will be used as a linear predictor
-    DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor,Intercept, ntrials)
+    DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, RegModel, df,ntrials)
+    df = data.frame(DependentVar, Regressor)
 
-    # call the wrapper function with less arguments
-    mod = ModelScheme(DependentVar   = DependentVar,
-                      Regressor      = Regressor,
-                      Intercept      = Intercept,
-                      CountDist      = CountDist,
-                      ARMAModel      = ARMAModel,
-                      ntrials      = ntrials)
+    # populate a list with the model characteristics
+    mod = ModelScheme(RegModel = RegModel,
+                      df = df,
+                      CountDist = CountDist,
+                      ARMAModel = ARMAModel,
+                      ntrials = ntrials)
 
     theta[i,] = InitialEstimates(mod)
   }
@@ -616,20 +657,22 @@ test_that("Initial Estimation for ZIP-AR(1) with Regressor no intercept", {
   # Generate a regressor
   set.seed(3)
   Regressor  = runif(n)
-  Intercept  = FALSE
 
+  # specify the regression formula (no regressors here)
+  RegModel       = DependentVar ~ 0 + Regressor
+  df             = data.frame(Regressor)
 
   for (i in 1:nsim){
     # simulate data
     set.seed(i)
-    DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor, Intercept)
+    DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, RegModel, df)
+    df = data.frame(DependentVar, Regressor)
 
-    # call the wrapper function with less arguments
-    mod = ModelScheme(DependentVar   = DependentVar,
-                      CountDist      = CountDist,
-                      ARMAModel      = ARMAModel,
-                      Regressor      = Regressor,
-                      Intercept      = Intercept)
+    # populate a list with the model characteristics
+    mod = ModelScheme(RegModel = RegModel,
+                      df = df,
+                      CountDist = CountDist,
+                      ARMAModel = ARMAModel)
 
     theta[i,] = InitialEstimates(mod)
   }
@@ -666,20 +709,22 @@ test_that("Initial Estimation for Mixed Poisson-AR(1) with Regressor no intercep
   # Generate a regressor
   set.seed(3)
   Regressor  = runif(n)
-  Intercept  = FALSE
 
+  # specify the regression formula (no regressors here)
+  RegModel       = DependentVar ~ 0 + Regressor
+  df             = data.frame(Regressor)
 
   for (i in 1:nsim){
     # simulate data
     set.seed(i)
-    DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor, Intercept)
+    DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, RegModel, df)
+    df = data.frame(DependentVar, Regressor)
 
-    # call the wrapper function with less arguments
-    mod = ModelScheme(DependentVar   = DependentVar,
-                      CountDist      = CountDist,
-                      ARMAModel      = ARMAModel,
-                      Regressor      = Regressor,
-                      Intercept      = Intercept)
+    # populate a list with the model characteristics
+    mod = ModelScheme(RegModel = RegModel,
+                      df = df,
+                      CountDist = CountDist,
+                      ARMAModel = ARMAModel)
 
     theta[i,] = InitialEstimates(mod)
   }
@@ -713,18 +758,21 @@ test_that("Initial Estimation for Generalized Poisson-AR(1) with Regressor no in
   nsim           = 20
   theta          = matrix(NA,nrow=nsim,ncol=length(MargParm)+sum(ARMAModel))
 
+  # specify the regression formula (no regressors here)
+  RegModel       = DependentVar ~ 0 + Regressor
+  df             = data.frame(Regressor)
 
   for (i in 1:nsim){
     # simulate data
     set.seed(i)
-    DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor, Intercept)
+    DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, RegModel, df)
+    df = data.frame(DependentVar, Regressor)
 
-    # call the wrapper function with less arguments
-    mod = ModelScheme(DependentVar   = DependentVar,
-                      Regressor      = Regressor,
-                      Intercept      = Intercept,
-                      CountDist      = CountDist,
-                      ARMAModel      = ARMAModel)
+    # populate a list with the model characteristics
+    mod = ModelScheme(RegModel = RegModel,
+                      df = df,
+                      CountDist = CountDist,
+                      ARMAModel = ARMAModel)
 
     theta[i,] = InitialEstimates(mod)
   }
@@ -746,9 +794,6 @@ test_that("Initial Estimation for Poisson-AR(2) with two Regressors", {
   # regressor variable with intercept
   n              = 100
   set.seed(3)
-  Regressor      = data.frame(runif(n),runif(n))
-  names(Regressor) = c("x1","x2")
-  Intercept      = TRUE
   ARMAModel      = c(2,0)
   ARParm         = c(0.5, 0.2)
   MAParm         = NULL
@@ -761,17 +806,24 @@ test_that("Initial Estimation for Poisson-AR(2) with two Regressors", {
   TrueParam      = c(MargParm,ARParm, MAParm)
   theta = matrix(NA,nrow=nsim,ncol=length(MargParm)+sum(ARMAModel))
 
+  Regressor      = data.frame(runif(n),runif(n))
+  names(Regressor) = c("x1","x2")
+
+  # specify the regression formula (no regressors here)
+  RegModel       = DependentVar ~ 1 + x1 + x2
+  df             = data.frame(Regressor)
+
   for (i in 1:nsim){
     # simulate data
     set.seed(i)
-    DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor, Intercept)
+    DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, RegModel, df)
+    df = data.frame(DependentVar, Regressor)
 
-    # call the wrapper function with less arguments
-    mod = ModelScheme(DependentVar   = DependentVar,
-                      Regressor      = Regressor,
-                      Intercept      = Intercept,
-                      CountDist      = CountDist,
-                      ARMAModel      = ARMAModel)
+    # populate a list with the model characteristics
+    mod = ModelScheme(RegModel = RegModel,
+                      df = df,
+                      CountDist = CountDist,
+                      ARMAModel = ARMAModel)
 
     theta[i,] = InitialEstimates(mod)
   }
@@ -792,6 +844,7 @@ test_that("Initial Estimation for Generalized Poisson-AR(1) with two Regressors"
   alpha          = 1.5
   set.seed(3)
   Regressor      = data.frame(runif(n),runif(n))
+  names(Regressor) = c("x1","x2")
   b0             = 1
   b1             = 4
   b2             = 2
@@ -800,21 +853,24 @@ test_that("Initial Estimation for Generalized Poisson-AR(1) with two Regressors"
   MAParm         = NULL
   ARMAModel      = c(length(ARParm),length(MAParm))
   TrueParam      = c(MargParm,ARParm, MAParm)
-  Intercept      = TRUE
   nsim           = 20
   theta          = matrix(NA,nrow=nsim,ncol=length(MargParm)+sum(ARMAModel))
+
+  # specify the regression formula (no regressors here)
+  RegModel       = DependentVar ~ 1 + x1 + x2
+  df             = data.frame(Regressor)
 
   for (i in 1:nsim){
     # simulate data
     set.seed(i)
-    DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor, Intercept)
+    DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, RegModel, df)
+    df = data.frame(DependentVar, Regressor)
 
-    # call the wrapper function with less arguments
-    mod = ModelScheme(DependentVar   = DependentVar,
-                      Regressor      = Regressor,
-                      Intercept      = Intercept,
-                      CountDist      = CountDist,
-                      ARMAModel      = ARMAModel)
+    # populate a list with the model characteristics
+    mod = ModelScheme(RegModel = RegModel,
+                      df = df,
+                      CountDist = CountDist,
+                      ARMAModel = ARMAModel)
 
     theta[i,] = InitialEstimates(mod)
   }
@@ -861,21 +917,25 @@ test_that("Initial Estimation for Binomial-MA(3) with two Regressors", {
   theta = matrix(NA,nrow=nsim,ncol=length(MargParm)+sum(ARMAModel))
   set.seed(3)
   Regressor = data.frame(rnorm(n,0,1),runif(n))
-  Intercept = TRUE
+  names(Regressor) = c("x1","x2")
+
+  # specify the regression formula (no regressors here)
+  RegModel       = DependentVar ~ 1 + x1 + x2
+  df             = data.frame(Regressor)
 
   for (i in 1:nsim){
     # simulate data
     set.seed(i)
-    # Generate a regressor that will be used as a linear predictor
-    DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor,Intercept, ntrials)
+    DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, RegModel, df, ntrials)
+    df = data.frame(DependentVar, Regressor)
 
-    # call the wrapper function with less arguments
-    mod = ModelScheme(DependentVar   = DependentVar,
-                      Regressor      = Regressor,
-                      Intercept      = Intercept,
-                      CountDist      = CountDist,
-                      ARMAModel      = ARMAModel,
-                      ntrials      = ntrials)
+    # populate a list with the model characteristics
+    mod = ModelScheme(RegModel = RegModel,
+                      df = df,
+                      CountDist = CountDist,
+                      ARMAModel = ARMAModel,
+                      ntrials = ntrials)
+
 
     theta[i,] = InitialEstimates(mod)
   }
@@ -908,19 +968,23 @@ test_that("Initial Estimation for ZIP-AR(1) with two Regressors", {
   # Generate a regressor
   set.seed(3)
   Regressor  = data.frame(runif(n),runif(n))
-  Intercept  = TRUE
+  names(Regressor) = c("x1","x2")
+
+  # specify the regression formula (no regressors here)
+  RegModel       = DependentVar ~ 1 + x1 + x2
+  df             = data.frame(Regressor)
 
   for (i in 1:nsim){
     # simulate data
     set.seed(i)
-    DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor, Intercept)
+    DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, RegModel, df)
+    df = data.frame(DependentVar, Regressor)
 
-    # call the wrapper function with less arguments
-    mod = ModelScheme(DependentVar   = DependentVar,
-                      CountDist      = CountDist,
-                      ARMAModel      = ARMAModel,
-                      Regressor      = Regressor,
-                      Intercept      = Intercept)
+    # populate a list with the model characteristics
+    mod = ModelScheme(RegModel = RegModel,
+                      df = df,
+                      CountDist = CountDist,
+                      ARMAModel = ARMAModel)
 
     theta[i,] = InitialEstimates(mod)
   }
@@ -966,19 +1030,23 @@ test_that("Initial Estimation for Mixed Poisson-AR(1) with two Regressors", {
   # Generate a regressor
   set.seed(3)
   Regressor  = data.frame(runif(n),runif(n))
-  Intercept  = TRUE
+  names(Regressor) = c("x1","x2")
+
+  # specify the regression formula (no regressors here)
+  RegModel       = DependentVar ~ 1 + x1 + x2
+  df             = data.frame(Regressor)
 
   for (i in 1:nsim){
     # simulate data
     set.seed(i)
-    DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor, Intercept)
+    DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, RegModel, df)
+    df = data.frame(DependentVar, Regressor)
 
-    # call the wrapper function with less arguments
-    mod = ModelScheme(DependentVar   = DependentVar,
-                      CountDist      = CountDist,
-                      ARMAModel      = ARMAModel,
-                      Regressor      = Regressor,
-                      Intercept      = Intercept)
+    # populate a list with the model characteristics
+    mod = ModelScheme(RegModel = RegModel,
+                      df = df,
+                      CountDist = CountDist,
+                      ARMAModel = ARMAModel)
 
     theta[i,] = InitialEstimates(mod)
   }

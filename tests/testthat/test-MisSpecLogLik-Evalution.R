@@ -22,15 +22,32 @@ Task           = 'Evaluation'
 OptMethod      = "bobyqa"
 OutputType     = "data.frame"
 maxdiff        = 10^(-6)
+
+# specify the regression formula (no regressors here)
+RegModel     = DependentVar ~ 0
+
 # simulate data
 set.seed(2)
-DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor, Intercept)
+DependentVar = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, RegModel)
+df         = data.frame(DependentVar)
 
-# populate the model scheme
-mod = ModelScheme(DependentVar, Regressor, Intercept, EstMethod, ARMAModel, CountDist,ParticleNumber, epsilon,
-                  initialParam, TrueParam, Task,SampleSize, OptMethod, OutputType, maxdiff)
+# Parse the model
+mod = ModelScheme(RegModel = RegModel,
+                        df = df,
+                 CountDist = CountDist,
+                 EstMethod = EstMethod,
+                 ARMAModel = ARMAModel,
+            ParticleNumber = ParticleNumber,
+                   epsilon = epsilon,
+              initialParam = initialParam,
+                 TrueParam = TrueParam,
+                      Task = Task,
+                SampleSize = SampleSize,
+                 OptMethod = OptMethod,
+                OutputType = OutputType,
+                   maxdiff = maxdiff)
 
-# evaluate the likleihood
+# evaluate the likelihood
 a1 = ParticleFilter_Res_ARMA(initialParam,mod)
 a2 = ParticleFilter(initialParam,mod)
 expect_equal(a1,a2, tolerance = 10^(-4))

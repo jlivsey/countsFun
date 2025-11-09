@@ -27,16 +27,6 @@ This method provides a human-readable printout of an LGC model object.
 For more comprehensive model information, including diagnostic metrics
 and statistical inference, use \code{summary.lgc()}.
 }
-\examples{
-\dontrun{
-  # Fit an example LGC model
-  mylgc <- lgc(formula = y ~ x, data = simdata, EstMethod = "PFR")
-
-  # Print the model summary
-  print(mylgc)
-}
-
-}
 \seealso{
 \code{\link{summary.lgc}} for a detailed summary method.
 }

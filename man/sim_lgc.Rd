@@ -10,8 +10,8 @@ sim_lgc(
   MargParm,
   ARParm,
   MAParm,
-  Regressor = NULL,
-  Intercept = NULL,
+  RegModel = NULL,
+  df = NULL,
   ntrials = NULL,
   ...
 )
@@ -29,9 +29,10 @@ Supported values include \code{"Poisson"}, \code{"Negative Binomial"}, \code{"ZI
 
 \item{MAParm}{Numeric vector. Moving average (MA) parameters. Can be empty or \code{NULL} for no MA component.}
 
-\item{Regressor}{Optional matrix or data frame of covariates. Used for dynamic regression models.}
+\item{RegModel}{An object of class \code{formula}, typically in the form \code{y ~ x1 + x2} used to specify
+the regression model to be fitted, evaluated, generated, etc.}
 
-\item{Intercept}{Logical or numeric. Whether to include an intercept term. If numeric, should be 0 or 1.}
+\item{df}{Data frame with the series to be modeled and possible regressor variables.}
 
 \item{ntrials}{Integer. Number of trials for the Binomial model (required if \code{CountDist == "Binomial"}).}
 
@@ -48,28 +49,4 @@ covariates.
 \details{
 The simulation is based on a latent Gaussian copula framework, where the marginal distribution
 is applied to transformed latent variables with dependence induced by an ARMA process.
-}
-\examples{
-# Example: Simulate a Poisson-AR(1) time series
-
-# Model specification
-SampleSize <- 200
-CountDist  <- "Poisson"
-MargParm   <- 3
-ARParm     <- 0.5
-MAParm     <- NULL
-
-# Simulate from the specified model
-set.seed(2)
-y <- sim_lgc(SampleSize, CountDist, MargParm, ARParm, MAParm)
-
-# The function returns a univariate time-series (ts) object class(y)
-
-# Inspect or visualize the simulated data
-print(y)
-plot(y, main = "Simulated Poisson–AR(1) Series",
-     ylab = "Counts", xlab = "Time", col = "steelblue")
-
-# Optional: store in a data frame for downstream analysis
-counts_df <- data.frame(y = as.numeric(y))
 }

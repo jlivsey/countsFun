@@ -11,21 +11,23 @@ Smallsales  = drinksales[1:n,]
 
 # regressor variable with intercept
 DependentVar   = Smallsales$MOVE
+df             = data.frame(DependentVar)
 CountDist      = "Poisson"
 ARMAModel      = c(2,0)
-OptMethod      = "L-BFGS-B"
 #initialParam   = c(2.1756853 , 1.2048704, -0.3875602, 0.0603419 )
 initialParam   = c(10, -0.3875602, 0.0603419 )
 verbose        = FALSE
 
-# call the wrapper function with less arguments
-mod = ModelScheme(DependentVar   = DependentVar,
-                  Regressor      = NULL,
-                  CountDist      = CountDist,
-                  ARMAModel      = ARMAModel,
-                  OptMethod      = OptMethod,
-                  initialParam   = initialParam,
-                  verbose        = verbose)
+# specify the regression formula (no regressors here - although EDA susggest I should use some)
+RegModel     = DependentVar ~ 0
+
+# Run the wrapper
+mod = ModelScheme(RegModel = RegModel,
+                        df = df,
+                 CountDist = CountDist,
+                 ARMAModel = ARMAModel,
+              initialParam = initialParam,
+                   verbose = verbose)
 
 # get initial estimate
 if (is.null(mod$initialParam)){

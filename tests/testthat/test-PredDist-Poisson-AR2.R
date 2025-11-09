@@ -29,15 +29,18 @@ ARMAModel      = c(2,0)
 OptMethod      = "L-BFGS-B"
 initialParam   = c(2.1756853 , 1.2048704,0.5, -0.3875602, 0.0603419 )
 
-# call the wrapper function with less arguments
-mod = ModelScheme(DependentVar   = DependentVar,
-            Regressor      = Regressor,
-            Intercept      = Intercept,
-            CountDist      = CountDist,
-            ARMAModel      = ARMAModel,
-            OptMethod      = OptMethod,
-            initialParam = initialParam)
+# specify the regression formula (no regressors here)
+RegModel       = DependentVar ~ 1 + Regressor
+df = data.frame(DependentVar, Regressor)
 
+
+# populate a list with the model characteristics
+mod = ModelScheme(RegModel = RegModel,
+                  df = df,
+                  CountDist = CountDist,
+                  ARMAModel = ARMAModel,
+                  OptMethod = OptMethod,
+                  initialParam = initialParam)
 
 theta = initialParam
 

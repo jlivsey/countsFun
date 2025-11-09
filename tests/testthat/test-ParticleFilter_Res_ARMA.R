@@ -3,9 +3,6 @@ test_that("Likelihood Poisson-AR(1)", {
 
   # Specify model and methods
   n              = 200
-  # Regressor      = cbind(rep(1,n),rbinom(n,1,0.25))
-  Regressor      = NULL
-  Intercept      = NULL
   CountDist      = "Poisson"
   MargParm       = 3
   ARParm         = c(0.8, -0.25)
@@ -26,13 +23,33 @@ test_that("Likelihood Poisson-AR(1)", {
   OutputType     = "data.frame"
   ParamScheme    = NULL
   maxdiff        = 10^(-6)
+
+
+  # specify the regression formula (no regressors here)
+  RegModel       = DependentVar ~ 1
+
   # simulate data
   set.seed(2)
-  DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor, Intercept)
+  DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, RegModel)
+  df = data.frame(DependentVar)
 
-  # populate the model scheme
-  mod = ModelScheme(DependentVar, Regressor, Intercept, EstMethod, ARMAModel, CountDist,ParticleNumber, epsilon,
-                    initialParam, TrueParam, Task,SampleSize, OptMethod, OutputType, ParamScheme, maxdiff)
+    # populate a list with the model characteristics
+  mod = ModelScheme(RegModel = RegModel,
+                    df = df,
+                    EstMethod = EstMethod,
+                    CountDist = CountDist,
+                    ARMAModel = ARMAModel,
+                    OptMethod = OptMethod,
+                    ParticleNumber = ParticleNumber,
+                    epsilon = epsilon,
+                    initialParam = initialParam,
+                    TrueParam = TrueParam,
+                    Task = Task,
+                    SampleSize = SampleSize,
+                    OutputType = OutputType,
+                    ParamScheme = ParamScheme,
+                    maxdiff = maxdiff)
+
 
   # evaluate the likleihood
   a1 = ParticleFilter(initialParam,mod)

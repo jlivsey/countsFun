@@ -28,11 +28,11 @@ verbose        = FALSE
 df = data.frame(DependentVar, Regressor)
 
 # specify the regression model
-formula = DependentVar~Regressor
+RegModel = DependentVar~Regressor
 
 # call the wrapper function with less arguments
-mylgc = lgc(formula        = formula,
-            data           = df,
+mylgc = lgc(RegModel       = RegModel,
+            df             = df,
             CountDist      = CountDist,
             ARMAModel      = ARMAModel,
             OptMethod      = OptMethod,

@@ -10,14 +10,8 @@ PDvalues(theta, mod)
 \arguments{
 \item{theta}{Numeric vector. Parameter vector containing marginal and ARMA parameters.}
 
-\item{mod}{List. A list containing all model specifications, including:
-\describe{
-\item{DependentVar}{Numeric. The dependent time series variable to be modeled.}
-\item{Task}{Character. The task requested by the user (e.g., Evaluation, Optimization, Synthesis, etc.).}
-\item{ParticleNumber}{Integer. Number of particles to use.}
-\item{Regressor}{Optional independent variable(s).}
-\item{CountDist}{Character string. Specifies the count marginal distribution.}
-}}
+\item{mod}{A list containing model-related metadata and control settings, typically
+returned by \code{\link{ModelScheme}}.}
 }
 \value{
 A numeric matrix of dimension \code{2 x n}, where each column corresponds to a time point:
@@ -35,36 +29,6 @@ This function runs a particle filter with resampling to estimate the predictive 
 of the latent state at each time point. It leverages the Innovations Algorithm to calculate
 ARMA-based forecasts of the latent process and approximates conditional distributions using
 truncated normal draws. See Section 3.4 in Jia et al. (2021)
-}
-\examples{
-n              = 10
-Regressor      = data.frame(runif(n),runif(n))
-Intercept      = TRUE
-ARMAModel      = c(2,0)
-ARParm         = c(0.5, 0.2)
-MAParm         = NULL
-CountDist      = "Poisson"
-b0             = 1
-b1             = 4
-b2             = 2
-MargParm       = c(b0,b1,b2)
-
-# simulate data
-set.seed(2)
-DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor, Intercept)
-
-mod = ModelScheme(DependentVar   = DependentVar,
-                  Regressor      = Regressor,
-                  Intercept      = Intercept,
-                  CountDist      = CountDist,
-                 ARMAModel      = ARMAModel)
-
-# select a parameter point
-theta <- c(MargParm, ARParm, MAParm)
-
-# compute the Predictive distribution
-PDvalues(theta, mod)
-
 }
 \references{
 Jia, Y., Kechagias, S., Livsey, J., Lund, R., & Pipiras, V. (2021).

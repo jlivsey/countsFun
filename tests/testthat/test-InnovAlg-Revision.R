@@ -107,16 +107,19 @@ test_that("New and old particle filter implementations give slightly un-equal re
   MAParm    <- c(0.3, 0.5, -0.2, 0.1)
   ARMAModel <- c(length(ARParm), length(MAParm))
 
+  # specify the regression formula (no regressors here)
+  RegModel       = DependentVar ~ 1
+
   # Simulate data
   set.seed(2)
-  DependentVar <- sim_lgc(n, CountDist, MargParm, ARParm, MAParm)
+  DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, RegModel)
+  df = data.frame(DependentVar)
 
-  # Generate model structure
-  mod <- ModelScheme(
-    DependentVar = DependentVar,
-    CountDist    = CountDist,
-    ARMAModel    = ARMAModel
-  )
+  # populate a list with the model characteristics
+  mod = ModelScheme(RegModel = RegModel,
+                    df = df,
+                    CountDist = CountDist,
+                    ARMAModel = ARMAModel)
 
   # Get initial parameter estimates
   theta1 <- InitialEstimates(mod)
@@ -132,3 +135,11 @@ test_that("New and old particle filter implementations give slightly un-equal re
   # Compare results
   expect_equal(a1, a2, tolerance = 1e-5)
 })
+
+
+
+
+
+
+
+

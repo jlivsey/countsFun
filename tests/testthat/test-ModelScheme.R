@@ -23,12 +23,31 @@ test_that("parsing works ok", {
   OutputType     = "data.frame"
   ParamScheme    = NULL
   maxdiff        = 10^(-6)
+
+  # specify the regression formula (no regressors here)
+  RegModel       = DependentVar ~ 1
+
   # simulate data
   set.seed(2)
-  DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor)
+  DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, RegModel)
+  df = data.frame(DependentVar)
 
-  mod = ModelScheme(DependentVar, Regressor, Intercept, EstMethod, ARMAModel, CountDist,ParticleNumber, epsilon,
-                    initialParam, TrueParam, Task,SampleSize, OptMethod, OutputType, ParamScheme, maxdiff)
+  # call the wrapper function with less arguments
+  mod = ModelScheme(RegModel = RegModel,
+                    df = df,
+                    EstMethod = EstMethod,
+                    CountDist = CountDist,
+                    ARMAModel = ARMAModel,
+                    OptMethod = OptMethod,
+                    ParticleNumber = ParticleNumber,
+                    epsilon = epsilon,
+                    initialParam = initialParam,
+                    TrueParam = TrueParam,
+                    Task = Task,
+                    SampleSize = SampleSize,
+                    OutputType = OutputType,
+                    ParamScheme = ParamScheme,
+                    maxdiff = maxdiff)
 
   # the following will check only the variables that enter the ModelScheme function as inputs '
   # and come out directly as outputs. I am not checking here if other variables that are computed

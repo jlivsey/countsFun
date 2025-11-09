@@ -5,8 +5,8 @@
 \title{Main Wrapper for Fitting Latent Gaussian Count Time Series Models}
 \usage{
 lgc(
-  formula = NULL,
-  data = NULL,
+  RegModel = NULL,
+  df = NULL,
   EstMethod = "PFR",
   CountDist = NULL,
   ARMAModel = NULL,
@@ -28,9 +28,10 @@ lgc(
 )
 }
 \arguments{
-\item{formula}{An object of class \code{formula} (e.g., \code{y ~ x1 + x2}). Specifies the response and regressors.}
+\item{RegModel}{An object of class \code{formula}, typically in the form \code{y ~ x1 + x2} used to specify
+the regression model to be fitted, evaluated, generated, etc.}
 
-\item{data}{A data frame containing the variables used in the formula.}
+\item{df}{Data frame with the series to be modeled and possible regressor variables.}
 
 \item{EstMethod}{Character. Estimation method to use. Default is \code{"PFR"} (particle filter with resampling).}
 
@@ -88,46 +89,6 @@ The function supports tasks such as model evaluation, optimization, and simulati
 This function serves as the main interface for the \code{lgc} package. It parses inputs, prepares model specifications,
 fits the model via particle filtering with optional optimization, and computes residuals using results from
 \href{https://doi.org/10.1080/01621459.2021.1944874}{Jia et al. (2021)}.
-}
-\examples{
-CountDist      = "Generalized Poisson"
-alpha          = 1
-b0             = 0.5
-b1             = 2
-MargParm       = c(b0,b1,alpha)
-ARParm         = 0.75
-MAParm         = NULL
-ARMAModel      = c(length(ARParm),length(MAParm))
-SampleSize     = 50
-Regressor      = rbinom(SampleSize,1,0.1)
-Intercept      = TRUE
-
-# simulate data with the old lgc function
-set.seed(1)
-DependentVar  = sim_lgc(SampleSize, CountDist, MargParm, ARParm, MAParm, Regressor,Intercept)
-
-# save the data in a data frame
-df = data.frame(DependentVar, Regressor)
-
-# specify the regression model
-formula = DependentVar~Regressor
-
-# specify task
-Task = "Evaluation"
-
-# specify parameters to evaluate the log-likelihood
-initialParam = c(MargParm, ARParm, MAParm)
-
-# call the wrapper function with less arguments
-mylgc = lgc(formula   = formula,
-            data      = df,
-            CountDist = CountDist,
-            ARMAModel = ARMAModel,
-           Task = Task,
-            initialParam = initialParam)
-
-# check the results
-summary(mylgc)
 }
 \references{
 Jia, Y., Kechagias, S., Livsey, J., Lund, R., & Pipiras, V. (2021). Latent Gaussian Count Time Series.

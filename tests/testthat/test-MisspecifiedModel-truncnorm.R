@@ -10,11 +10,15 @@ CountDist      = "Mixed Poisson"
 MargParm       = c(2, 5, 0.7)
 ARParm         = 0.75
 MAParm         = NULL
-DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm)
 
-# generate a zero inflated (p =0.9) poisson 50 regressor
+# specify the regression formula (no regressors here)
+RegModel       = DependentVar ~ 1
+
+# generate the data adding a Zero In flated Binomial the to the Mixed Poisson
+DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, RegModel)
 Regressor      = ifelse(rbinom(n, size = 1, prob = 0.9) > 0, 0, rpois(n, lambda = 50))
-DependentVar    = DependentVar + Regressor
+DependentVar   = DependentVar + Regressor
+df             = data.frame(DependentVar)
 #plot(1:n,DependentVar, type="l")
 
 # Set parameters for model to fit
@@ -28,14 +32,15 @@ OptMethod      = 'L-BFGS-B'
 initialParam   = c(MargParm,ARParm,MAParm)
 theta          = initialParam
 verbose        = TRUE
+
 # call the wrapper function with less arguments
-mod = ModelScheme(DependentVar   = DependentVar,
-                  Regressor      = NULL,
-                  CountDist      = CountDist,
-                  ARMAModel      = ARMAModel,
-                  OptMethod      = OptMethod,
-                  initialParam   = initialParam,
-                  verbose        = verbose)
+mod = ModelScheme(RegModel = RegModel,
+                  df = df,
+                  CountDist = CountDist,
+                  ARMAModel = ARMAModel,
+                  OptMethod = OptMethod,
+                  initialParam = initialParam,
+                  verbose = verbose)
 
 theta = c(54.99986, 0.8015283, -0.2920431)
 a1 = ParticleFilter_Res_ARMA(theta,mod)

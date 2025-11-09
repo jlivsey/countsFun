@@ -13,29 +13,25 @@ MAParm         = NULL
 OptMethod      = "L-BFGS-B"
 Task           = "Optimization"
 
+
+# specify the regression formula (no regressors here)
+RegModel       = DependentVar ~ 1
+
 # simulate data
 set.seed(2)
-DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor, Intercept)
-
-# # call the wrapper function with less arguments
-# mylgc = lgc(DependentVar   = DependentVar,
-#             Regressor      = Regressor,
-#             CountDist      = CountDist,
-#             ARMAModel      = ARMAModel,
-#             OptMethod      = OptMethod,
-#                  Task      = Task)
+DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, RegModel)
+df = data.frame(DependentVar)
 
 
 # call the wrapper function with less arguments
-mod = ModelScheme(DependentVar   = DependentVar,
-                  Regressor      = Regressor,
-                  Intercept      = Intercept,
-                  CountDist      = CountDist,
-                  ARMAModel      = ARMAModel,
-                  OptMethod      = OptMethod,
-                       Task      = Task)
+mod = ModelScheme(RegModel = RegModel,
+                  df = df,
+                  CountDist = CountDist,
+                  ARMAModel = ARMAModel,
+                  OptMethod = OptMethod,
+                       Task = Task)
 
-# theta = mylgc$ParamEstimates
+# set a parameter point
 theta = c( MargParm, ARParm, MAParm)
 
 # compute predictive distribution

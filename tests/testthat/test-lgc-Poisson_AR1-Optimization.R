@@ -8,8 +8,6 @@ CountDist      = "Poisson"
 MargParm       = 3
 ARParm         = 0.5
 MAParm         = 0.2
-#ARParm         = NULL
-#MAParm         = NULL
 ARMAModel      = c(length(ARParm),length(MAParm))
 ParticleNumber = 5
 epsilon        = 0.5
@@ -19,28 +17,25 @@ Task           = 'Optimization'
 SampleSize     = NULL
 nsim           = NULL
 no_cores       = NULL
-OptMethod      = "bobyqa"
 OptMethod      = "L-BFGS-B"
-
 OutputType     = "list"
 ParamScheme    = NULL
 maxdiff        = 10^(-6)
+
+# specify the regression formula (no regressors here)
+RegModel       = DependentVar ~ 0
+
 # simulate data
 set.seed(2)
-DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, Regressor)
+DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, RegModel)
+df = data.frame(DependentVar)
 
 # set initial parameters
 initialParam   = c(10,0.1,0.2)
 
-# save the data in a data frame
-df = data.frame(DependentVar)
-
-# specify the regression model
-formula = DependentVar~0
-
 
 # call the wrapper
-a = lgc(formula,df, EstMethod, CountDist, ARMAModel, ParticleNumber,
+a = lgc(RegModel,df, EstMethod, CountDist, ARMAModel, ParticleNumber,
          epsilon, initialParam, TrueParam,  Task, SampleSize, nsim, no_cores, OptMethod,
          OutputType, ParamScheme, maxdiff)
 

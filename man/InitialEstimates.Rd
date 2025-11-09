@@ -37,14 +37,3 @@ type, sample statistics (e.g., mean, variance), or defaults chosen for stability
 These estimates are used as starting points in numerical optimization procedures.
 GLM and MoM estimates are used for marginal parameters and Yulew-Walker for ARMA.
 }
-\examples{
-mod <- ModelScheme(
-  DependentVar = rpois(100, lambda = 3),
-  CountDist = "Poisson",
-  ARMAModel = c(1, 1),
-  Intercept = TRUE
-)
-init <- InitialEstimates(mod)
-print(init)
-
-}

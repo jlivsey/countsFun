@@ -25,29 +25,4 @@ Numeric. Approximate log-likelihood of the model.
 Uses particle filtering with resampling to approximate the likelihood of
 a specified count time series model with an underlying ARMA dependence structure.
 }
-\examples{
-# Example: Compute the log-likelihood of a Poisson-ARMA(1,0) model
-CountDist      <- "Poisson"
-n              <- 100
-ARMAModel      <- c(1,0)
-MargParm       <- 3
-ARParm         <- 0.5
-MAParm         <- NULL
-initialParam   <- c(3, ARParm, MAParm)
-
-# Simulate data
-set.seed(2)
-DependentVar <- sim_lgc(n, CountDist, MargParm, ARParm, MAParm)
-
-# Build model specification
-mod <- ModelScheme(
-  DependentVar   = DependentVar,
-  CountDist      = CountDist,
-  ARMAModel      = ARMAModel,
-  initialParam   = initialParam
-)
-
-# Compute log-likelihood at a given parameter point
-ll <- ParticleFilter_Res_ARMA(initialParam, mod)
-ll
-}
+\keyword{internal}
