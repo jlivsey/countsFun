@@ -34,7 +34,7 @@ theta          = initialParam
 verbose        = TRUE
 
 # call the wrapper function with less arguments
-mod = ModelScheme(RegModel = RegModel,
+mod = ModelSpec(RegModel = RegModel,
                   df = df,
                   CountDist = CountDist,
                   ARMAModel = ARMAModel,

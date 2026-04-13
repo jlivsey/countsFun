@@ -22,7 +22,7 @@ verbose        = FALSE
 RegModel     = DependentVar ~ 0
 
 # Run the wrapper
-mod = ModelScheme(RegModel = RegModel,
+mod = ModelSpec(RegModel = RegModel,
                         df = df,
                  CountDist = CountDist,
                  ARMAModel = ARMAModel,

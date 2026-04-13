@@ -28,3 +28,4 @@ It uses \code{\link{terms}} to extract structure from the formula object.
 \seealso{
 \code{\link{terms}}, \code{\link{model.frame}}
 }
+\keyword{internal}

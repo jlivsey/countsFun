@@ -42,3 +42,4 @@ CheckStability(AR = c(0.9), MA = NULL)
 CheckStability(AR = NULL, MA = c(1.5))
 
 }
+\keyword{internal}

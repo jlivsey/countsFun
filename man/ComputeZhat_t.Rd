@@ -7,7 +7,7 @@
 ComputeZhat_t(mod, IA, Z, Zhat, t, Parms)
 }
 \arguments{
-\item{mod}{Model list as returned by \code{\link{ModelScheme}}.}
+\item{mod}{Model list as returned by \code{\link{ModelSpec}}.}
 
 \item{IA}{A list returned by \code{\link{InnovAlg}}, containing innovation variances and
 theta coefficients.}

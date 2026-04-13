@@ -80,24 +80,24 @@ lgc = function(RegModel       = NULL,
 
 
   # parse all the parameters and the data into a list called mod
-  mod = ModelScheme(RegModel       = RegModel,
-                    df             = df,
-                    EstMethod      = EstMethod,
-                    ARMAModel      = ARMAModel,
-                    CountDist      = CountDist,
-                    ParticleNumber = ParticleNumber,
-                    epsilon        = epsilon,
-                    initialParam   = initialParam,
-                    TrueParam      = TrueParam,
-                    Task           = Task,
-                    SampleSize     = SampleSize,
-                    OptMethod      = OptMethod,
-                    OutputType     = OutputType,
-                    ParamScheme    = ParamScheme,
-                    maxdiff        = maxdiff,
-                    ntrials        = ntrials,
-                    verbose        = verbose,
-                    nsim           = nsim)
+  mod = ModelSpec(RegModel       = RegModel,
+                  df             = df,
+                  EstMethod      = EstMethod,
+                  ARMAModel      = ARMAModel,
+                  CountDist      = CountDist,
+                  ParticleNumber = ParticleNumber,
+                  epsilon        = epsilon,
+                  initialParam   = initialParam,
+                  TrueParam      = TrueParam,
+                  Task           = Task,
+                  SampleSize     = SampleSize,
+                  OptMethod      = OptMethod,
+                  OutputType     = OutputType,
+                  ParamScheme    = ParamScheme,
+                  maxdiff        = maxdiff,
+                  ntrials        = ntrials,
+                  verbose        = verbose,
+                  nsim           = nsim)
 
 
   # if simulation task has been chosen simulate the data and compute initial estimates
@@ -133,7 +133,7 @@ lgc = function(RegModel       = NULL,
         mod$DependentVar <- AllSimulatedSeries[[i]]
         theta <- mod$initialParam <- AllInitialParam[[i]]
 
-        fit_result <- FitMultiplePF_Res(theta, mod)
+        fit_result <- FitMultiplePF(theta, mod)
         fit_result$initialParam <- theta
         SimResults[[i]] <- fit_result
       }
@@ -149,11 +149,11 @@ lgc = function(RegModel       = NULL,
       SimResults <- foreach(
         ForEachIndex = seq_len(nsim),
         .packages = c("optimx", "countsFun"),
-        .export   = c("FitMultiplePF_Res")
+        .export   = c("FitMultiplePF")
       ) %dopar% {
         mod$DependentVar <- AllSimulatedSeries[[ForEachIndex]]
         theta <- mod$initialParam <- AllInitialParam[[ForEachIndex]]
-        fit_result <- FitMultiplePF_Res(theta, mod)
+        fit_result <- FitMultiplePF(theta, mod)
         fit_result$initialParam <- theta
         fit_result
       }
@@ -172,7 +172,7 @@ lgc = function(RegModel       = NULL,
       mod$initialParam = InitialEstimates(mod)
     }
     theta  = mod$initialParam
-    FitResults = FitMultiplePF_Res(theta, mod)
+    FitResults = FitMultiplePF(theta, mod)
 
     # gather the input information and the Fit Results in one output structure
     out = PrepareOutput(mod, FitResults)
@@ -192,7 +192,7 @@ lgc = function(RegModel       = NULL,
   }
 
 
-return(out)
+  return(out)
 
 }
 

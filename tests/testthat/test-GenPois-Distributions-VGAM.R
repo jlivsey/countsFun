@@ -30,7 +30,7 @@ DependentVar = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, RegModel)
 df         = data.frame(DependentVar)
 
 # Run the wrapper
-mod = ModelScheme(RegModel = RegModel,
+mod = ModelSpec(RegModel = RegModel,
                        df  = df,
                  CountDist = CountDist,
                  ARMAModel = ARMAModel)
@@ -46,7 +46,7 @@ a1 = ParticleFilter(theta1, mod)
 CountDist      = "Generalized Poisson 2"
 
 # Run the wrapper
-mod = ModelScheme(RegModel = RegModel,
+mod = ModelSpec(RegModel = RegModel,
                        df  = df,
                  CountDist = CountDist,
                  ARMAModel = ARMAModel)

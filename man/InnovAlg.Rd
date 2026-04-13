@@ -45,12 +45,4 @@ The recursion is terminated based on a fixed tolerance (\code{mod$maxdiff}) for 
 or after a fixed number of steps in AR-only models. The \code{kappa(i,j)} function computes the autocovariance
 terms needed for recursion using model coefficients and the autocovariance vector \code{gamma}.
 }
-\examples{
-# ARMA(1,1) example
-gamma <- ARMAacf(ar = 0.5, ma = 0.4, lag.max = 20)
-mod <- list(nAR = 1, nMA = 1, maxdiff = 1e-8)
-Parms <- list(AR = 0.5, MA = 0.4)
-result <- InnovAlg(Parms, gamma, mod)
-str(result)
-
-}
+\keyword{internal}

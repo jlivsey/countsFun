@@ -32,7 +32,7 @@ DependentVar = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, RegModel)
 df         = data.frame(DependentVar)
 
 # Parse the model
-mod = ModelScheme(RegModel = RegModel,
+mod = ModelSpec(RegModel = RegModel,
                         df = df,
                  CountDist = CountDist,
                  EstMethod = EstMethod,

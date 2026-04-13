@@ -34,7 +34,7 @@ test_that("The likelihood function ParticleFilter works for a 'misspecified'
 
 
             # call the wrapper function with less arguments
-            mod = ModelScheme(RegModel = RegModel,
+            mod = ModelSpec(RegModel = RegModel,
                                     df = df,
                              CountDist = CountDist,
                              ARMAModel = ARMAModel,

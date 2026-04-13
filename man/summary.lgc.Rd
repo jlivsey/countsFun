@@ -23,3 +23,4 @@ parameter estimates and fit statistics.
   summary(mylgc)
 }
 }
+\keyword{internal}

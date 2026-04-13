@@ -13,7 +13,6 @@ MAParm         = NULL
 OptMethod      = "L-BFGS-B"
 Task           = "Optimization"
 
-
 # specify the regression formula (no regressors here)
 RegModel       = DependentVar ~ 1
 
@@ -23,27 +22,28 @@ DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, RegModel)
 df = data.frame(DependentVar)
 
 
-# call the wrapper function with less arguments
-mod = ModelScheme(RegModel = RegModel,
-                  df = df,
-                  CountDist = CountDist,
-                  ARMAModel = ARMAModel,
-                  OptMethod = OptMethod,
-                       Task = Task)
+# fit the model
+fit = lgc(RegModel = RegModel,
+          df = df,
+          CountDist = CountDist,
+          ARMAModel = ARMAModel,
+          Task = Task)
+
+# Retrieve the model Specification
+ModelSpec = model(fit)
 
 # set a parameter point
 theta = c( MargParm, ARParm, MAParm)
 
 # compute predictive distribution
-predDist = PDvalues(theta, mod)
+predDist = pred_dist(theta, ModelSpec)
 
 H = 10
 # compute PIT values
-PIT = PITvalues(H, predDist)
+PIT = pit(H, predDist)
 
 # saved expected values
-ExpValues = c(0.11315799, 0.11552394, 0.10897874, 0.11410315, 0.09598454, 0.07847884, 0.06713758,
-0.07751391, 0.09185189, 0.13726942)
+ExpValues = c(0.11387452, 0.12087723, 0.11022829, 0.10980887, 0.09137042, 0.07570144, 0.06788390, 0.07421936, 0.09515664, 0.14087933)
 
 for (i in 1:10){
   expect_equal(PIT[i], ExpValues[i], tolerance = 10^(-5))

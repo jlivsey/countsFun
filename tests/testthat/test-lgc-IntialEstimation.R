@@ -7,44 +7,44 @@
 #--------------------------- without Regressor ----------------------------------------#
 test_that("Initial Estimation for Poisson-AR(2)", {
 
-# regressor variable with intercept
-n              = 100
-ARParm         = c(0.5, 0.2)
-MAParm         = NULL
-ARMAModel      = c(length(ARParm),length(MAParm))
-nsim           = 20
-CountDist      = "Poisson"
-MargParm       = 3
-TrueParam      = c(MargParm,ARParm, MAParm)
-theta = matrix(NA,nrow=nsim,ncol=length(MargParm)+sum(ARMAModel))
+  # regressor variable with intercept
+  n              = 100
+  ARParm         = c(0.5, 0.2)
+  MAParm         = NULL
+  ARMAModel      = c(length(ARParm),length(MAParm))
+  nsim           = 20
+  CountDist      = "Poisson"
+  MargParm       = 3
+  TrueParam      = c(MargParm,ARParm, MAParm)
+  theta = matrix(NA,nrow=nsim,ncol=length(MargParm)+sum(ARMAModel))
 
-# specify the regression formula (no regressors here)
-RegModel       = DependentVar ~ 1
+  # specify the regression formula (no regressors here)
+  RegModel       = DependentVar ~ 1
 
-for (i in 1:nsim){
-  # simulate data
-  set.seed(i)
-  DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, RegModel)
-  df = data.frame(DependentVar)
+  for (i in 1:nsim){
+    # simulate data
+    set.seed(i)
+    DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, RegModel)
+    df = data.frame(DependentVar)
 
-  # populate a list with the model characteristics
-  mod = ModelScheme(RegModel = RegModel,
-                          df = df,
-                   CountDist = CountDist,
-                   ARMAModel = ARMAModel)
+    # populate a list with the model characteristics
+    mod = ModelSpec(RegModel = RegModel,
+                    df = df,
+                    CountDist = CountDist,
+                    ARMAModel = ARMAModel)
 
-  theta[i,] = InitialEstimates(mod)
-}
+    theta[i,] = InitialEstimates(mod)
+  }
 
-BIAS = colMeans(theta) - TrueParam
-RELATIVEBIAS = BIAS/TrueParam
-# check that relative bias is small for all
-expect_identical(prod(abs(RELATIVEBIAS)<0.1), 1)
+  BIAS = colMeans(theta) - TrueParam
+  RELATIVEBIAS = BIAS/TrueParam
+  # check that relative bias is small for all
+  expect_identical(prod(abs(RELATIVEBIAS)<0.1), 1)
 
-# BIAS
-# 0.02050000 -0.03782252 -0.01822419
-# RELATIVEBIAS
-# 0.006833333 -0.075645049 -0.091120948
+  # BIAS
+  # 0.02050000 -0.03782252 -0.01822419
+  # RELATIVEBIAS
+  # 0.006833333 -0.075645049 -0.091120948
 })
 
 test_that("Initial Estimation for Negative Binomial-MA(2)", {
@@ -70,10 +70,10 @@ test_that("Initial Estimation for Negative Binomial-MA(2)", {
     df = data.frame(DependentVar)
 
     # populate a list with the model characteristics
-    mod = ModelScheme(RegModel = RegModel,
-                      df = df,
-                      CountDist = CountDist,
-                      ARMAModel = ARMAModel)
+    mod = ModelSpec(RegModel = RegModel,
+                    df = df,
+                    CountDist = CountDist,
+                    ARMAModel = ARMAModel)
 
 
     theta[i,] = InitialEstimates(mod)
@@ -81,10 +81,10 @@ test_that("Initial Estimation for Negative Binomial-MA(2)", {
 
   BIAS = colMeans(theta) - TrueParam
   RELATIVEBIAS = BIAS/TrueParam
-  expect_equal(RELATIVEBIAS[1], 0.29426939, tolerance = 10^(-5))
-  expect_equal(RELATIVEBIAS[2], -0.05032221, tolerance = 10^(-5))
-  expect_equal(RELATIVEBIAS[3], -0.10107972, tolerance = 10^(-5))
-  expect_equal(RELATIVEBIAS[4], 0.10518289, tolerance = 10^(-5))
+  expect_equal(RELATIVEBIAS[1], 0.02748797, tolerance = 10^(-5))
+  expect_equal(RELATIVEBIAS[2], 0.01660232, tolerance = 10^(-5))
+  expect_equal(RELATIVEBIAS[3], -0.02263367, tolerance = 10^(-5))
+  expect_equal(RELATIVEBIAS[4], 0.15324709, tolerance = 10^(-5))
 
   # BIAS
   # 0.02050000 -0.03782252 -0.01822419
@@ -115,10 +115,10 @@ test_that("Initial Estimation for Mixed Poisson-ARMA(1,1)", {
     df = data.frame(DependentVar)
 
     # populate a list with the model characteristics
-    mod = ModelScheme(RegModel = RegModel,
-                      df = df,
-                      CountDist = CountDist,
-                      ARMAModel = ARMAModel)
+    mod = ModelSpec(RegModel = RegModel,
+                    df = df,
+                    CountDist = CountDist,
+                    ARMAModel = ARMAModel)
 
     theta[i,] = InitialEstimates(mod)
   }
@@ -162,10 +162,10 @@ test_that("Initial Estimation for Generalized Poisson-AR(2)", {
     df = data.frame(DependentVar)
 
     # populate a list with the model characteristics
-    mod = ModelScheme(RegModel = RegModel,
-                      df = df,
-                      CountDist = CountDist,
-                      ARMAModel = ARMAModel)
+    mod = ModelSpec(RegModel = RegModel,
+                    df = df,
+                    CountDist = CountDist,
+                    ARMAModel = ARMAModel)
 
     theta[i,] = InitialEstimates(mod)
   }
@@ -182,42 +182,42 @@ test_that("Initial Estimation for Generalized Poisson-AR(2)", {
 })
 
 test_that("Initial Estimation for Binomial-AR(2)", {
-n              = 100
-ARParm         = c(0.8, -0.5)
-MAParm         = NULL
-ARMAModel      = c(length(ARParm),length(MAParm))
-nsim           = 20
-CountDist      = "Binomial"
-ntrials        = 5
-p              = 0.3
-MargParm       = p
-TrueParam      = c(MargParm,ARParm, MAParm)
-theta          = matrix(NA,nrow=nsim,ncol=length(MargParm)+sum(ARMAModel))
+  n              = 100
+  ARParm         = c(0.8, -0.5)
+  MAParm         = NULL
+  ARMAModel      = c(length(ARParm),length(MAParm))
+  nsim           = 20
+  CountDist      = "Binomial"
+  ntrials        = 5
+  p              = 0.3
+  MargParm       = p
+  TrueParam      = c(MargParm,ARParm, MAParm)
+  theta          = matrix(NA,nrow=nsim,ncol=length(MargParm)+sum(ARMAModel))
 
-# specify the regression formula (no regressors here)
-RegModel       = DependentVar ~ 1
+  # specify the regression formula (no regressors here)
+  RegModel       = DependentVar ~ 1
 
-for (i in 1:nsim){
-  # simulate data
-  set.seed(i)
-  DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, RegModel, df=NULL, ntrials)
-  df = data.frame(DependentVar)
+  for (i in 1:nsim){
+    # simulate data
+    set.seed(i)
+    DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, RegModel, df=NULL, ntrials)
+    df = data.frame(DependentVar)
 
-  # populate a list with the model characteristics
-  mod = ModelScheme(RegModel = RegModel,
-                          df = df,
-                   CountDist = CountDist,
-                   ARMAModel = ARMAModel,
-                     ntrials = ntrials)
+    # populate a list with the model characteristics
+    mod = ModelSpec(RegModel = RegModel,
+                    df = df,
+                    CountDist = CountDist,
+                    ARMAModel = ARMAModel,
+                    ntrials = ntrials)
 
-  theta[i,] = InitialEstimates(mod)
-}
+    theta[i,] = InitialEstimates(mod)
+  }
 
-BIAS = colMeans(theta) - TrueParam
-RELATIVEBIAS = BIAS/TrueParam
+  BIAS = colMeans(theta) - TrueParam
+  RELATIVEBIAS = BIAS/TrueParam
 
 
-expect_equal(RELATIVEBIAS, c(-0.0003333333, -0.1532225884, -0.2103357704))
+  expect_equal(RELATIVEBIAS, c(-0.0003333333, -0.1532225884, -0.2103357704))
 })
 
 test_that("Initial Estimation for ZIP-ARMA(1,1)", {
@@ -245,10 +245,10 @@ test_that("Initial Estimation for ZIP-ARMA(1,1)", {
     df = data.frame(DependentVar)
 
     # populate a list with the model characteristics
-    mod = ModelScheme(RegModel = RegModel,
-                            df = df,
-                     CountDist = CountDist,
-                     ARMAModel = ARMAModel)
+    mod = ModelSpec(RegModel = RegModel,
+                    df = df,
+                    CountDist = CountDist,
+                    ARMAModel = ARMAModel)
 
     theta[i,] = InitialEstimates(mod)
   }
@@ -265,51 +265,51 @@ test_that("Initial Estimation for ZIP-ARMA(1,1)", {
 
 #--------------------------- with Regressor ------------------------------------------#
 test_that("Initial Estimation for Generalized Poisson-AR(1) with Regressor", {
-# set parameters
-CountDist      = "Generalized Poisson 2"
-alpha          = 1.5
-b0             = 1
-b1             = 4
-MargParm       = c(b0,b1,alpha)
-ARParm         = 0.6
-MAParm         = NULL
-ARMAModel      = c(length(ARParm),length(MAParm))
-TrueParam      = c(MargParm,ARParm, MAParm)
-n              = 100
-#e              = rbinom(n,1,0.1)
-#Regressor      = cbind(rep(1,n),e)
-set.seed(3)
-Regressor      = runif(n)
-nsim           = 20
-theta          = matrix(NA,nrow=nsim,ncol=length(MargParm)+sum(ARMAModel))
+  # set parameters
+  CountDist      = "Generalized Poisson 2"
+  alpha          = 1.5
+  b0             = 1
+  b1             = 4
+  MargParm       = c(b0,b1,alpha)
+  ARParm         = 0.6
+  MAParm         = NULL
+  ARMAModel      = c(length(ARParm),length(MAParm))
+  TrueParam      = c(MargParm,ARParm, MAParm)
+  n              = 100
+  #e              = rbinom(n,1,0.1)
+  #Regressor      = cbind(rep(1,n),e)
+  set.seed(3)
+  Regressor      = runif(n)
+  nsim           = 20
+  theta          = matrix(NA,nrow=nsim,ncol=length(MargParm)+sum(ARMAModel))
 
-# specify the regression formula (no regressors here)
-RegModel       = DependentVar ~ 1 + Regressor
-df             = data.frame(Regressor)
+  # specify the regression formula (no regressors here)
+  RegModel       = DependentVar ~ 1 + Regressor
+  df             = data.frame(Regressor)
 
-for (i in 1:nsim){
-  # simulate data
-  set.seed(i)
-  DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, RegModel, df)
-  df = data.frame(DependentVar, Regressor)
+  for (i in 1:nsim){
+    # simulate data
+    set.seed(i)
+    DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, RegModel, df)
+    df = data.frame(DependentVar, Regressor)
 
-  # populate a list with the model characteristics
-  mod = ModelScheme(RegModel = RegModel,
+    # populate a list with the model characteristics
+    mod = ModelSpec(RegModel = RegModel,
                     df = df,
                     CountDist = CountDist,
                     ARMAModel = ARMAModel)
 
-  theta[i,] = InitialEstimates(mod)
-}
+    theta[i,] = InitialEstimates(mod)
+  }
 
-BIAS = colMeans(theta) - TrueParam
-RELATIVEBIAS = BIAS/TrueParam
+  BIAS = colMeans(theta) - TrueParam
+  RELATIVEBIAS = BIAS/TrueParam
 
-# check me: this doesnt seem to work as well. what about IYW?
-expect_equal(RELATIVEBIAS[1], -0.10946933, tolerance = 10^(-5))
-expect_equal(RELATIVEBIAS[2], 0.08773684, tolerance = 10^(-5))
-expect_equal(RELATIVEBIAS[3], -0.03059632, tolerance = 10^(-5))
-expect_equal(RELATIVEBIAS[4], -0.22821499, tolerance = 10^(-5))
+  # check me: this doesnt seem to work as well. what about IYW?
+  expect_equal(RELATIVEBIAS[1], -0.10946933, tolerance = 10^(-5))
+  expect_equal(RELATIVEBIAS[2], 0.08773684, tolerance = 10^(-5))
+  expect_equal(RELATIVEBIAS[3], -0.03059632, tolerance = 10^(-5))
+  expect_equal(RELATIVEBIAS[4], -0.22821499, tolerance = 10^(-5))
 
 })
 
@@ -336,7 +336,7 @@ test_that("Initial Estimation for Poisson-AR(2) with Regressor", {
   RegModel       = DependentVar ~ 1 + Regressor
   df             = data.frame(Regressor)
 
-    for (i in 1:nsim){
+  for (i in 1:nsim){
     # simulate data
 
     set.seed(i)
@@ -344,10 +344,10 @@ test_that("Initial Estimation for Poisson-AR(2) with Regressor", {
     df = data.frame(DependentVar, Regressor)
 
     # populate a list with the model characteristics
-    mod = ModelScheme(RegModel = RegModel,
-                      df = df,
-                      CountDist = CountDist,
-                      ARMAModel = ARMAModel)
+    mod = ModelSpec(RegModel = RegModel,
+                    df = df,
+                    CountDist = CountDist,
+                    ARMAModel = ARMAModel)
 
     theta[i,] = InitialEstimates(mod)
   }
@@ -359,6 +359,54 @@ test_that("Initial Estimation for Poisson-AR(2) with Regressor", {
   expect_equal(RELATIVEBIAS[2], 0.0004266268, tolerance = 10^(-5))
   expect_equal(RELATIVEBIAS[3],  -0.067607045, tolerance = 10^(-5))
   expect_equal(RELATIVEBIAS[4], -0.0982610050, tolerance = 10^(-5))
+
+})
+
+test_that("Initial Estimation for Negative Binomial-AR(1) with Regressor", {
+  # set parameters
+  CountDist      = "Negative Binomial"
+  alpha          = 2
+  b0             = 1
+  b1             = 4
+  MargParm       = c(b0,b1,alpha)
+  ARParm         = 0.6
+  MAParm         = NULL
+  ARMAModel      = c(length(ARParm),length(MAParm))
+  TrueParam      = c(MargParm,ARParm, MAParm)
+  n              = 100
+
+  set.seed(3)
+  Regressor      = runif(n)
+  nsim           = 20
+  theta          = matrix(NA,nrow=nsim,ncol=length(MargParm)+sum(ARMAModel))
+
+  # specify the regression formula (no regressors here)
+  RegModel       = DependentVar ~ 1 + Regressor
+  df             = data.frame(Regressor)
+
+  for (i in 1:nsim){
+    # simulate data
+    set.seed(i)
+    DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, RegModel, df)
+    df = data.frame(DependentVar, Regressor)
+
+    # populate a list with the model characteristics
+    mod = ModelSpec(RegModel = RegModel,
+                    df = df,
+                    CountDist = CountDist,
+                    ARMAModel = ARMAModel)
+
+    theta[i,] = InitialEstimates(mod)
+  }
+
+  BIAS = colMeans(theta) - TrueParam
+  RELATIVEBIAS = BIAS/TrueParam
+
+  # check me: this doesnt seem to work as well. what about IYW?
+  expect_equal(RELATIVEBIAS[1], 0.005290299, tolerance = 10^(-5))
+  expect_equal(RELATIVEBIAS[2], -0.002492540, tolerance = 10^(-5))
+  expect_equal(RELATIVEBIAS[3], 0.036429384, tolerance = 10^(-5))
+  expect_equal(RELATIVEBIAS[4], -0.057471784, tolerance = 10^(-5))
 
 })
 
@@ -404,11 +452,11 @@ test_that("Initial Estimation for Binomial-MA(3) with Regressor", {
     df = data.frame(DependentVar, Regressor)
 
     # populate a list with the model characteristics
-    mod = ModelScheme(RegModel = RegModel,
-                      df = df,
-                      CountDist = CountDist,
-                      ARMAModel = ARMAModel,
-                      ntrials = ntrials)
+    mod = ModelSpec(RegModel = RegModel,
+                    df = df,
+                    CountDist = CountDist,
+                    ARMAModel = ARMAModel,
+                    ntrials = ntrials)
 
     theta[i,] = InitialEstimates(mod)
   }
@@ -454,10 +502,10 @@ test_that("Initial Estimation for ZIP-AR(1) with Regressor", {
     df = data.frame(DependentVar, Regressor)
 
     # populate a list with the model characteristics
-    mod = ModelScheme(RegModel = RegModel,
-                      df = df,
-                      CountDist = CountDist,
-                      ARMAModel = ARMAModel)
+    mod = ModelSpec(RegModel = RegModel,
+                    df = df,
+                    CountDist = CountDist,
+                    ARMAModel = ARMAModel)
 
     theta[i,] = InitialEstimates(mod)
   }
@@ -512,10 +560,10 @@ test_that("Initial Estimation for Mixed Poisson-AR(1) with Regressor", {
     df = data.frame(DependentVar, Regressor)
 
     # populate a list with the model characteristics
-    mod = ModelScheme(RegModel = RegModel,
-                      df = df,
-                      CountDist = CountDist,
-                      ARMAModel = ARMAModel)
+    mod = ModelSpec(RegModel = RegModel,
+                    df = df,
+                    CountDist = CountDist,
+                    ARMAModel = ARMAModel)
 
     theta[i,] = InitialEstimates(mod)
   }
@@ -562,10 +610,10 @@ test_that("Initial Estimation for Poisson-AR(2) with Regressor no intercept", {
     df = data.frame(DependentVar, Regressor)
 
     # populate a list with the model characteristics
-    mod = ModelScheme(RegModel = RegModel,
-                      df = df,
-                      CountDist = CountDist,
-                      ARMAModel = ARMAModel)
+    mod = ModelSpec(RegModel = RegModel,
+                    df = df,
+                    CountDist = CountDist,
+                    ARMAModel = ARMAModel)
 
     theta[i,] = InitialEstimates(mod)
   }
@@ -620,11 +668,11 @@ test_that("Initial Estimation for Binomial-MA(3) with Regressor no intercept", {
     df = data.frame(DependentVar, Regressor)
 
     # populate a list with the model characteristics
-    mod = ModelScheme(RegModel = RegModel,
-                      df = df,
-                      CountDist = CountDist,
-                      ARMAModel = ARMAModel,
-                      ntrials = ntrials)
+    mod = ModelSpec(RegModel = RegModel,
+                    df = df,
+                    CountDist = CountDist,
+                    ARMAModel = ARMAModel,
+                    ntrials = ntrials)
 
     theta[i,] = InitialEstimates(mod)
   }
@@ -669,10 +717,10 @@ test_that("Initial Estimation for ZIP-AR(1) with Regressor no intercept", {
     df = data.frame(DependentVar, Regressor)
 
     # populate a list with the model characteristics
-    mod = ModelScheme(RegModel = RegModel,
-                      df = df,
-                      CountDist = CountDist,
-                      ARMAModel = ARMAModel)
+    mod = ModelSpec(RegModel = RegModel,
+                    df = df,
+                    CountDist = CountDist,
+                    ARMAModel = ARMAModel)
 
     theta[i,] = InitialEstimates(mod)
   }
@@ -721,10 +769,10 @@ test_that("Initial Estimation for Mixed Poisson-AR(1) with Regressor no intercep
     df = data.frame(DependentVar, Regressor)
 
     # populate a list with the model characteristics
-    mod = ModelScheme(RegModel = RegModel,
-                      df = df,
-                      CountDist = CountDist,
-                      ARMAModel = ARMAModel)
+    mod = ModelSpec(RegModel = RegModel,
+                    df = df,
+                    CountDist = CountDist,
+                    ARMAModel = ARMAModel)
 
     theta[i,] = InitialEstimates(mod)
   }
@@ -769,10 +817,10 @@ test_that("Initial Estimation for Generalized Poisson-AR(1) with Regressor no in
     df = data.frame(DependentVar, Regressor)
 
     # populate a list with the model characteristics
-    mod = ModelScheme(RegModel = RegModel,
-                      df = df,
-                      CountDist = CountDist,
-                      ARMAModel = ARMAModel)
+    mod = ModelSpec(RegModel = RegModel,
+                    df = df,
+                    CountDist = CountDist,
+                    ARMAModel = ARMAModel)
 
     theta[i,] = InitialEstimates(mod)
   }
@@ -820,10 +868,10 @@ test_that("Initial Estimation for Poisson-AR(2) with two Regressors", {
     df = data.frame(DependentVar, Regressor)
 
     # populate a list with the model characteristics
-    mod = ModelScheme(RegModel = RegModel,
-                      df = df,
-                      CountDist = CountDist,
-                      ARMAModel = ARMAModel)
+    mod = ModelSpec(RegModel = RegModel,
+                    df = df,
+                    CountDist = CountDist,
+                    ARMAModel = ARMAModel)
 
     theta[i,] = InitialEstimates(mod)
   }
@@ -867,10 +915,10 @@ test_that("Initial Estimation for Generalized Poisson-AR(1) with two Regressors"
     df = data.frame(DependentVar, Regressor)
 
     # populate a list with the model characteristics
-    mod = ModelScheme(RegModel = RegModel,
-                      df = df,
-                      CountDist = CountDist,
-                      ARMAModel = ARMAModel)
+    mod = ModelSpec(RegModel = RegModel,
+                    df = df,
+                    CountDist = CountDist,
+                    ARMAModel = ARMAModel)
 
     theta[i,] = InitialEstimates(mod)
   }
@@ -930,11 +978,11 @@ test_that("Initial Estimation for Binomial-MA(3) with two Regressors", {
     df = data.frame(DependentVar, Regressor)
 
     # populate a list with the model characteristics
-    mod = ModelScheme(RegModel = RegModel,
-                      df = df,
-                      CountDist = CountDist,
-                      ARMAModel = ARMAModel,
-                      ntrials = ntrials)
+    mod = ModelSpec(RegModel = RegModel,
+                    df = df,
+                    CountDist = CountDist,
+                    ARMAModel = ARMAModel,
+                    ntrials = ntrials)
 
 
     theta[i,] = InitialEstimates(mod)
@@ -981,10 +1029,10 @@ test_that("Initial Estimation for ZIP-AR(1) with two Regressors", {
     df = data.frame(DependentVar, Regressor)
 
     # populate a list with the model characteristics
-    mod = ModelScheme(RegModel = RegModel,
-                      df = df,
-                      CountDist = CountDist,
-                      ARMAModel = ARMAModel)
+    mod = ModelSpec(RegModel = RegModel,
+                    df = df,
+                    CountDist = CountDist,
+                    ARMAModel = ARMAModel)
 
     theta[i,] = InitialEstimates(mod)
   }
@@ -1043,10 +1091,10 @@ test_that("Initial Estimation for Mixed Poisson-AR(1) with two Regressors", {
     df = data.frame(DependentVar, Regressor)
 
     # populate a list with the model characteristics
-    mod = ModelScheme(RegModel = RegModel,
-                      df = df,
-                      CountDist = CountDist,
-                      ARMAModel = ARMAModel)
+    mod = ModelSpec(RegModel = RegModel,
+                    df = df,
+                    CountDist = CountDist,
+                    ARMAModel = ARMAModel)
 
     theta[i,] = InitialEstimates(mod)
   }

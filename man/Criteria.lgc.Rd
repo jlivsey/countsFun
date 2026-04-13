@@ -10,7 +10,7 @@ Criteria.lgc(loglik, mod)
 \item{loglik}{Numeric. The log-likelihood value of the fitted model.}
 
 \item{mod}{A list containing model-related metadata, typically created by
-\code{\link{ModelScheme}}. It must include:
+\code{\link{ModelSpec}}. It must include:
 \itemize{
 \item \code{nparms}: Number of estimated parameters.
 \item \code{n}: Sample size.
@@ -34,5 +34,5 @@ and number of parameters.
 mod <- list(nparms = 5, n = 100, EstMethod = "PFR")
 loglik <- -123.45
 Criteria.lgc(loglik, mod)
-
 }
+\keyword{internal}

@@ -27,8 +27,8 @@ Computes the cumulative distribution function (CDF) of the Generalized Poisson d
 \examples{
 pGpois(3, 0.4, 2)
 pGpois(3, 0.4, 2, lower.tail = FALSE, log.p = TRUE)
-
 }
 \seealso{
 \code{\link{dGpois}}
 }
+\keyword{internal}

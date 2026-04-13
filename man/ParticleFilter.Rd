@@ -40,3 +40,4 @@ when numerical instability or boundary issues occur.
 \details{
 The function evaluates the (negative) log-likelihood for an LGC model under ARMA dynamics.
 }
+\keyword{internal}

@@ -8,7 +8,7 @@ PrepareOutput(mod, FitResults)
 }
 \arguments{
 \item{mod}{A list of model specifications and settings, typically created using
-\code{\link{ModelScheme}}. Contains all inputs used in estimation or simulation,
+\code{\link{ModelSpec}}. Contains all inputs used in estimation or simulation,
 such as the count distribution, ARMA structure, optimization method, and task type.}
 
 \item{FitResults}{A list containing outputs from the model fitting process.

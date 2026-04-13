@@ -7,7 +7,7 @@
 ResampleParticles(mod, wgh, t, Znew)
 }
 \arguments{
-\item{mod}{Model list as returned by \code{\link{ModelScheme}}.}
+\item{mod}{Model list as returned by \code{\link{ModelSpec}}.}
 
 \item{wgh}{Matrix of particle weights for all time points.}
 

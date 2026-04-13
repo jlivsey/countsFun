@@ -7,7 +7,7 @@
 ComputeLimits(mod, Parms, t, Zhat, Rt)
 }
 \arguments{
-\item{mod}{A list containing model specification and data, typically created by \code{\link{ModelScheme}}.}
+\item{mod}{A list containing model specification and data, typically created by \code{\link{ModelSpec}}.}
 
 \item{Parms}{A list of model parameters retrieved via \code{\link{RetrieveParameters}}.}
 

@@ -32,5 +32,5 @@ dmixpois1(3, lam1 = 2, lam2 = 5, p = 0.4, log = TRUE)
 
 # Vectorized input
 dmixpois1(0:5, lam1 = 2, lam2 = 5, p = 0.4)
-
 }
+\keyword{internal}

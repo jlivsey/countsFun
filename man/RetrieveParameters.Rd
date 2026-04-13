@@ -11,7 +11,7 @@ RetrieveParameters(theta, mod)
 to or from an optimizer.}
 
 \item{mod}{A list containing the model specification, as produced by
-\code{\link{ModelScheme}}. It must contain fields such as:
+\code{\link{ModelSpec}}. It must contain fields such as:
 \itemize{
 \item \code{MargParmIndices}: Indices of marginal parameters in \code{theta}
 \item \code{CountDist}: Name of the count distribution

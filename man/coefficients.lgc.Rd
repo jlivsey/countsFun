@@ -17,3 +17,4 @@ Matrix of parameter estimates.
 \description{
 Returns the estimated coefficients from a fitted \code{lgc} model.
 }
+\keyword{internal}

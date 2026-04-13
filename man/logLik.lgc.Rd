@@ -17,3 +17,4 @@ Numeric. Log-likelihood value.
 \description{
 Returns the log-likelihood value stored in a fitted \code{lgc} model object.
 }
+\keyword{internal}

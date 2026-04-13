@@ -17,7 +17,7 @@
 
 
 #' Create and Validate Model Specification for Particle Filtering
-#'
+#'N
 #' Parses and validates the full model specification and specified options.
 #' This function gathers model components (data, distribution,
 #' dependence structure, optimization parameters, etc.) and returns a structured list used as
@@ -54,12 +54,12 @@
 #' parameter lengths), computes the number of model parameters, constructs marginal distribution
 #' functions based on the count distribution, and configures parameter bounds. It is a required
 #' pre-processing step before fitting or simulating count time series models.
-#'
+#' @keywords internal
 #' @export
-ModelScheme = function(RegModel = NULL, df = NULL, EstMethod="PFR", ARMAModel=c(0,0), CountDist="NULL",
-                       ParticleNumber = 5, epsilon = 0.5, initialParam=NULL, TrueParam=NULL, Task="Evaluation",
-                       SampleSize=NULL, OptMethod="L-BFGS-B", OutputType="list", ParamScheme=1, maxdiff=10^(-8),
-                       ntrials= NULL,verbose=TRUE,nsim=NULL,...){
+ModelSpec = function(RegModel = NULL, df = NULL, EstMethod="PFR", ARMAModel=c(0,0), CountDist="NULL",
+                     ParticleNumber = 5, epsilon = 0.5, initialParam=NULL, TrueParam=NULL, Task="Evaluation",
+                     SampleSize=NULL, OptMethod="L-BFGS-B", OutputType="list", ParamScheme=1, maxdiff=10^(-8),
+                     ntrials= NULL,verbose=TRUE,nsim=NULL,...){
 
   # parse the regression formula
   parsed_RegModel <- parse_formula(RegModel)
@@ -109,7 +109,7 @@ ModelScheme = function(RegModel = NULL, df = NULL, EstMethod="PFR", ARMAModel=c(
   # If user specified EstMethod but asks for evaluation Task then no estimation takes place
   # check me: I will reconsider this, it seems a not very high priority comunication to the user,
   # it  will spame me in test.
-    # if (Task %in% c("Evaluation") & EstMethod %in% c("PFR")){
+  # if (Task %in% c("Evaluation") & EstMethod %in% c("PFR")){
   #   EstMethod = "None"
   #   message("For the Evaluation Task no estimation takes place. EstMethod has been set to None.\n",
   #   "To fit the model specify the Optimzation Task.")
@@ -194,16 +194,16 @@ ModelScheme = function(RegModel = NULL, df = NULL, EstMethod="PFR", ARMAModel=c(
     # retrieve marginal cdf
     mycdf = switch(CountDist,
                    "Poisson"               = ppois,
-                   "Negative Binomial"     = function(x, theta,...){   pnbinom(x, theta[1], 1-theta[2],...)},
+                   "Negative Binomial"     = function(x, theta,...){   pnbinom(x, theta[1], theta[2],...)},
                    "Generalized Poisson"   = function(x, theta,...){    pGpois(x, theta[1], theta[2],...)},
                    "Generalized Poisson 2" = function(x, theta,...,
-                                                 lower.tail = TRUE,
-                                                     log.p = FALSE){ pval = pgenpois2(x, theta[2], theta[1],lower.tail = lower.tail,...)
-                                                                     if (log.p){
-                                                                       pval = log(pval)
-                                                                     }
-                                                                       pval
-                                                                       },
+                                                      lower.tail = TRUE,
+                                                      log.p = FALSE){ pval = pgenpois2(x, theta[2], theta[1],lower.tail = lower.tail,...)
+                                                      if (log.p){
+                                                        pval = log(pval)
+                                                      }
+                                                      pval
+                   },
                    "Binomial"              = function(x, theta,...){    pbinom(x, ntrials, theta[1],...)},
                    "Mixed Poisson"         = function(x, theta,...){ pmixpois1(x, theta[1], theta[2], theta[3],...)},
                    "ZIP"                   = function(x, theta,...){          pzip(x, theta[1], theta[2],...)}
@@ -212,7 +212,7 @@ ModelScheme = function(RegModel = NULL, df = NULL, EstMethod="PFR", ARMAModel=c(
     # retrieve marginal pdf
     mypdf = switch(CountDist,
                    "Poisson"               = dpois,
-                   "Negative Binomial"     = function(x, theta,...){   dnbinom(x, theta[1], 1-theta[2],...)},
+                   "Negative Binomial"     = function(x, theta,...){   dnbinom(x, theta[1], theta[2],...)},
                    "Generalized Poisson"   = function(x, theta,...){    dGpois(x, theta[1], theta[2],...)},
                    "Generalized Poisson 2" = function(x, theta,...){ dgenpois2(x, theta[2], theta[1],...)},
                    "Binomial"              = function(x, theta,...){    dbinom(x, ntrials, theta[1],...)},
@@ -225,7 +225,7 @@ ModelScheme = function(RegModel = NULL, df = NULL, EstMethod="PFR", ARMAModel=c(
     # retrieve marginal inverse cdf
     myinvcdf = switch(CountDist,
                       "Poisson"               = qpois,
-                      "Negative Binomial"     = function(x, theta){   qnbinom(x, theta[1], 1-theta[2])},
+                      "Negative Binomial"     = function(x, theta){   qnbinom(x, theta[1], theta[2])},
                       "Generalized Poisson"   = function(x, theta){    qGpois(x, theta[1], theta[2])},
                       "Generalized Poisson 2" = function(x, theta){ qgenpois2(x, theta[2], theta[1])},
                       "Binomial"              = function(x, theta){    qbinom(x, ntrials, theta[1])},
@@ -267,7 +267,7 @@ ModelScheme = function(RegModel = NULL, df = NULL, EstMethod="PFR", ARMAModel=c(
     # retrieve marginal cdf
     mycdf = switch(CountDist,
                    "Poisson"               = function(x, ConstMargParm, DynamMargParm,...){     ppois(x, DynamMargParm,...)},
-                   "Negative Binomial"     = function(x, ConstMargParm, DynamMargParm,...){   pnbinom(x, ConstMargParm, 1-DynamMargParm,...)},
+                   "Negative Binomial"     = function(x, ConstMargParm, DynamMargParm,...){   pnbinom(x, ConstMargParm, DynamMargParm,...)},
                    "Generalized Poisson"   = function(x, ConstMargParm, DynamMargParm,...){    pGpois(x, ConstMargParm, DynamMargParm,...)},
                    "Generalized Poisson 2" = function(x, ConstMargParm, DynamMargParm,...){ pgenpois2(x, DynamMargParm, ConstMargParm,...)},
                    "Binomial"              = function(x, ConstMargParm, DynamMargParm,...){    pbinom(x, ntrials, DynamMargParm,...)},
@@ -277,7 +277,7 @@ ModelScheme = function(RegModel = NULL, df = NULL, EstMethod="PFR", ARMAModel=c(
     # retrieve marginal pdf
     mypdf = switch(CountDist,
                    "Poisson"               = function(x, ConstMargParm, DynamMargParm,...){     dpois(x, DynamMargParm,...)},
-                   "Negative Binomial"     = function(x, ConstMargParm, DynamMargParm,...){   dnbinom(x, ConstMargParm, 1-DynamMargParm,...)},
+                   "Negative Binomial"     = function(x, ConstMargParm, DynamMargParm,...){   dnbinom(x, ConstMargParm, DynamMargParm,...)},
                    "Generalized Poisson"   = function(x, ConstMargParm, DynamMargParm,...){    dGpois(x, ConstMargParm, DynamMargParm,...)},
                    "Generalized Poisson 2" = function(x, ConstMargParm, DynamMargParm,...){ dgenpois2(x, DynamMargParm, ConstMargParm,...)},
                    "Binomial"              = function(x, ConstMargParm, DynamMargParm,...){    dbinom(x, ntrials, DynamMargParm,...)},
@@ -286,13 +286,13 @@ ModelScheme = function(RegModel = NULL, df = NULL, EstMethod="PFR", ARMAModel=c(
     )
     # retrieve marginal inverse cdf
     myinvcdf = switch(CountDist,
-                   "Poisson"               = function(x, ConstMargParm, DynamMargParm){     qpois(x, DynamMargParm)},
-                   "Negative Binomial"     = function(x, ConstMargParm, DynamMargParm){   qnbinom(x, ConstMargParm, 1-DynamMargParm)},
-                   "Generalized Poisson"   = function(x, ConstMargParm, DynamMargParm){    qGpois(x, ConstMargParm, DynamMargParm)},
-                   "Generalized Poisson 2" = function(x, ConstMargParm, DynamMargParm){ qgenpois2(x, DynamMargParm, ConstMargParm)},
-                   "Binomial"              = function(x, ConstMargParm, DynamMargParm){    qbinom(x, ntrials, DynamMargParm)},
-                   "Mixed Poisson"         = function(x, ConstMargParm, DynamMargParm){ qmixpois1(x, DynamMargParm[,1], DynamMargParm[,2], ConstMargParm)},
-                   "ZIP"                   = function(x, ConstMargParm, DynamMargParm){      qzip(x, DynamMargParm, ConstMargParm)}
+                      "Poisson"               = function(x, ConstMargParm, DynamMargParm){     qpois(x, DynamMargParm)},
+                      "Negative Binomial"     = function(x, ConstMargParm, DynamMargParm){   qnbinom(x, ConstMargParm, DynamMargParm)},
+                      "Generalized Poisson"   = function(x, ConstMargParm, DynamMargParm){    qGpois(x, ConstMargParm, DynamMargParm)},
+                      "Generalized Poisson 2" = function(x, ConstMargParm, DynamMargParm){ qgenpois2(x, DynamMargParm, ConstMargParm)},
+                      "Binomial"              = function(x, ConstMargParm, DynamMargParm){    qbinom(x, ntrials, DynamMargParm)},
+                      "Mixed Poisson"         = function(x, ConstMargParm, DynamMargParm){ qmixpois1(x, DynamMargParm[,1], DynamMargParm[,2], ConstMargParm)},
+                      "ZIP"                   = function(x, ConstMargParm, DynamMargParm){      qzip(x, DynamMargParm, ConstMargParm)}
     )
     # lower bound contraints
     LB = switch(CountDist,
@@ -395,27 +395,263 @@ ModelScheme = function(RegModel = NULL, df = NULL, EstMethod="PFR", ARMAModel=c(
     Intercept        = Intercept,
     verbose          = verbose,
     RegModel         = RegModel
-    )
+  )
   return(out)
 
 }
 
 
-#' Optimization wrapper to fit PF likelihood with resampling (new version)
+#--------------------------------------------------------------------------------#
+# On August 2024 for Issue #27, I created a modified likelihood function called
+# ParticleFilter with three changes:
+#
+# 1. The value 1 for the count CDF calculations is changed to 1-10^(-16), so that
+#    when inverse normal is applied in the copula, we do not receive an inf value.
+# 2. When the limits of the truncated normal distribution become too large (say>7),
+#    I set them equal to 7-epsilon, so when I apply the normal cdf and subsequnetly the
+#    inverse cdf i avoid the inf values.
+# 3. If the weights in the particle filter likelihood become 0 I set them equal to
+#    10^(-64).
+#
+# I have added the changes in the ParticleFilter, ComputeLimits_MisSpec
+# and SampleTruncNormParticles_MisSpec files and will continue  working with the
+# standard versions below until I perform adequate testing.
+
+
+#' @title Particle Filter Latent Gaussian Count Models
 #'
-#' Fits the particle filter log-likelihood using resampling. This version expects
-#' a complete model object (created by \code{\link{ModelScheme}}) and performs
+#' @description
+#' Implements a particle filtering algorithm for latent Gaussian count time series models
+#' with potentially misspecified ARMA dependence structures.
+#' The algorithm sequentially updates latent Gaussian states, particle weights, and the log-likelihood,
+#' using the Innovations Algorithm to obtain one-step-ahead predictors and innovation variances.
+#' Corrections are applied to truncated normal sampling limits and particle weights
+#' when numerical instability or boundary issues occur.
+#'
+#' @param theta Numeric vector. Current parameter estimates including marginal, AR, and MA parameters.
+#'
+#' @param mod List. Model specification object containing all necessary elements for filtering, such as:
+#'   \describe{
+#'     \item{\code{DependentVar}}{Numeric vector of observed counts.}
+#'     \item{\code{CountDist}}{Character string specifying the count distribution (e.g., \code{"Poisson"}, \code{"Binomial"}).}
+#'     \item{\code{ARMAModel}}{Numeric vector \code{c(p, q)} specifying AR and MA orders.}
+#'     \item{\code{ParticleNumber}}{Integer. Number of particles used in the filter.}
+#'     \item{\code{n}}{Integer. Length of the observed time series.}
+#'     \item{\code{mycdf}}{User-supplied function returning the marginal CDF of the count distribution.}
+#'     \item{\code{mypdf}}{User-supplied function returning the marginal PDF of the count distribution.}
+#'     \item{\code{Regressor}}{Optional numeric vector or matrix of regressors.}
+#'     \item{\code{nreg}}{Integer. Number of regressors.}
+#'     \item{\code{verbose}}{Logical. If \code{TRUE}, prints diagnostic messages during filtering.}
+#'     \item{\code{maxdiff}}{Numeric tolerance used in the Innovations Algorithm convergence criterion.}
+#'   }
+#'
+#' @details
+#' The function evaluates the (negative) log-likelihood for an LGC model under ARMA dynamics.
+#'
+#' @return
+#' Returns the numeric value of the negative log-likelihood (\eqn{-\ell(\theta)}).
+#' If numerical issues occur (e.g., unstable ARMA coefficients, degenerate weights, or non-finite log-likelihood),
+#' the function returns a large penalty value (\eqn{10^8}) to guide optimization away from invalid parameter regions.
+#' @keywords internal
+#' @export
+ParticleFilter = function(theta, mod){
+
+  old_state <- get_rand_state()
+  on.exit(set_rand_state(old_state))
+
+  # Retrieve parameters and save them in a list called Parms
+  Parms = RetrieveParameters(theta,mod)
+
+  # check for causality
+  if( CheckStability(Parms$AR,Parms$MA) ) return(10^(8))
+
+  # Initialize the negative log likelihood computation
+  if(mod$nreg==0){
+    nloglik = - log(max(mod$mypdf(mod$DependentVar[1],Parms$MargParms),.Machine$double.xmin))
+  }else{
+    nloglik = - log(max(mod$mypdf(mod$DependentVar[1], Parms$ConstMargParm, Parms$DynamMargParm[1]),.Machine$double.xmin))
+  }
+
+  # retrieve AR, MA orders and their max
+  m = max(mod$ARMAModel)
+  p = mod$ARMAModel[1]
+  q = mod$ARMAModel[2]
+
+
+  # Compute ARMA covariance up to lag n-1
+  a        = list()
+  if(!is.null(Parms$AR)){
+    a$phi = Parms$AR
+  }else{
+    a$phi = 0
+  }
+  if(!is.null(Parms$MA)){
+    a$theta = Parms$MA
+  }else{
+    a$theta = 0
+  }
+  a$sigma2 = 1
+  gamma    = itsmr::aacvf(a,mod$n)
+
+  # Compute coefficients of Innovations Algorithm see 5.2.16 and 5.3.9 in in Brockwell Davis book
+  IA       = InnovAlg(Parms, gamma, mod)
+  Theta    = IA$thetas
+  Rt       = sqrt(IA$v)
+
+  # Get the n such that |v_n-v_{n-1}|< mod$maxdiff. check me: does this guarantee convergence of Thetas?
+  nTheta   = IA$n
+  Theta_n  = Theta[[nTheta]]
+
+  # allocate matrices for weights, particles and predictions of the latent series
+  w        = matrix(0, mod$n, mod$ParticleNumber)
+  Z        = matrix(0, mod$n, mod$ParticleNumber)
+  Zhat     = matrix(0, mod$n, mod$ParticleNumber)
+
+  # initialize particle filter weights
+  w[1,]    = rep(1,mod$ParticleNumber)
+
+  # initialize a list to keep track of manual corrections
+  Corrections = list(
+    weights = NULL,
+    weights2 = NULL,
+    C_xt_1 = NULL,
+    C_xt = NULL,
+    a_t = NULL,
+    b_t = NULL,
+    SampleParticles = NULL
+  )
+
+  # Compute the first integral limits Limit$a and Limit$b
+  Limit = ComputeLimits_MisSpec(mod, Parms, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
+
+  # if correction for C_xt_1 was necessary for time point t=1, then save it
+  if (Limit$Correction_C_xt_1){
+    Corrections$C_xt_1 = 1
+  }
+
+  # if correction for C_xt was necessary for time point t=1, then save it
+  if (Limit$Correction_C_xt){
+    Corrections$C_xt = 1
+  }
+
+  # Initialize the particles using N(0,1) variables truncated to the limits computed above
+  #Z[1,]    = SampleTruncNormParticles(mod, Limit$a, Limit$b, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
+  SampleParticles = SampleTruncNormParticles_MisSpec(mod, Limit, Parms, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
+  Z[1,]    = SampleParticles$z
+
+  # if correction for lower limit was necessary for time point t=1, then save it
+  if (SampleParticles$Correction_a){
+    Corrections$a_t = 1
+  }
+
+  # if correction for upper limit was necessary for time point t=1, then save it
+  if (SampleParticles$Correction_b){
+    Corrections$b_t = 1
+  }
+
+  for (t in 2:mod$n){
+
+    # compute Zhat_t
+    #Zhat[t,] = ComputeZhat_t(m,Theta,Z,Zhat,t, Parms,p,q, nTheta, Theta_n)
+    Zhat[t,] = ComputeZhat_t(mod, IA, Z, Zhat,t, Parms)
+
+
+    # Compute integral limits
+    Limit = ComputeLimits_MisSpec(mod, Parms, t, Zhat[t,], Rt)
+
+    # if correction for C_xt_1 was necessary for time point t=1, then save it
+    if (Limit$Correction_C_xt_1){
+      Corrections$C_xt_1 = c(Corrections$C_xt_1,t)
+    }
+
+    # if correction for C_xt was necessary for time point t=1, then save it
+    if (Limit$Correction_C_xt){
+      Corrections$C_xt = c(Corrections$C_xt,t)
+    }
+
+    # Sample truncated normal particles
+    #Znew  = SampleTruncNormParticles(mod, Limit$a, Limit$b, t, Zhat[t,], Rt)
+    SampleParticles = SampleTruncNormParticles_MisSpec(mod, Limit, Parms, t, Zhat[t,], Rt)
+    Znew  = SampleParticles$z
+
+    # if correction for lower limit was necessary for time point t, then save it
+    if (SampleParticles$Correction_a){
+      Corrections$a_t = c(Corrections$a_t,t)
+    }
+
+    # if correction for upper limit was necessary for time point t, then save it
+    if (SampleParticles$Correction_b){
+      Corrections$b_t = c(Corrections$b_t,t)
+    }
+
+
+    # update weights
+    #w[t,] = ComputeWeights(mod, Limit$a, Limit$b, t, w[(t-1),])
+    w[t,] = ComputeWeights(mod, Limit, t, w[(t-1),])
+
+    # check me: In misspecified models, the weights may get equal to 0. Is it ok
+    # for me to do the following? how is this different from allowing zero weights and
+    # returning a large likelihood?
+
+    if (sum(w[t,])==0){
+      w[t,] = rep(10^(-64),mod$ParticleNumber)
+      Corrections$weights = c(Corrections$weights,t)
+    }
+
+    # check me: break if I got NA weight
+    if (any(is.na(w[t,]))| sum(w[t,])==0 ){
+      Corrections$weights2 = c(Corrections$weights2,t)
+      if(mod$verbose){
+        message(sprintf('WARNING: At t=%.0f some of the weights are either too small or sum to 0.\n',t))
+      }
+      return(10^8)
+    }
+
+    # Resample the particles using common random numbers
+    old_state1 = get_rand_state()
+    Znew = ResampleParticles(mod, w, t, Znew)
+    set_rand_state(old_state1)
+
+
+    # save the current particle
+    Z[t,]   = Znew
+
+    #print(t)
+    #print(Z[t,])
+    # print(nloglik)
+    # update likelihood
+    nloglik = nloglik - log(mean(w[t,]))
+  }
+
+  # report messages
+  if(mod$verbose){
+    ReportDiagnostics(Corrections, Parms, mod)
+  }
+  # for log-likelihood we use a bias correction--see par2.3 in Durbin Koopman, 1997
+  # nloglik = nloglik- (1/(2*N))*(var(na.omit(wgh[T1,]))/mean(na.omit(wgh[T1,])))/mean(na.omit(wgh[T1,]))
+
+  # if (nloglik==Inf | is.na(nloglik)){
+  #   nloglik = 10^8
+  # }
+
+  return(nloglik)
+}
+
+#' Optimization wrapper to fit PF likelihood multiple times
+#'
+#' Fits the particle filter log-likelihood with resampling. This version expects
+#' a complete model object (created by \code{\link{ModelSpec}}) and performs
 #' one optimization per value of \code{mod$ParticleNumber}.
 #'
 #' @param theta Numeric vector. Initial parameter values.
 #' @param mod A list containing model-related metadata and control settings, typically
-#'   returned by \code{\link{ModelScheme}}.
+#'   returned by \code{\link{ModelSpec}}.
 #'
 #' @return A list containing parameter estimates, standard errors, log-likelihood,
 #'   AIC, BIC, AICc, and optimization diagnostics.
-#'
+#' @keywords internal
 #' @export
-FitMultiplePF_Res = function(theta, mod){
+FitMultiplePF = function(theta, mod){
 
   # retrieve parameter, sample size etc
   nparts    = length(mod$ParticleNumber)
@@ -551,7 +787,7 @@ FitMultiplePF_Res = function(theta, mod){
 #' standard errors, model configuration, and fit statistics.
 #'
 #' @param mod A list of model specifications and settings, typically created using
-#'   \code{\link{ModelScheme}}. Contains all inputs used in estimation or simulation,
+#'   \code{\link{ModelSpec}}. Contains all inputs used in estimation or simulation,
 #'   such as the count distribution, ARMA structure, optimization method, and task type.
 #' @param FitResults A list containing outputs from the model fitting process.
 #'   Expected components include:
@@ -793,6 +1029,7 @@ set_rand_state <- function(state) {
 #' # MA-only model
 #' CheckStability(AR = NULL, MA = c(1.5))
 #'
+#' @keywords internal
 #' @export
 CheckStability = function(AR,MA){
   if (is.null(AR) && is.null(MA)) return(0)
@@ -844,7 +1081,7 @@ CheckStability = function(AR,MA){
 #' These estimates are used as starting points in numerical optimization procedures.
 #' GLM and MoM estimates are used for marginal parameters and Yulew-Walker for ARMA.
 #'
-#'
+#' @keywords internal
 #' @export
 InitialEstimates = function(mod){
   # require(itsmr)
@@ -890,7 +1127,7 @@ InitialEstimates = function(mod){
 
       # Method of Moments for negBin
       rEst = xbar^2/(sSquare - xbar)
-      pEst = 1 - xbar/sSquare
+      pEst = xbar/sSquare
       est[1:2] = c(rEst, pEst)
 
     }else{
@@ -907,8 +1144,9 @@ InitialEstimates = function(mod){
       # est[1:(mod$nMargParms-1)] = as.numeric(glmNegBin[1]$coef)
       est[1:(mod$nMargParms-1)] = as.numeric(glmNB[1]$coef)
 
+      est[mod$nMargParms]  = as.numeric(glmNB$theta)
       # MoM for the over dispersion param in NegBin2 parametrization
-      est[mod$nMargParms]       = sum(glmNB$fitted.values^2)/(sum((mod$DependentVar-glmNB$fitted.values)^2-glmNB$fitted.values))
+      # est[mod$nMargParms]       = sum(glmNB$fitted.values^2)/(sum((mod$DependentVar-glmNB$fitted.values)^2-glmNB$fitted.values))
 
     }
   }
@@ -951,7 +1189,7 @@ InitialEstimates = function(mod){
         }else{
           est[1:mod$nMargParms] = as.numeric(c(MP_fit$beta[2],MP_fit$beta[1], 1-MP_fit$lambda[1]))
         }
-        }
+      }
       #could also use the flexmix package
       #check me: for now we allow mixture of only two components
       #MP_fit <- flexmix(mod$DependentVar ~ mod$Regressor[,2:(mod$nreg+1)], k = 2, model = FLXMRglm(family = "poisson"))
@@ -1048,7 +1286,7 @@ InitialEstimates = function(mod){
   #------------ARMA Initial Estimates
   # Transform (1) in the JASA paper to retrieve the "observed" latent series and fit an ARMA
   # check me: Oct 2025 - the following needs to be refactored
-    if(mod$nreg==0){
+  if(mod$nreg==0){
 
     Cxt = mod$mycdf(mod$DependentVar,est[1:mod$nMargParms])
     # if Cxt = 1, I will need to deal with this somehow. In the Binomial case it seems very likely to get 1
@@ -1124,14 +1362,7 @@ InitialEstimates = function(mod){
 #' or after a fixed number of steps in AR-only models. The \code{kappa(i,j)} function computes the autocovariance
 #' terms needed for recursion using model coefficients and the autocovariance vector \code{gamma}.
 #'
-#' @examples
-#' # ARMA(1,1) example
-#' gamma <- ARMAacf(ar = 0.5, ma = 0.4, lag.max = 20)
-#' mod <- list(nAR = 1, nMA = 1, maxdiff = 1e-8)
-#' Parms <- list(AR = 0.5, MA = 0.4)
-#' result <- InnovAlg(Parms, gamma, mod)
-#' str(result)
-#'
+#' @keywords internal
 #' @export
 InnovAlg <- function(Parms, gamma, mod) {
   # Extract AR and MA coefficients safely
@@ -1255,14 +1486,14 @@ sim_lgc = function(n, CountDist, MargParm, ARParm, MAParm, RegModel=NULL, df = N
   # }
 
   # parse the model information - needed for distribution functions
-  mod = ModelScheme(RegModel = RegModel,
-                          df = df,
+  mod = ModelSpec(RegModel = RegModel,
+                  df = df,
                   SampleSize = n,
-                   CountDist = CountDist,
-                   ARMAModel = ARMAModel,
-                   TrueParam = TrueParam,
-                        Task = "Synthesis",
-                     ntrials = ntrials)
+                  CountDist = CountDist,
+                  ARMAModel = ARMAModel,
+                  TrueParam = TrueParam,
+                  Task = "Synthesis",
+                  ntrials = ntrials)
 
   # reorganize the parameters in expected format
   Parms = RetrieveParameters(TrueParam,mod)
@@ -1291,7 +1522,7 @@ sim_lgc = function(n, CountDist, MargParm, ARParm, MAParm, RegModel=NULL, df = N
 #'
 #' @param loglik Numeric. The log-likelihood value of the fitted model.
 #' @param mod A list containing model-related metadata, typically created by
-#'   \code{\link{ModelScheme}}. It must include:
+#'   \code{\link{ModelSpec}}. It must include:
 #'   \itemize{
 #'     \item \code{nparms}: Number of estimated parameters.
 #'     \item \code{n}: Sample size.
@@ -1309,7 +1540,7 @@ sim_lgc = function(n, CountDist, MargParm, ARParm, MAParm, RegModel=NULL, df = N
 #' mod <- list(nparms = 5, n = 100, EstMethod = "PFR")
 #' loglik <- -123.45
 #' Criteria.lgc(loglik, mod)
-#'
+#' @keywords internal
 #' @export
 Criteria.lgc = function(loglik, mod){
 
@@ -1332,6 +1563,7 @@ Criteria.lgc = function(loglik, mod){
 #' @param object An object of class `lgc`.
 #' @param ... Additional arguments (currently unused).
 #' @return Numeric. Log-likelihood value.
+#' @keywords internal
 #' @exportS3Method logLik lgc
 logLik.lgc = function(object,...){
   return(object$FitStatistics[1])
@@ -1342,6 +1574,7 @@ logLik.lgc = function(object,...){
 #' @param object An object of class `lgc`.
 #' @param ... Additional arguments (currently unused).
 #' @return Numeric. AIC value.
+#' @keywords internal
 #' @exportS3Method AIC lgc
 AIC.lgc = function(object,...){
   return(object$FitStatistics[2])
@@ -1354,6 +1587,7 @@ BIC <- function(object, ...) UseMethod("BIC")
 #' @param object An object of class `lgc`.
 #' @param ... Additional arguments (currently unused).
 #' @return Numeric. BIC value.
+#' @keywords internal
 #' @exportS3Method BIC lgc
 BIC.lgc = function(object,...){
   return(object$FitStatistics[3])
@@ -1366,6 +1600,7 @@ se <- function(object, ...) UseMethod("se")
 #' @param object An object of class `lgc`.
 #' @param ... Additional arguments (currently unused).
 #' @return Matrix of standard errors.
+#' @keywords internal
 #' @exportS3Method se lgc
 se.lgc = function(object,...){
   return(object$StdErrors)
@@ -1378,6 +1613,7 @@ coefficients <- function(object, ...) UseMethod("coefficients")
 #' @param object An object of class `lgc`.
 #' @param ... Additional arguments (currently unused).
 #' @return Matrix of parameter estimates.
+#' @keywords internal
 #' @exportS3Method coefficients lgc
 coefficients.lgc = function(object,...){
   return(object$ParamEstimates)
@@ -1385,31 +1621,44 @@ coefficients.lgc = function(object,...){
 
 model <- function(object, ...) UseMethod("model")
 
-#' @title Model Summary for lgc Object
-#' @description Returns a data frame summarizing the distribution and ARMA model structure.
-#' @param object An object of class `lgc`.
-#' @param ... Additional arguments (currently unused).
-#' @return A data frame with two columns: distribution and model type.
-#' @exportS3Method model lgc
-model.lgc = function(object,...){
-  # if ((object$ARMAModel[1]>0) &&  (object$ARMAModel[2]>0)){
-  #   ARMAModel = sprintf("ARMA(%.0f, %.0f)",object$ARMAModel[1], object$ARMAModel[2])
-  # }
-  # if ((object$ARMAModel[1]>0) &&  (object$ARMAModel[2]==0)){
-  #   ARMAModel = sprintf("AR(%.0f)",object$ARMAModel[1])
-  # }
-  # if ((object$ARMAModel[1]==0) &&  (object$ARMAModel[2]>0)){
-  #   ARMAModel = sprintf("MA(%.0f)",object$ARMAModel[2])
-  # }
-  # if ((object$ARMAModel[1]==0) &&  (object$ARMAModel[2]==0)){
-  #   ARMAModel = "White Noise"
-  # }
-  #
-  # a = data.frame(object$CountDist, ARMAModel)
-  # names(a) = c("Distribution", "Model")
-  # return(a)
-  return(object$Model)
+#' Extract the Model Specification from an `lgc` Object
+#'
+#' Retrieves the underlying model specification used to evaluate, fit or
+#' simulate a latent Gaussian count time series model. The model specification
+#' typically contains the full set of structural, distributional, and
+#' algorithmic settings (e.g., count distribution, ARMA orders,
+#' parameter bounds, number of particles, etc.).
+#'
+#' @param object An object of class \code{"lgc"}, typically returned by
+#'   \code{\link{lgc}}.
+#' @param ... Currently unused.
+#'
+#' @return A named list containing model specifications and settings,
+#'   as created by \code{\link{ModelSpec}}.
+#'
+#' @details
+#' This function provides direct access to the internal model
+#' configuration used in estimation or simulation. The returned list
+#' includes distribution functions, ARMA parameters, optimization
+#' settings, and other metadata. It is primarily intended for advanced
+#' users who wish to inspect or reuse model components programmatically.
+#'
+#'
+#' @seealso \code{\link{lgc}}, \code{\link{summary.lgc}}, \code{\link{residuals.lgc}}
+#' @export
+model.lgc <- function(object, ...) {
+  if (!inherits(object, "lgc")) {
+    stop("Input must be an object of class 'lgc'.")
+  }
+
+  if (is.null(object$mod)) {
+    warning("No model specification found in the object.")
+    return(NULL)
+  }
+
+  return(object$mod)
 }
+
 
 
 #' @title Extract Residuals from an lgc Model
@@ -1437,6 +1686,7 @@ residuals.lgc <- function(object, ...) {
 #' @param object An object of class \code{lgc}.
 #' @param ... Additional arguments (currently unused).
 #' @return Invisibly returns the original \code{lgc} object.
+#' @keywords internal
 #' @examples
 #' \dontrun{
 #'   summary(mylgc)
@@ -1589,6 +1839,7 @@ print.lgc <- function(x, digits = 4, ...) {
 #' @param object An object of class \code{lgc}.
 #' @param ... Additional arguments (currently unused).
 #' @return An integer, the number of observations.
+#' @keywords internal
 #' @exportS3Method stats::nobs lgc
 nobs.lgc <- function(object, ...) {
   return(as.integer(object$SampleSize))
@@ -1600,7 +1851,7 @@ nobs.lgc <- function(object, ...) {
 #' Computes the lower and upper truncation limits used in the sampling of the latent variable
 #' in the particle filter algorithm. Corresponds to equation (19) in the JASA paper.
 #'
-#' @param mod A list containing model specification and data, typically created by \code{\link{ModelScheme}}.
+#' @param mod A list containing model specification and data, typically created by \code{\link{ModelSpec}}.
 #' @param Parms A list of model parameters retrieved via \code{\link{RetrieveParameters}}.
 #' @param t Integer. Current time point.
 #' @param Zhat Numeric vector of predicted latent values up to time \code{t}.
@@ -1638,7 +1889,7 @@ ComputeLimits = function(mod, Parms, t, Zhat, Rt){
 #' Generates samples from a truncated normal distribution using inverse transform sampling,
 #' as required by the particle filter for latent Gaussian models.
 #'
-#' @param mod Model list as returned by \code{\link{ModelScheme}}.
+#' @param mod Model list as returned by \code{\link{ModelSpec}}.
 #' @param Limit A list of truncation limits with elements \code{a} and \code{b}, typically
 #' returned by \code{\link{ComputeLimits}}.
 #' @param t Integer. Current time index.
@@ -1662,7 +1913,7 @@ SampleTruncNormParticles = function(mod, Limit, t, Zhat, Rt){
 #' Computes the conditional mean of the latent variable at time \code{t} using the innovations
 #' algorithm output.
 #'
-#' @param mod Model list as returned by \code{\link{ModelScheme}}.
+#' @param mod Model list as returned by \code{\link{ModelSpec}}.
 #' @param IA A list returned by \code{\link{InnovAlg}}, containing innovation variances and
 #' theta coefficients.
 #' @param Z Matrix of latent particle values.
@@ -1706,7 +1957,7 @@ ComputeZhat_t = function(mod, IA, Z, Zhat,t, Parms){
 #' Computes the importance weights of the particles at time \code{t}, based on the
 #' truncation limits.
 #'
-#' @param mod Model list as returned by \code{\link{ModelScheme}}.
+#' @param mod Model list as returned by \code{\link{ModelSpec}}.
 #' @param Limit A list of truncation limits (from \code{\link{ComputeLimits}}).
 #' @param t Integer. Current time index.
 #' @param PreviousWeights Numeric vector of weights at time \code{t-1}.
@@ -1731,7 +1982,7 @@ ComputeWeights = function(mod, Limit, t, PreviousWeights){
 #' Performs resampling of particles when the effective sample size falls below a
 #' threshold defined by the model. Follows relation (26) in the JASA paper.
 #'
-#' @param mod Model list as returned by \code{\link{ModelScheme}}.
+#' @param mod Model list as returned by \code{\link{ModelSpec}}.
 #' @param wgh Matrix of particle weights for all time points.
 #' @param t Integer. Current time index.
 #' @param Znew Vector of new particle samples to be resampled.
@@ -1765,7 +2016,7 @@ ResampleParticles = function(mod, wgh, t, Znew){
 #' @param theta Numeric vector. The complete parameter vector, typically as passed
 #'   to or from an optimizer.
 #' @param mod A list containing the model specification, as produced by
-#'   \code{\link{ModelScheme}}. It must contain fields such as:
+#'   \code{\link{ModelSpec}}. It must contain fields such as:
 #'   \itemize{
 #'     \item \code{MargParmIndices}: Indices of marginal parameters in \code{theta}
 #'     \item \code{CountDist}: Name of the count distribution
@@ -1803,8 +2054,9 @@ RetrieveParameters = function(theta,mod){
 
   # GLM type parameters
   if(mod$CountDist == "Negative Binomial" && mod$nreg>0){
-    Parms$ConstMargParm  = 1/Parms$MargParms[mod$nreg+mod$nint+1]
-    Parms$DynamMargParm  = Parms$MargParms[mod$nreg+mod$nint+1]*m/(1+Parms$MargParms[mod$nreg+mod$nint+1]*m)
+    Parms$ConstMargParm  = Parms$MargParms[mod$nreg+mod$nint+1]
+    # Parms$DynamMargParm  = Parms$MargParms[mod$nreg+mod$nint+1]*m/(1+Parms$MargParms[mod$nreg+mod$nint+1]*m)
+    Parms$DynamMargParm  = Parms$MargParms[mod$nreg+mod$nint+1]/(Parms$MargParms[mod$nreg+mod$nint+1] + m)
   }
 
   if(mod$CountDist == "Generalized Poisson" && mod$nreg>0){
@@ -1871,7 +2123,7 @@ RetrieveParameters = function(theta,mod){
 #'
 #' @examples
 #' qmixpois1(c(0.1, 0.5, 0.9), lam1 = 2, lam2 = 5, prob = 0.6)
-#'
+#' @keywords internal
 #' @export
 qmixpois1 = function(p, lam1, lam2, prob) {
   # Ensure p, lam1, and lam2 are vectors
@@ -1919,7 +2171,7 @@ qmixpois1 = function(p, lam1, lam2, prob) {
 #'
 #' # Upper tail probability in log scale
 #' pmixpois1(3, lam1 = 2, lam2 = 5, p = 0.4, lower.tail = FALSE, log.p = TRUE)
-#'
+#' @keywords internal
 #' @export
 pmixpois1 <- function(x, lam1, lam2, p, lower.tail = TRUE, log.p = FALSE) {
   cdf <- p * ppois(x, lam1) + (1 - p) * ppois(x, lam2)
@@ -1949,7 +2201,7 @@ pmixpois1 <- function(x, lam1, lam2, p, lower.tail = TRUE, log.p = FALSE) {
 #'
 #' # Vectorized input
 #' dmixpois1(0:5, lam1 = 2, lam2 = 5, p = 0.4)
-#'
+#' @keywords internal
 #' @export
 dmixpois1 <- function(x, lam1, lam2, p, log = FALSE) {
   dens <- p * dpois(x, lam1) + (1 - p) * dpois(x, lam2)
@@ -1976,7 +2228,7 @@ dmixpois1 <- function(x, lam1, lam2, p, log = FALSE) {
 #' @param log Logical; if \code{TRUE}, probabilities are returned on the log scale.
 #'
 #' @return A numeric vector of (log-)probabilities.
-#'
+#' @keywords internal
 #' @export
 dGpois <- function(y, a, m, log = FALSE) {
   k <- m / (1 + a * m)
@@ -2000,11 +2252,11 @@ dGpois <- function(y, a, m, log = FALSE) {
 #' @return A numeric vector or matrix of cumulative probabilities.
 #'
 #' @seealso \code{\link{dGpois}}
-#'
+#' @keywords internal
 #' @examples
 #' pGpois(3, 0.4, 2)
 #' pGpois(3, 0.4, 2, lower.tail = FALSE, log.p = TRUE)
-#'
+#' @keywords internal
 #' @export
 pGpois <- function(x, a, m, lower.tail = TRUE, log.p = FALSE) {
 
@@ -2050,7 +2302,7 @@ pGpois <- function(x, a, m, lower.tail = TRUE, log.p = FALSE) {
 #'
 #' @examples
 #' qGpois(0.8,0.4,3)
-#'
+#' @keywords internal
 #' @export
 qGpois <- function(p, a, m) {
 
@@ -2277,8 +2529,7 @@ GenInitVal = function(AllParms, perturbation){
 }
 
 
-#' Computes residuals from a fitted latent Gaussian count (LGC) model using the approach
-#' described in relation (41) of Jia et al. (2021).
+#' Compute Residuals
 #'
 #' @param lgc A list object containing the outcome of a model fit, typically returned by
 #' the package's main wrapper function \code{\link{lgc}}.
@@ -2294,7 +2545,7 @@ GenInitVal = function(AllParms, perturbation){
 #' Latent Gaussian Count Time Series.
 #' \emph{Journal of the American Statistical Association}, 118(541), 596–606.
 #' \doi{10.1080/01621459.2021.1944874}
-#'
+#' @keywords internal
 #' @export
 ComputeResiduals= function(lgc){
 
@@ -2322,9 +2573,9 @@ ComputeResiduals= function(lgc){
       if(mod$nreg==0){
         C_xt_minus1 = mod$mycdf(k-1,t(Parms$MargParms))
         C_xt        = mod$mycdf(k,t(Parms$MargParms))
-        }else{
-          C_xt_minus1 = mod$mycdf(k-1, Parms$ConstMargParm, Parms$DynamMargParm[i])
-          C_xt        = mod$mycdf(k, Parms$ConstMargParm, Parms$DynamMargParm[i])
+      }else{
+        C_xt_minus1 = mod$mycdf(k-1, Parms$ConstMargParm, Parms$DynamMargParm[i])
+        C_xt        = mod$mycdf(k, Parms$ConstMargParm, Parms$DynamMargParm[i])
       }
       a           = qnorm(C_xt_minus1,0,1)
       b           = qnorm(C_xt ,0,1)
@@ -2355,9 +2606,9 @@ ComputeResiduals= function(lgc){
 
   # Fit ARMA with fixed parameters
   fit = arima(DemeanRes,
-               order = c(mod$nAR,0,mod$nMA),
-               fixed = c(Parms$AR,Parms$MA, 0), # AR1, AR2, AR3, intercept
-               transform.pars = FALSE)
+              order = c(mod$nAR,0,mod$nMA),
+              fixed = c(Parms$AR,Parms$MA, 0), # AR1, AR2, AR3, intercept
+              transform.pars = FALSE)
 
   residual = as.numeric(residuals(fit))
   names(residual) <- NULL
@@ -2413,7 +2664,7 @@ CurrentDist = function(theta,mod){
 #'
 #' @param theta Numeric vector. Parameter vector containing marginal and ARMA parameters.
 #' @param mod A list containing model-related metadata and control settings, typically
-#'   returned by \code{\link{ModelScheme}}.
+#'   returned by \code{\link{ModelSpec}}.
 #' @return A numeric matrix of dimension \code{2 x n}, where each column corresponds to a time point:
 #'   \itemize{
 #'     \item First row: lower tail probability for the observed count
@@ -2435,7 +2686,7 @@ CurrentDist = function(theta,mod){
 #' @seealso \code{\link{ComputeWeights}}, \code{\link{SampleTruncNormParticles}}, \code{\link{InnovAlg}}
 #'
 #' @export
-PDvalues = function(theta, mod){
+pred_dist = function(theta, mod){
   #------------------------------------------------------------------------------------#
   # PURPOSE:  Compute predictive distribution
   #
@@ -2559,65 +2810,47 @@ PDvalues = function(theta, mod){
   return(preddist)
 }
 
-#' Compute Probability Integral Transform (PIT) Histogram Values
+#' Compute Probability Integral Transform (PIT) Histogram
 #'
-#' Computes histogram values for the Probability Integral Transform (PIT) as described
-#' in relations (39)–(40) of the JASA paper on latent Gaussian count time series modeling.
-#' This function processes predictive distributions and outputs the PIT histogram bins
-#' for calibration assessment.
+#' Computes the Probability Integral Transform (PIT) histogram for assessing
+#' calibration of predictive distributions, following relations (39)–(40) of
+#' Jia et al. (2021).
 #'
-#' @param H Integer. Number of histogram bins to divide the \[0,1\] PIT range.
-#' @param predDist A numeric matrix of dimension \code{2 x n}, typically returned by
-#'   \code{\link{PDvalues}}. Each column corresponds to a time point, with:
+#' @param H Integer. Number of histogram bins over the \[0,1\] range.
+#' @param predDist Numeric matrix of dimension \code{2 × n}, typically returned by
+#'   \code{\link{pred_dist}}. Each column corresponds to a time point, with:
 #'   \itemize{
 #'     \item First row: lower tail probability of the observed count
 #'     \item Second row: cumulative probability including the observed count
 #'   }
-#'
-#' @return A numeric vector of length \code{H} representing the PIT histogram values (bin heights).
-#' These can be plotted to assess calibration of predictive distributions.
-#'
-#' @details
-#' The PIT is used to assess the calibration of probabilistic forecasts. For discrete data,
-#' the PIT is computed using randomized methods or as a piecewise function, as detailed in
-#' the latent Gaussian count models literature.
-#'
-#' This implementation applies the formulas:
-#' \deqn{PIT(Y_t) \sim U(0,1)} if predictive distributions are correctly specified.
+#' @return Numeric vector of length \code{H} giving the relative frequencies
+#'   (heights) of the PIT histogram bins.
 #'
 #' @references
 #' Jia, Y., Kechagias, S., Livsey, J., Lund, R., & Pipiras, V. (2021).
 #' Latent Gaussian Count Time Series.
 #' \emph{Journal of the American Statistical Association}, 118(541), 596–606.
-#' \doi{10.1080/01621459.2021.1944874}
 #'
-#' @seealso \code{\link{PDvalues}}, \code{\link{ComputeResiduals}}
-#'
-#' @examples
-#' \dontrun{
-#' predDist <- PDvalues(theta, mod)
-#' hist(PITvalues(10, predDist), breaks = 10, main = "PIT Histogram")
-#' }
-#'
+#' @seealso \code{\link{pred_dist}}, \code{\link{ComputeResiduals}}
 #' @export
-PITvalues = function(H, predDist){
-  PITvalues = rep(0,H)
+pit <- function(H, predDist) {
+  predd1 <- predDist[1,]
+  predd2 <- predDist[2,]
+  Tr <- length(predd1)
+  pit_vals <- numeric(H)
 
-  predd1 = predDist[1,]
-  predd2 = predDist[2,]
-  Tr = length(predd1)
-
-  for (h in 1:H){
-    id1 = (predd1 < h/H)*(h/H < predd2)
-    id2 = (h/H >= predd2)
-    tmp1 = (h/H-predd1)/(predd2-predd1)
-    tmp1[!id1] = 0
-    tmp2 = rep(0,Tr)
-    tmp2[id2] = 1
-    PITvalues[h] = mean(tmp1+tmp2)
+  for (h in seq_len(H)) {
+    u <- h / H
+    id1 <- (predd1 < u) & (u < predd2)
+    id2 <- (u >= predd2)
+    tmp1 <- (u - predd1) / (predd2 - predd1)
+    tmp1[!id1] <- 0
+    tmp2 <- numeric(Tr)
+    tmp2[id2] <- 1
+    pit_vals[h] <- mean(tmp1 + tmp2)
   }
-PITvalues = c(0,PITvalues)
-return(diff(PITvalues))
+  pit_hist <- diff(c(0, pit_vals))
+  return(pit_hist)
 }
 
 
@@ -2641,7 +2874,7 @@ return(diff(PITvalues))
 #'
 #'
 #' @seealso \code{\link{terms}}, \code{\link{model.frame}}
-#'
+#' @keywords internal
 #' @export
 parse_formula <- function(formula) {
   if (!inherits(formula, "formula")) {
@@ -2689,241 +2922,6 @@ DIM <- function(x){
 }
 
 #===========================================================================================#
-#--------------------------------------------------------------------------------#
-# On August 2024 for Issue #27, I created a modified likelihood function called
-# ParticleFilter with three changes:
-#
-# 1. The value 1 for the count CDF calculations is changed to 1-10^(-16), so that
-#    when inverse normal is applied in the copula, we do not receive an inf value.
-# 2. When the limits of the truncated normal distribution become too large (say>7),
-#    I set them equal to 7-epsilon, so when I apply the normal cdf and subsequnetly the
-#    inverse cdf i avoid the inf values.
-# 3. If the weights in the particle filter likelihood become 0 I set them equal to
-#    10^(-64).
-#
-# I have added the changes in the ParticleFilter, ComputeLimits_MisSpec
-# and SampleTruncNormParticles_MisSpec files and will continue  working with the
-# standard versions below until I perform adequate testing.
-
-
-#' @title Particle Filter Latent Gaussian Count Models
-#'
-#' @description
-#' Implements a particle filtering algorithm for latent Gaussian count time series models
-#' with potentially misspecified ARMA dependence structures.
-#' The algorithm sequentially updates latent Gaussian states, particle weights, and the log-likelihood,
-#' using the Innovations Algorithm to obtain one-step-ahead predictors and innovation variances.
-#' Corrections are applied to truncated normal sampling limits and particle weights
-#' when numerical instability or boundary issues occur.
-#'
-#' @param theta Numeric vector. Current parameter estimates including marginal, AR, and MA parameters.
-#'
-#' @param mod List. Model specification object containing all necessary elements for filtering, such as:
-#'   \describe{
-#'     \item{\code{DependentVar}}{Numeric vector of observed counts.}
-#'     \item{\code{CountDist}}{Character string specifying the count distribution (e.g., \code{"Poisson"}, \code{"Binomial"}).}
-#'     \item{\code{ARMAModel}}{Numeric vector \code{c(p, q)} specifying AR and MA orders.}
-#'     \item{\code{ParticleNumber}}{Integer. Number of particles used in the filter.}
-#'     \item{\code{n}}{Integer. Length of the observed time series.}
-#'     \item{\code{mycdf}}{User-supplied function returning the marginal CDF of the count distribution.}
-#'     \item{\code{mypdf}}{User-supplied function returning the marginal PDF of the count distribution.}
-#'     \item{\code{Regressor}}{Optional numeric vector or matrix of regressors.}
-#'     \item{\code{nreg}}{Integer. Number of regressors.}
-#'     \item{\code{verbose}}{Logical. If \code{TRUE}, prints diagnostic messages during filtering.}
-#'     \item{\code{maxdiff}}{Numeric tolerance used in the Innovations Algorithm convergence criterion.}
-#'   }
-#'
-#' @details
-#' The function evaluates the (negative) log-likelihood for an LGC model under ARMA dynamics.
-#'
-#' @return
-#' Returns the numeric value of the negative log-likelihood (\eqn{-\ell(\theta)}).
-#' If numerical issues occur (e.g., unstable ARMA coefficients, degenerate weights, or non-finite log-likelihood),
-#' the function returns a large penalty value (\eqn{10^8}) to guide optimization away from invalid parameter regions.
-#
-#' @export
-ParticleFilter = function(theta, mod){
-
-  old_state <- get_rand_state()
-  on.exit(set_rand_state(old_state))
-
-  # Retrieve parameters and save them in a list called Parms
-  Parms = RetrieveParameters(theta,mod)
-
-  # check for causality
-  if( CheckStability(Parms$AR,Parms$MA) ) return(10^(8))
-
-  # Initialize the negative log likelihood computation
-  if(mod$nreg==0){
-    nloglik = - log(max(mod$mypdf(mod$DependentVar[1],Parms$MargParms),.Machine$double.xmin))
-  }else{
-    nloglik = - log(max(mod$mypdf(mod$DependentVar[1], Parms$ConstMargParm, Parms$DynamMargParm[1]),.Machine$double.xmin))
-  }
-
-  # retrieve AR, MA orders and their max
-  m = max(mod$ARMAModel)
-  p = mod$ARMAModel[1]
-  q = mod$ARMAModel[2]
-
-
-  # Compute ARMA covariance up to lag n-1
-  a        = list()
-  if(!is.null(Parms$AR)){
-    a$phi = Parms$AR
-  }else{
-    a$phi = 0
-  }
-  if(!is.null(Parms$MA)){
-    a$theta = Parms$MA
-  }else{
-    a$theta = 0
-  }
-  a$sigma2 = 1
-  gamma    = itsmr::aacvf(a,mod$n)
-
-  # Compute coefficients of Innovations Algorithm see 5.2.16 and 5.3.9 in in Brockwell Davis book
-  IA       = InnovAlg(Parms, gamma, mod)
-  Theta    = IA$thetas
-  Rt       = sqrt(IA$v)
-
-  # Get the n such that |v_n-v_{n-1}|< mod$maxdiff. check me: does this guarantee convergence of Thetas?
-  nTheta   = IA$n
-  Theta_n  = Theta[[nTheta]]
-
-  # allocate matrices for weights, particles and predictions of the latent series
-  w        = matrix(0, mod$n, mod$ParticleNumber)
-  Z        = matrix(0, mod$n, mod$ParticleNumber)
-  Zhat     = matrix(0, mod$n, mod$ParticleNumber)
-
-  # initialize particle filter weights
-  w[1,]    = rep(1,mod$ParticleNumber)
-
-  # initialize a list to keep track of manual corrections
-  Corrections = list(
-            weights = NULL,
-           weights2 = NULL,
-             C_xt_1 = NULL,
-               C_xt = NULL,
-                a_t = NULL,
-                b_t = NULL,
-    SampleParticles = NULL
-  )
-
-  # Compute the first integral limits Limit$a and Limit$b
-  Limit = ComputeLimits_MisSpec(mod, Parms, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
-
-  # if correction for C_xt_1 was necessary for time point t=1, then save it
-  if (Limit$Correction_C_xt_1){
-    Corrections$C_xt_1 = 1
-  }
-
-  # if correction for C_xt was necessary for time point t=1, then save it
-  if (Limit$Correction_C_xt){
-    Corrections$C_xt = 1
-  }
-
-  # Initialize the particles using N(0,1) variables truncated to the limits computed above
-  #Z[1,]    = SampleTruncNormParticles(mod, Limit$a, Limit$b, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
-  SampleParticles = SampleTruncNormParticles_MisSpec(mod, Limit, Parms, 1, rep(0,1,mod$ParticleNumber), rep(1,1,mod$ParticleNumber))
-  Z[1,]    = SampleParticles$z
-
-  # if correction for lower limit was necessary for time point t=1, then save it
-  if (SampleParticles$Correction_a){
-    Corrections$a_t = 1
-  }
-
-  # if correction for upper limit was necessary for time point t=1, then save it
-  if (SampleParticles$Correction_b){
-    Corrections$b_t = 1
-  }
-
-  for (t in 2:mod$n){
-
-    # compute Zhat_t
-    #Zhat[t,] = ComputeZhat_t(m,Theta,Z,Zhat,t, Parms,p,q, nTheta, Theta_n)
-    Zhat[t,] = ComputeZhat_t(mod, IA, Z, Zhat,t, Parms)
-
-
-    # Compute integral limits
-    Limit = ComputeLimits_MisSpec(mod, Parms, t, Zhat[t,], Rt)
-
-    # if correction for C_xt_1 was necessary for time point t=1, then save it
-    if (Limit$Correction_C_xt_1){
-      Corrections$C_xt_1 = c(Corrections$C_xt_1,t)
-    }
-
-    # if correction for C_xt was necessary for time point t=1, then save it
-    if (Limit$Correction_C_xt){
-      Corrections$C_xt = c(Corrections$C_xt,t)
-    }
-
-    # Sample truncated normal particles
-    #Znew  = SampleTruncNormParticles(mod, Limit$a, Limit$b, t, Zhat[t,], Rt)
-    SampleParticles = SampleTruncNormParticles_MisSpec(mod, Limit, Parms, t, Zhat[t,], Rt)
-    Znew  = SampleParticles$z
-
-    # if correction for lower limit was necessary for time point t, then save it
-    if (SampleParticles$Correction_a){
-      Corrections$a_t = c(Corrections$a_t,t)
-    }
-
-    # if correction for upper limit was necessary for time point t, then save it
-    if (SampleParticles$Correction_b){
-      Corrections$b_t = c(Corrections$b_t,t)
-    }
-
-
-    # update weights
-    #w[t,] = ComputeWeights(mod, Limit$a, Limit$b, t, w[(t-1),])
-    w[t,] = ComputeWeights(mod, Limit, t, w[(t-1),])
-
-    # check me: In misspecified models, the weights may get equal to 0. Is it ok
-    # for me to do the following? how is this different from allowing zero weights and
-    # returning a large likelihood?
-
-    if (sum(w[t,])==0){
-      w[t,] = rep(10^(-64),mod$ParticleNumber)
-      Corrections$weights = c(Corrections$weights,t)
-    }
-
-    # check me: break if I got NA weight
-    if (any(is.na(w[t,]))| sum(w[t,])==0 ){
-      Corrections$weights2 = c(Corrections$weights2,t)
-      if(mod$verbose){
-        message(sprintf('WARNING: At t=%.0f some of the weights are either too small or sum to 0.\n',t))
-      }
-      return(10^8)
-    }
-
-    # Resample the particles using common random numbers
-    old_state1 = get_rand_state()
-    Znew = ResampleParticles(mod, w, t, Znew)
-    set_rand_state(old_state1)
-
-
-    # save the current particle
-    Z[t,]   = Znew
-
-    #print(t)
-    #print(Z[t,])
-    # print(nloglik)
-    # update likelihood
-    nloglik = nloglik - log(mean(w[t,]))
-  }
-
-  # report messages
-  if(mod$verbose){
-    ReportDiagnostics(Corrections, Parms, mod)
-  }
-  # for log-likelihood we use a bias correction--see par2.3 in Durbin Koopman, 1997
-  # nloglik = nloglik- (1/(2*N))*(var(na.omit(wgh[T1,]))/mean(na.omit(wgh[T1,])))/mean(na.omit(wgh[T1,]))
-
-  # if (nloglik==Inf | is.na(nloglik)){
-  #   nloglik = 10^8
-  # }
-
-  return(nloglik)
-}
 
 
 #' Particle Filter likelihood function with Resampling for ARMA Models

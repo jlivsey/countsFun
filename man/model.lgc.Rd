@@ -2,18 +2,34 @@
 % Please edit documentation in R/AllFunctions.R
 \name{model.lgc}
 \alias{model.lgc}
-\title{Model Summary for lgc Object}
+\title{Extract the Model Specification from an \code{lgc} Object}
 \usage{
 \method{model}{lgc}(object, ...)
 }
 \arguments{
-\item{object}{An object of class \code{lgc}.}
+\item{object}{An object of class \code{"lgc"}, typically returned by
+\code{\link{lgc}}.}
 
-\item{...}{Additional arguments (currently unused).}
+\item{...}{Currently unused.}
 }
 \value{
-A data frame with two columns: distribution and model type.
+A named list containing model specifications and settings,
+as created by \code{\link{ModelSpec}}.
 }
 \description{
-Returns a data frame summarizing the distribution and ARMA model structure.
+Retrieves the underlying model specification used to evaluate, fit or
+simulate a latent Gaussian count time series model. The model specification
+typically contains the full set of structural, distributional, and
+algorithmic settings (e.g., count distribution, ARMA orders,
+parameter bounds, number of particles, etc.).
+}
+\details{
+This function provides direct access to the internal model
+configuration used in estimation or simulation. The returned list
+includes distribution functions, ARMA parameters, optimization
+settings, and other metadata. It is primarily intended for advanced
+users who wish to inspect or reuse model components programmatically.
+}
+\seealso{
+\code{\link{lgc}}, \code{\link{summary.lgc}}, \code{\link{residuals.lgc}}
 }

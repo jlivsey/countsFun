@@ -22,8 +22,8 @@ for one or more values of the mean parameter \code{m}.
 }
 \examples{
 qGpois(0.8,0.4,3)
-
 }
 \seealso{
 \code{\link{pGpois}}
 }
+\keyword{internal}

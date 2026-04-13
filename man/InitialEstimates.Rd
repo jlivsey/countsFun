@@ -37,3 +37,4 @@ type, sample statistics (e.g., mean, variance), or defaults chosen for stability
 These estimates are used as starting points in numerical optimization procedures.
 GLM and MoM estimates are used for marginal parameters and Yulew-Walker for ARMA.
 }
+\keyword{internal}

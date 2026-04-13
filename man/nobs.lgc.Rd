@@ -17,3 +17,4 @@ An integer, the number of observations.
 \description{
 Returns the number of observations used in fitting the model.
 }
+\keyword{internal}

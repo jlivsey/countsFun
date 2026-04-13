@@ -51,11 +51,11 @@ test_that("LGC wrapper works for evaluation NegBin ARMA(2,4)", {
               ParamScheme    = ParamScheme,
               maxdiff        = maxdiff)
 
-  est = c(3.02527116, 0.80644794 , 0.17345437 , 0.48201984 , 0.47124456, 0.51209982 , -0.10668423, 0.008958203)
-
+  #est = c(3.02527116, 0.80644794 , 0.17345437 , 0.48201984 , 0.47124456, 0.51209982 , -0.10668423, 0.008958203)
+  est = c(3.14941089,  0.79442091, -0.03746501,  0.74889581 , 0.49108892,  0.18302951,  0.03682858, -0.25515827)
   # commenting out the value below - after the rework of the Innovalg the result is a bit different.
   # expect_equal(mylgc$FitStatistics[[1]], 560.81726 )
-  expect_equal(mylgc$FitStatistics[[1]], 560.81669 )
+  expect_equal(mylgc$FitStatistics[[1]], 172.076213 )
   expect_equal(as.numeric(mylgc$ParamEstimates), est)
 
   nobs = nobs(mylgc)

@@ -17,3 +17,4 @@ Numeric. AIC value.
 \description{
 Returns the AIC value for a fitted \code{lgc} model.
 }
+\keyword{internal}

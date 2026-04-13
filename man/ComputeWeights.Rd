@@ -7,7 +7,7 @@
 ComputeWeights(mod, Limit, t, PreviousWeights)
 }
 \arguments{
-\item{mod}{Model list as returned by \code{\link{ModelScheme}}.}
+\item{mod}{Model list as returned by \code{\link{ModelSpec}}.}
 
 \item{Limit}{A list of truncation limits (from \code{\link{ComputeLimits}}).}
 

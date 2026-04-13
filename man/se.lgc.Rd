@@ -17,3 +17,4 @@ Matrix of standard errors.
 \description{
 Returns the standard errors from a fitted \code{lgc} model.
 }
+\keyword{internal}

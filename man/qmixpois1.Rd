@@ -28,5 +28,5 @@ to compute quantiles efficiently.
 }
 \examples{
 qmixpois1(c(0.1, 0.5, 0.9), lam1 = 2, lam2 = 5, prob = 0.6)
-
 }
+\keyword{internal}

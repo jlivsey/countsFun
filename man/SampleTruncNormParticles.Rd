@@ -7,7 +7,7 @@
 SampleTruncNormParticles(mod, Limit, t, Zhat, Rt)
 }
 \arguments{
-\item{mod}{Model list as returned by \code{\link{ModelScheme}}.}
+\item{mod}{Model list as returned by \code{\link{ModelSpec}}.}
 
 \item{Limit}{A list of truncation limits with elements \code{a} and \code{b}, typically
 returned by \code{\link{ComputeLimits}}.}

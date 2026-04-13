@@ -34,7 +34,7 @@ test_that("Likelihood Poisson-AR(1)", {
   df = data.frame(DependentVar)
 
     # populate a list with the model characteristics
-  mod = ModelScheme(RegModel = RegModel,
+  mod = ModelSpec(RegModel = RegModel,
                     df = df,
                     EstMethod = EstMethod,
                     CountDist = CountDist,

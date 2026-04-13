@@ -17,3 +17,4 @@ Numeric. BIC value.
 \description{
 Returns the BIC value for a fitted \code{lgc} model.
 }
+\keyword{internal}

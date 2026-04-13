@@ -32,5 +32,5 @@ pmixpois1(3, lam1 = 2, lam2 = 5, p = 0.4)
 
 # Upper tail probability in log scale
 pmixpois1(3, lam1 = 2, lam2 = 5, p = 0.4, lower.tail = FALSE, log.p = TRUE)
-
 }
+\keyword{internal}

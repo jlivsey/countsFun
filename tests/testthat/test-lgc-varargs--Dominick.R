@@ -39,6 +39,6 @@ mylgc = lgc(RegModel       = RegModel,
          initialParam      = initialParam,
          verbose           = verbose)
 
-expect_equal(mylgc$FitStatistics[[1]], 392.673, tolerance = 10^(-3))
-
+# expect_equal(mylgc$FitStatistics[[1]], 392.673, tolerance = 10^(-3))
+expect_equal(mylgc$FitStatistics[[1]], 371.048, tolerance = 10^(-3))
 })

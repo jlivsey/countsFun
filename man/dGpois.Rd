@@ -22,3 +22,4 @@ A numeric vector of (log-)probabilities.
 Computes the probability mass function (PMF) of the Generalized Poisson distribution
 using the mean-parametrization (Famoye 1994, relation 2.4).
 }
+\keyword{internal}
