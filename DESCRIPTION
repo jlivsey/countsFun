@@ -17,7 +17,7 @@ Suggests:
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
 Imports: 
-    doParallel, itsmr, iZID, mixtools, optextras, extraDistr, optimx, parallel, foreach, VGAM, MASS, truncnorm
+    doParallel, itsmr, iZID, optextras, extraDistr, optimx, parallel, foreach, VGAM, MASS, truncnorm
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
 Depends: 

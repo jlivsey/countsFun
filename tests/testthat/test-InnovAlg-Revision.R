@@ -2,7 +2,7 @@
 # Purpose: Test the reworked version of the InnovAlg function.
 #
 # Notes:   In September 2025 I reworked the InnovAlg function. the stopping condition wasnt implemented
-#          very well for ARMA(p,q) with p>0 and q>0. Sin ce the stopping condition essentially controls
+#          very well for ARMA(p,q) with p>0 and q>0. Since the stopping condition essentially controls
 #          the approximation that takes place, as expected the new implementation  resulted in a slighlthy
 #          different loglike value in the test-lgc-NegBin_ARMA_2_4-Evaluation.R. I am showing this diff in
 #          the last test below.

@@ -533,23 +533,26 @@ test_that("Initial Estimation for Mixed Poisson-AR(1) with Regressor", {
   b1_1 = 0.5
 
   b0_2 = 3
-  b1_2 =  1
 
   # set mixing probability
   prob = 0.4
 
   # gather Marginal Parameters
-  MargParm = c(b0_1, b1_1, b0_2, b1_2,prob)
+  MargParm = c(b0_1, b1_1, b0_2,prob)
 
   theta          = matrix(NA,nrow=nsim,ncol=length(MargParm)+sum(ARMAModel))
   TrueParam      = c(MargParm,ARParm, MAParm)
 
-  # Generate a regressor
+  # Generate a regressor for lambda1
   set.seed(3)
   Regressor  = runif(n)
 
-  # specify the regression formula (no regressors here)
-  RegModel       = DependentVar ~ 1 + Regressor
+  # specify the regression formulae
+  RegModel1      = DependentVar ~ 1 + Regressor
+  RegModel2      = DependentVar ~ 1
+
+  # specify a list with comp1 and comp2 as names
+  RegModel       = list(comp1 = RegModel1, comp2 = RegModel2)
   df             = data.frame(Regressor)
 
   for (i in 1:nsim){
@@ -571,12 +574,11 @@ test_that("Initial Estimation for Mixed Poisson-AR(1) with Regressor", {
 
   BIAS = colMeans(theta) - TrueParam
   RELATIVEBIAS = BIAS/TrueParam
-  expect_equal(BIAS[1], 0.07261641  ,tolerance=10^(-5))
-  expect_equal(BIAS[2], 0.09570763,tolerance=10^(-5))
-  expect_equal(BIAS[3], -0.06185493,tolerance=10^(-5))
-  expect_equal(BIAS[4], -0.10140203 ,tolerance=10^(-5))
-  expect_equal(BIAS[5], -0.03527632 ,tolerance=10^(-5))
-  expect_equal(BIAS[6], -0.08833939 ,tolerance=10^(-5))
+  expect_equal(BIAS[1], 0.010154754 ,tolerance=10^(-5))
+  expect_equal(BIAS[2], 0.014539550 ,tolerance=10^(-5))
+  expect_equal(BIAS[3], 0.025943185 ,tolerance=10^(-5))
+  expect_equal(BIAS[4], -0.004304726 ,tolerance=10^(-5))
+  expect_equal(BIAS[5], -0.043833922 ,tolerance=10^(-5))
 })
 
 
@@ -599,7 +601,7 @@ test_that("Initial Estimation for Poisson-AR(2) with Regressor no intercept", {
   TrueParam      = c(MargParm,ARParm, MAParm)
   theta = matrix(NA,nrow=nsim,ncol=length(MargParm)+sum(ARMAModel))
 
-  # specify the regression formula (no regressors here)
+  # specify the regression formula
   RegModel       = DependentVar ~ 0 + Regressor
   df             = data.frame(Regressor)
 
@@ -657,7 +659,7 @@ test_that("Initial Estimation for Binomial-MA(3) with Regressor no intercept", {
   set.seed(3)
   Regressor = rnorm(n,0,1)
 
-  # specify the regression formula (no regressors here)
+  # specify the regression formula
   RegModel       = DependentVar ~ 0 + Regressor
   df             = data.frame(Regressor)
 
@@ -706,7 +708,7 @@ test_that("Initial Estimation for ZIP-AR(1) with Regressor no intercept", {
   set.seed(3)
   Regressor  = runif(n)
 
-  # specify the regression formula (no regressors here)
+  # specify the regression formula
   RegModel       = DependentVar ~ 0 + Regressor
   df             = data.frame(Regressor)
 
@@ -758,7 +760,7 @@ test_that("Initial Estimation for Mixed Poisson-AR(1) with Regressor no intercep
   set.seed(3)
   Regressor  = runif(n)
 
-  # specify the regression formula (no regressors here)
+  # specify the regression formula
   RegModel       = DependentVar ~ 0 + Regressor
   df             = data.frame(Regressor)
 
@@ -780,10 +782,10 @@ test_that("Initial Estimation for Mixed Poisson-AR(1) with Regressor no intercep
 
   BIAS = colMeans(theta) - TrueParam
   RELATIVEBIAS = BIAS/TrueParam
-  expect_equal(RELATIVEBIAS[1], -1.4134127   ,tolerance=10^(-5))
-  expect_equal(RELATIVEBIAS[2], -0.1075214,tolerance=10^(-5))
-  expect_equal(RELATIVEBIAS[3], -0.4062063,tolerance=10^(-5))
-  expect_equal(RELATIVEBIAS[4], -0.1565834 ,tolerance=10^(-5))
+  expect_equal(RELATIVEBIAS[1], 0.3071494  ,tolerance=10^(-5))
+  expect_equal(RELATIVEBIAS[2], 0.0668000  ,tolerance=10^(-5))
+  expect_equal(RELATIVEBIAS[3], 0.0302500  ,tolerance=10^(-5))
+  expect_equal(RELATIVEBIAS[4], -0.2312746 ,tolerance=10^(-5))
 
 })
 
@@ -806,7 +808,7 @@ test_that("Initial Estimation for Generalized Poisson-AR(1) with Regressor no in
   nsim           = 20
   theta          = matrix(NA,nrow=nsim,ncol=length(MargParm)+sum(ARMAModel))
 
-  # specify the regression formula (no regressors here)
+  # specify the regression formula
   RegModel       = DependentVar ~ 0 + Regressor
   df             = data.frame(Regressor)
 
@@ -835,6 +837,52 @@ test_that("Initial Estimation for Generalized Poisson-AR(1) with Regressor no in
 
 })
 
+test_that("Initial Estimation for Negative Binomial-AR(1) with Regressor no intercept", {
+  # set parameters
+  CountDist      = "Negative Binomial"
+  alpha          = 2
+  b1             = 4
+  MargParm       = c(b1,alpha)
+  ARParm         = 0.6
+  MAParm         = NULL
+  ARMAModel      = c(length(ARParm),length(MAParm))
+  TrueParam      = c(MargParm,ARParm, MAParm)
+  n              = 100
+
+  set.seed(3)
+  Regressor      = runif(n)
+  nsim           = 20
+  theta          = matrix(NA,nrow=nsim,ncol=length(MargParm)+sum(ARMAModel))
+
+  # specify the regression formula
+  RegModel       = DependentVar ~ 0 + Regressor
+  df             = data.frame(Regressor)
+
+  for (i in 1:nsim){
+    # simulate data
+    set.seed(i)
+    DependentVar   = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, RegModel, df)
+    df = data.frame(DependentVar, Regressor)
+
+    # populate a list with the model characteristics
+    mod = ModelSpec(RegModel = RegModel,
+                    df = df,
+                    CountDist = CountDist,
+                    ARMAModel = ARMAModel)
+
+    theta[i,] = InitialEstimates(mod)
+  }
+
+  BIAS = colMeans(theta) - TrueParam
+  RELATIVEBIAS = BIAS/TrueParam
+
+  # check me: this doesnt seem to work as well. what about IYW?
+  expect_equal(BIAS[1], -0.001173392, tolerance = 10^(-5))
+  expect_equal(BIAS[2], 0.100627203, tolerance = 10^(-5))
+  expect_equal(BIAS[3], -0.055319095, tolerance = 10^(-5))
+
+})
+
 
 #-------------------------------- with two Regressors ------------------------------#
 test_that("Initial Estimation for Poisson-AR(2) with two Regressors", {
@@ -854,12 +902,11 @@ test_that("Initial Estimation for Poisson-AR(2) with two Regressors", {
   TrueParam      = c(MargParm,ARParm, MAParm)
   theta = matrix(NA,nrow=nsim,ncol=length(MargParm)+sum(ARMAModel))
 
-  Regressor      = data.frame(runif(n),runif(n))
-  names(Regressor) = c("x1","x2")
-
-  # specify the regression formula (no regressors here)
-  RegModel       = DependentVar ~ 1 + x1 + x2
+  Regressor      = data.frame(x1 = runif(n), x2 = runif(n))
   df             = data.frame(Regressor)
+
+  # specify the regression formula
+  RegModel       = DependentVar ~ 1 + x1 + x2
 
   for (i in 1:nsim){
     # simulate data
@@ -904,7 +951,7 @@ test_that("Initial Estimation for Generalized Poisson-AR(1) with two Regressors"
   nsim           = 20
   theta          = matrix(NA,nrow=nsim,ncol=length(MargParm)+sum(ARMAModel))
 
-  # specify the regression formula (no regressors here)
+  # specify the regression formula
   RegModel       = DependentVar ~ 1 + x1 + x2
   df             = data.frame(Regressor)
 
@@ -967,7 +1014,7 @@ test_that("Initial Estimation for Binomial-MA(3) with two Regressors", {
   Regressor = data.frame(rnorm(n,0,1),runif(n))
   names(Regressor) = c("x1","x2")
 
-  # specify the regression formula (no regressors here)
+  # specify the regression formula
   RegModel       = DependentVar ~ 1 + x1 + x2
   df             = data.frame(Regressor)
 
@@ -1018,7 +1065,7 @@ test_that("Initial Estimation for ZIP-AR(1) with two Regressors", {
   Regressor  = data.frame(runif(n),runif(n))
   names(Regressor) = c("x1","x2")
 
-  # specify the regression formula (no regressors here)
+  # specify the regression formula
   RegModel       = DependentVar ~ 1 + x1 + x2
   df             = data.frame(Regressor)
 
@@ -1057,20 +1104,17 @@ test_that("Initial Estimation for Mixed Poisson-AR(1) with two Regressors", {
   CountDist      = "Mixed Poisson"
 
   # set linear predictor parameters
-  b0_0 = 0.5
-  b1_0 = 0.2
-  b2_0 = 2
+  b0_1 = 0.5
+  b1_1 = -1
 
-  b0_1 = -1
-  b1_1 = 5
-  b2_1 = 1
+  b0_2 = -1
+  b1_2 = 2
 
   # set mixing probability
   prob = 0.4
 
   # gather Marginal Parameters
-  MargParm = c(b0_0, b1_0, b2_0,
-               b0_1, b1_1, b2_1, prob)
+  MargParm = c(b0_1, b1_1, b0_2, b1_2, prob)
 
   theta          = matrix(NA,nrow=nsim,ncol=length(MargParm)+sum(ARMAModel))
   TrueParam      = c(MargParm,ARParm, MAParm)
@@ -1080,9 +1124,11 @@ test_that("Initial Estimation for Mixed Poisson-AR(1) with two Regressors", {
   Regressor  = data.frame(runif(n),runif(n))
   names(Regressor) = c("x1","x2")
 
-  # specify the regression formula (no regressors here)
-  RegModel       = DependentVar ~ 1 + x1 + x2
-  df             = data.frame(Regressor)
+  # specify the regression formula
+  RegModel1       = DependentVar ~ 1 + x1
+  RegModel2       = DependentVar ~ 1 + x2
+  RegModel        = list(comp1 = RegModel1, comp2 = RegModel2)
+  df              = data.frame(Regressor)
 
   for (i in 1:nsim){
     # simulate data
@@ -1099,11 +1145,60 @@ test_that("Initial Estimation for Mixed Poisson-AR(1) with two Regressors", {
     theta[i,] = InitialEstimates(mod)
   }
 
+  BIAS = colMeans(theta) - TrueParam
+  RELATIVEBIAS = BIAS/TrueParam
+
+  expect_equal(BIAS, c(-2.20770607,  0.17994417,  -0.05888956, 0.12097748,  -0.02479028,  -0.12061662))
+})
+
+test_that("Initial Estimation for Negative Binomial-AR(1) with two Regressors", {
+  # set parameters
+  CountDist      = "Negative Binomial"
+  alpha          = 2
+  b0             = 1
+  b1             = 4
+  b2             = -2
+  MargParm       = c(b0,b1,b2,alpha)
+  ARParm         = 0.6
+  MAParm         = NULL
+  ARMAModel      = c(length(ARParm),length(MAParm))
+  TrueParam      = c(MargParm,ARParm, MAParm)
+  n              = 100
+  nsim           = 20
+  theta          = matrix(NA,nrow=nsim,ncol=length(MargParm)+sum(ARMAModel))
+
+  # create regressors
+  set.seed(13)
+  Regressor      = data.frame(x1 = runif(n), x2 = runif(n))
+  df             = Regressor
+
+  # specify the regression formula
+  RegModel       = DependentVar ~ 1 + x1 + x2
+
+  for (i in 1:nsim){
+    # simulate data
+    set.seed(i)
+    DependentVar = sim_lgc(n, CountDist, MargParm, ARParm, MAParm, RegModel, df)
+    df           = data.frame(DependentVar, Regressor)
+
+    # populate a list with the model characteristics
+    mod = ModelSpec(RegModel = RegModel,
+                    df = df,
+                    CountDist = CountDist,
+                    ARMAModel = ARMAModel)
+
+    theta[i,] = InitialEstimates(mod)
+  }
 
   BIAS = colMeans(theta) - TrueParam
   RELATIVEBIAS = BIAS/TrueParam
 
-  expect_equal(BIAS, c(-0.072727066,  0.013128037,  0.096239209, -0.040968408,  0.038659905,  0.025376310,  0.007648873,
-                       -0.362591482))
+  # check me: this doesnt seem to work as well. what about IYW?
+  expect_equal(RELATIVEBIAS[1], -0.004414945, tolerance = 10^(-5))
+  expect_equal(RELATIVEBIAS[2], 0.006007662, tolerance = 10^(-5))
+  expect_equal(RELATIVEBIAS[3], 0.015875114, tolerance = 10^(-5))
+  expect_equal(RELATIVEBIAS[4], 0.055808171, tolerance = 10^(-5))
+  expect_equal(RELATIVEBIAS[5], -0.144098161, tolerance = 10^(-5))
+
 })
 

@@ -179,7 +179,7 @@ lgc = function(RegModel       = NULL,
 
     # compute residuals
     resid = ComputeResiduals(out)
-    out$residuals = resid
+    out$residuals = ts(resid)
 
     # create an lgc object
     class(out) <- "lgc"

@@ -1,11 +1,11 @@
 #' @importFrom stats ARMAacf arima.sim coef dbinom dnbinom dpois filter glm arima residuals
+#' @importFrom stats as.formula frequency is.ts median start
 #' @importFrom stats pbinom plogis pnbinom pnorm ppois qbinom qnbinom qnorm nobs
 #' @importFrom stats qpois rbinom rmultinom runif sd terms var ts
 #' @importFrom MASS glm.nb
 #' @importFrom VGAM vglm genpoisson2 loglink
 #' @importFrom VGAM dgenpois2 qgenpois2 pgenpois2 rgenpois2 zipoisson
 #' @importFrom iZID poisson.zihmle
-#' @importFrom mixtools poisregmixEM
 #' @importFrom extraDistr dmixpois pmixpois rmixpois dzip pzip qzip
 #' @importFrom optimx optimx
 #' @importFrom optextras gHgen
@@ -61,31 +61,25 @@ ModelSpec = function(RegModel = NULL, df = NULL, EstMethod="PFR", ARMAModel=c(0,
                      SampleSize=NULL, OptMethod="L-BFGS-B", OutputType="list", ParamScheme=1, maxdiff=10^(-8),
                      ntrials= NULL,verbose=TRUE,nsim=NULL,...){
 
-  # parse the regression formula
-  parsed_RegModel <- parse_formula(RegModel)
+  #-------------------------------------- INITIAL PARSING ----------------------------------------------#
+  # normalize formula input
+  RegModels <- normalize_RegModel(RegModel, CountDist)
 
+  # parse all regression formulas
+  parsed_RegModels <- lapply(RegModels, parse_formula)
+
+  # use first formula to retrieve dependent variable
+  parsed_RegModel <- parsed_RegModels[[1]]
+  #-----------------------------------------------------------------------------------------------------#
+
+
+  #-------------------------------- INITIAL VALIDATIONS  -----------------------------------------------#
   # if task is Simulation or Synthesis the data frame will not have a dependent variable
   if (Task %in% c("Simulation", "Synthesis")){
     DependentVar = NULL
   }else{
     # if task is evalution or optimization retrieve the Dependent variable
     DependentVar = df[parsed_RegModel$DependentVar]
-  }
-
-  # retrieve the Regressors variable
-  if(is.null(parsed_RegModel$Regressor)){
-    Regressor = NULL
-  } else{
-    Regressor =   df[parsed_RegModel$Regressor]
-  }
-
-  # retrieve intercept
-  Intercept = parsed_RegModel$intercept
-
-  # add a column of ones in the Regressors if Intercept is present
-  if (!is.null(Regressor) && Intercept){
-    Regressor = cbind(rep(1,dim(df)[1]),Regressor)
-    names(Regressor)[1] = "Intercept"
   }
 
   # Distribution list
@@ -107,7 +101,7 @@ ModelSpec = function(RegModel = NULL, df = NULL, EstMethod="PFR", ARMAModel=c(0,
   }
 
   # If user specified EstMethod but asks for evaluation Task then no estimation takes place
-  # check me: I will reconsider this, it seems a not very high priority comunication to the user,
+  # check me: I will reconsider this, it seems a not very high priority communication to the user,
   # it  will spame me in test.
   # if (Task %in% c("Evaluation") & EstMethod %in% c("PFR")){
   #   EstMethod = "None"
@@ -135,44 +129,88 @@ ModelSpec = function(RegModel = NULL, df = NULL, EstMethod="PFR", ARMAModel=c(0,
       n = length(DependentVar)
     }
   }
+  #-----------------------------------------------------------------------------------------------------#
 
-  # fix me: do I need a warning here is there is no samplesize in simulation
-  if(!is.null(Regressor)){
-    if (Intercept==TRUE && sum(as.matrix(Regressor)[,1])!=n ){
-      Regressor = as.data.frame(cbind(rep(1,n),Regressor))
-      names(Regressor)[1] = "Intercept"
-    }
-    else{
-      Regressor = as.data.frame(Regressor)
-    }
+
+
+  #--------------------------------------- BUILD REGRESSORS --------------------------------------------#
+  if (CountDist == "Mixed Poisson") {
+
+    Regressor1 = build_regressor(parsed_RegModels$comp1, df, n)
+    Regressor2 = build_regressor(parsed_RegModels$comp2, df, n)
+
+    reg_info1 = count_regressors(Regressor1)
+    reg_info2 = count_regressors(Regressor2)
+
+    nBeta1 = reg_info1$nbeta
+    nBeta2 = reg_info2$nbeta
+
+    nreg1 = reg_info1$nreg
+    nreg2 = reg_info2$nreg
+
+    nint1 = reg_info1$nint
+    nint2 = reg_info2$nint
+
+    # check me: these need to be checked.
+    Regressor = NULL
+    Intercept = NULL
+    nreg = nreg1 + nreg2
+    nint = nint1 + nint2
+
+  } else {
+
+    Regressor = build_regressor(parsed_RegModel, df, n)
+    reg_info = count_regressors(Regressor)
+
+    nreg = reg_info$nreg
+    nint = reg_info$nint
+
+    Intercept = as.logical(nint)
+
+    Regressor1 = NULL
+    Regressor2 = NULL
+
+    nBeta1 = NULL
+    nBeta2 = NULL
+    nreg1 = NULL
+    nreg2 = NULL
+    nint1 = NULL
+    nint2 = NULL
   }
+  #-----------------------------------------------------------------------------------------------------#
 
-  # number of regressors
-  nreg = ifelse(is.null(Regressor), 0, DIM(Regressor)[2]-as.numeric(Intercept))
 
-  if(is.null(Intercept) || is.null(Regressor)){
-    nint = 1
+  #---------------------------------- RETRIEVE NUMBER OF PARAMETERS ------------------------------------#
+  if (CountDist == "Mixed Poisson") {
+
+    if (nBeta1 == 0 && nBeta2 == 0) {
+      nMargParms = 3
+    }else{
+      nMargParms = nBeta1 + nBeta2 + 1
+    }
+    MargParmIndices = 1:nMargParms
+
   }else{
-    nint = as.numeric(Intercept)
+    MargParmIndices = switch(CountDist,
+                             "Poisson"               = 1:(1+nreg+nint-1),
+                             "Negative Binomial"     = 1:(2+nreg+nint-1),
+                             "Generalized Poisson"   = 1:(2+nreg+nint-1),
+                             "Generalized Poisson 2" = 1:(2+nreg+nint-1),
+                             "Binomial"              = 1:(1+nreg+nint-1),
+                             "ZIP"                   = 1:(2+nreg+nint-1)
+    )
+
+    nMargParms <- length(MargParmIndices)
   }
 
-  # get the indices of marginal parameters
-  MargParmIndices = switch(CountDist,
-                           "Poisson"               = 1:(1+nreg+nint-1),
-                           "Negative Binomial"     = 1:(2+nreg+nint-1),
-                           "Generalized Poisson"   = 1:(2+nreg+nint-1),
-                           "Generalized Poisson 2" = 1:(2+nreg+nint-1),
-                           "Binomial"              = 1:(1+nreg+nint-1),
-                           "Mixed Poisson"         = 1:(3+(nreg+nint-1)*2),
-                           "ZIP"                   = 1:(2+nreg+nint-1)
-  )
-
-  # retrieve the number of  parameters
-  nMargParms = length(MargParmIndices)
+  # retrieve the number of other  parameters
   nparms     = nMargParms + sum(ARMAModel)
   nAR        = ARMAModel[1]
   nMA        = ARMAModel[2]
+  #-----------------------------------------------------------------------------------------------------#
 
+
+  #------------------------------------ CONTINUE VALIDATION --------------------------------------------#
   if(Task %in% c("Synthesis", "Simulation")){
     if (nparms!=length(TrueParam)){
       stop("The length of the specified true parameter does not comply with the
@@ -188,7 +226,10 @@ ModelSpec = function(RegModel = NULL, df = NULL, EstMethod="PFR", ARMAModel=c(0,
   # check if initial param length is wrong
   if(!is.null(initialParam) & length(initialParam)!=nparms)
     stop("The specified initial parameter has wrong length.")
+  #-----------------------------------------------------------------------------------------------------#
 
+
+  #----------------------------------- DETERMINE DISGTRIBUTIONS ----------------------------------------#
   # parse all information in the case without Regressors or in the case with Regressors
   if(nreg<1){
     # retrieve marginal cdf
@@ -232,6 +273,7 @@ ModelSpec = function(RegModel = NULL, df = NULL, EstMethod="PFR", ARMAModel=c(0,
                       "Mixed Poisson"         = function(x, theta){ qmixpois1(x, theta[1], theta[2], theta[3])},
                       "ZIP"                   = function(x, theta){      qzip(x, theta[1], theta[2])}
     )
+
 
     # lower bound constraints
     LB = switch(CountDist,
@@ -301,7 +343,7 @@ ModelSpec = function(RegModel = NULL, df = NULL, EstMethod="PFR", ARMAModel=c(0,
                 "Generalized Poisson"   = c(rep(-Inf, nreg+nint), 0.001, rep(-Inf, sum(ARMAModel))),
                 "Generalized Poisson 2" = c(rep(-Inf, nreg+nint), 0.001, rep(-Inf, sum(ARMAModel))),
                 "Binomial"              = rep(-Inf, sum(ARMAModel)+nreg+nint),
-                "Mixed Poisson"         = c(rep(-Inf, 2*(nreg+nint)), 0.001, rep(-Inf, sum(ARMAModel))),
+                "Mixed Poisson"         = c(rep(-Inf, nBeta1 + nBeta2), 0.001, rep(-Inf, sum(ARMAModel))),
                 "ZIP"                   = c(rep(-Inf, nreg+nint), 0.001, rep(-Inf, sum(ARMAModel)))
     )
     # upper bound constraints
@@ -311,21 +353,25 @@ ModelSpec = function(RegModel = NULL, df = NULL, EstMethod="PFR", ARMAModel=c(0,
                 "Generalized Poisson"   = c(rep(Inf, nreg+nint), Inf, rep(Inf, sum(ARMAModel))),
                 "Generalized Poisson 2" = c(rep(Inf, nreg+nint), Inf, rep(Inf, sum(ARMAModel))),
                 "Binomial"              = rep(Inf, sum(ARMAModel)+nreg+nint),
-                "Mixed Poisson"         = c(rep(Inf, 2*(nreg+nint)), 0.49, rep(Inf, sum(ARMAModel))),
+                "Mixed Poisson"         =  c(rep( Inf, nBeta1 + nBeta2), 0.999, rep( Inf, sum(ARMAModel))),
                 "ZIP"                   = c(rep(Inf, nreg+nint), Inf, rep(Inf, sum(ARMAModel))),
     )
     # retrieve names of marginal parameters
     MargParmsNames = switch(CountDist,
                             "Poisson"               = paste(rep("b_",nreg),(1-nint):nreg,sep=""),
                             "Negative Binomial"     = c(paste(rep("b_",nreg),(1-nint):nreg,sep=""), "k"),
-                            "Mixed Poisson"         = c(paste(rep("b_1",nreg),(1-nint):nreg,sep=""),paste(rep("b_2",nreg),(1-nint):nreg,sep=""), "p"),
+                            "Mixed Poisson"         = c(paste0("b1_", names(Regressor1)), paste0("b2_", names(Regressor2)),"p"),
                             "Generalized Poisson"   = c(paste(rep("b_",nreg),(1-nint):nreg,sep=""), "a"),
                             "Generalized Poisson 2" = c(paste(rep("b_",nreg),(1-nint):nreg,sep=""), "a"),
                             "Binomial"              = paste(rep("b_",nreg),(1-nint):nreg,sep=""),
                             "ZIP"                   = c(paste(rep("b_",nreg),(1-nint):nreg,sep=""), "p"),
     )
   }
+  #-----------------------------------------------------------------------------------------------------#
 
+
+
+  #-------------------------------------- CONTINUE VALIDATION ------------------------------------------#
   # check whether the provided initial estimates make sense - this is for Evaluation, Simulation, Optimization Task
   if (!is.null(initialParam)) {
     if (max(initialParam<=LB) | max(initialParam>=UB)){
@@ -339,7 +385,10 @@ ModelSpec = function(RegModel = NULL, df = NULL, EstMethod="PFR", ARMAModel=c(0,
       stop("The specified parameter is outside the feasible region.")
     }
   }
+  #-----------------------------------------------------------------------------------------------------#
 
+
+  #--------------------------------------------- CREATE NAMES ------------------------------------------#
   # create names of the ARMA parameters
   if(nAR>0) ARNames = paste("AR_",1:ARMAModel[1], sep="")
   if(nMA>0) MANames = paste("MA_",1:ARMAModel[2], sep="")
@@ -352,12 +401,17 @@ ModelSpec = function(RegModel = NULL, df = NULL, EstMethod="PFR", ARMAModel=c(0,
 
   # add the parmnames on theta fix me: does this affect performance?
   if(!is.null(initialParam)) names(initialParam) = parmnames
+  #-----------------------------------------------------------------------------------------------------#
 
+
+  #------------------------------------ DEFINE SPECIAL VALUES ------------------------------------------#
   # value I will set the loglik when things go bad (e.g. non invertible ARMA)
   loglik_BadValue1 = 10^8
 
   # value I will set the loglik when things go bad (e.g. non invertible ARMA)
   loglik_BadValue2 = 10^9
+  #-----------------------------------------------------------------------------------------------------#
+
 
   out = list(
     mycdf            = mycdf,
@@ -394,7 +448,17 @@ ModelSpec = function(RegModel = NULL, df = NULL, EstMethod="PFR", ARMAModel=c(0,
     ntrials          = ntrials,
     Intercept        = Intercept,
     verbose          = verbose,
-    RegModel         = RegModel
+    RegModel         = RegModel,
+    RegModels        = RegModels,
+    parsed_RegModels = parsed_RegModels,
+    Regressor1       = Regressor1,
+    Regressor2       = Regressor2,
+    nBeta1           = nBeta1,
+    nBeta2           = nBeta2,
+    nreg1            = nreg1,
+    nreg2            = nreg2,
+    nint1            = nint1,
+    nint2            = nint2
   )
   return(out)
 
@@ -469,7 +533,7 @@ ParticleFilter = function(theta, mod){
   if(mod$nreg==0){
     nloglik = - log(max(mod$mypdf(mod$DependentVar[1],Parms$MargParms),.Machine$double.xmin))
   }else{
-    nloglik = - log(max(mod$mypdf(mod$DependentVar[1], Parms$ConstMargParm, Parms$DynamMargParm[1]),.Machine$double.xmin))
+    nloglik = - log(max(mod$mypdf(mod$DependentVar[1], Parms$ConstMargParm, Parms$DynamMargParm[1,]),.Machine$double.xmin))
   }
 
   # retrieve AR, MA orders and their max
@@ -1160,47 +1224,118 @@ InitialEstimates = function(mod){
       l1Est = MixPois_PMLE[[2]][1]
       l2Est = MixPois_PMLE[[2]][2]
 
-      # correct estimates if they are outside the feasible region
-      # if(pEst<mod$LB[1]){pEst = 1.1*mod$LB[1]}
-      # if(pEst>mod$UB[1]){pEst = 0.9*mod$UB[1]}
-      #
-      # if(l1Est<mod$LB[2]){l1Est = 1.1*mod$LB[2]}
-      # if(l2Est<mod$LB[3]){l2Est = 1.1*mod$LB[3]}
 
       est[1:3] = c(l1Est, l2Est, pEst)
-    }else{
-      #library(mixtools)
-      # MP_fit = poisregmixEM(mod$DependentVar, mod$Regressor[,2:(mod$nreg+1)])
+    } else {
 
-      if(mod$nint){
-        MP_fit            = poisregmixEM(mod$DependentVar, as.matrix(mod$Regressor[,2:(mod$nreg+1)]))
-      }else{
-        MP_fit            = poisregmixEM(mod$DependentVar, as.matrix(mod$Regressor[,1:mod$nreg]),addintercept = FALSE)
+      y <- as.numeric(mod$DependentVar)
+
+      X1 <- mod$Regressor1
+      X2 <- mod$Regressor2
+
+      # remove intercept columns for the VGAM formula;
+      # intercept is handled by vglm automatically
+      X1_no_int <- X1[, setdiff(names(X1), "Intercept"), drop = FALSE]
+      X2_no_int <- X2[, setdiff(names(X2), "Intercept"), drop = FALSE]
+
+      dat_vgam <- data.frame(y = y, X1_no_int, X2_no_int)
+
+      # all unique regressors appearing in either lambda1 or lambda2
+      reg_names <- unique(c(names(X1_no_int), names(X2_no_int)))
+
+      form_vgam <- as.formula(
+        paste("y ~", paste(reg_names, collapse = " + "))
+      )
+
+      # constraints:
+      # column 1 = phi / p
+      # column 2 = lambda1
+      # column 3 = lambda2
+      constraints <- list()
+
+      constraints[["(Intercept)"]] <- diag(3)
+
+      for (v in reg_names) {
+
+        affects_lambda1 <- v %in% names(X1_no_int)
+        affects_lambda2 <- v %in% names(X2_no_int)
+
+        constraints[[v]] <- matrix(
+          c(
+            0,
+            as.numeric(affects_lambda1),
+            as.numeric(affects_lambda2)
+          ),
+          nrow = 3
+        )
       }
 
-      if(MP_fit$lambda[1]<0.5){
-        est[1:mod$nMargParms] = as.numeric(c(MP_fit$beta, MP_fit$lambda[1]))
-      }
-      else{
-        # check me: should I give an error here?
-        # check me: does this work for more regressors? I think there will be an error with the indices below
-        if(mod$nint){
-          est[1:mod$nMargParms] = as.numeric(c(MP_fit$beta[3:4],MP_fit$beta[1:2], 1-MP_fit$lambda[1]))
-        }else{
-          est[1:mod$nMargParms] = as.numeric(c(MP_fit$beta[2],MP_fit$beta[1], 1-MP_fit$lambda[1]))
+      # use the non regression case
+      # pmle0 <- pmle.pois(y, 2)
+      #
+      # p0  <- pmle0[[1]][1]
+      # l10 <- pmle0[[2]][1]
+      # l20 <- pmle0[[2]][2]
+      #
+      # p0  <- min(max(p0, 0.05), 0.95)
+      # l10 <- max(l10, 0.05)
+      # l20 <- max(l20, 0.05)
+
+      fit <- try(
+        VGAM::vglm(
+          form_vgam,
+          family      = VGAM::mix2poisson(
+                      iphi = 0.4,
+                      il1  = mean(y[y <= median(y)]) + 0.1,
+                      il2  = mean(y[y >  median(y)]) + 0.1,
+                      zero = "phi"),
+          constraints = constraints,
+          data        = dat_vgam,
+          trace       = FALSE,
+          maxit       = 100
+        ),
+        silent = TRUE
+      )
+
+      coef_mat <- coef(fit, matrix = TRUE)
+
+      # beta for lambda1
+      beta1 <- numeric(mod$nBeta1)
+      names(beta1) <- names(X1)
+
+      for (j in seq_along(beta1)) {
+        nm <- names(beta1)[j]
+
+        if (nm == "Intercept") {
+          beta1[j] <- coef_mat["(Intercept)", 2]
+        } else {
+          beta1[j] <- coef_mat[nm, 2]
         }
       }
-      #could also use the flexmix package
-      #check me: for now we allow mixture of only two components
-      #MP_fit <- flexmix(mod$DependentVar ~ mod$Regressor[,2:(mod$nreg+1)], k = 2, model = FLXMRglm(family = "poisson"))
-      #refit1 = refit(MP_fit)
 
-      #beta1Hat = as.numeric(refit1@coef[1:2])
-      #beta2Hat = as.numeric(refit1@coef[3:4])
-      #ProbHat  = MP_fit@prior[1]
+      # beta for lambda2
+      beta2 <- numeric(mod$nBeta2)
+      names(beta2) <- names(X2)
 
-      #est[1:mod$nMargParms] = c(beta1Hat, beta2Hat,ProbHat)
+      for (j in seq_along(beta2)) {
+        nm <- names(beta2)[j]
 
+        if (nm == "Intercept") {
+          beta2[j] <- coef_mat["(Intercept)", 3]
+        } else {
+          beta2[j] <- coef_mat[nm, 3]
+        }
+      }
+
+      # mixture probability phi/p
+      eta_p <- coef_mat["(Intercept)", 1]
+      pEst <- VGAM::logitlink(eta_p, inverse = TRUE)
+
+      est[1:mod$nBeta1] <- beta1
+
+      est[(mod$nBeta1 + 1):(mod$nBeta1 + mod$nBeta2)] <- beta2
+
+      est[mod$nBeta1 + mod$nBeta2 + 1] <- pEst
     }
   }
 
@@ -1440,6 +1575,7 @@ InnovAlg <- function(Parms, gamma, mod) {
   v <- v / v[1]
   return(list(
     n = n - 1,
+    Theta,
     thetas = lapply(Theta[1:(n - 1)], function(x) x[1:q]),
     v = v[1:(n - 1)]
   ))
@@ -1675,6 +1811,12 @@ model.lgc <- function(object, ...) {
 residuals.lgc <- function(object, ...) {
   if (!inherits(object, "lgc")) stop("Object must be of class 'lgc'")
   res <- ComputeResiduals(object)
+
+  if (is.ts(object$mod$DependentVar)) {
+    res <- ts(res,
+              start = start(object$mod$DependentVar),
+              frequency = frequency(object$mod$DependentVar))
+  }
   res
 }
 
@@ -1926,7 +2068,8 @@ SampleTruncNormParticles = function(mod, Limit, t, Zhat, Rt){
 #' @export
 ComputeZhat_t = function(mod, IA, Z, Zhat,t, Parms){
 
-  Theta    = IA$thetas
+  #Theta    = IA$thetas
+  Theta     = IA[[2]]
   nTheta   = length(IA$thetas)
   Theta_n  = Theta[[nTheta]]
 
@@ -2047,7 +2190,7 @@ RetrieveParameters = function(theta,mod){
   Parms$MargParms      = theta[mod$MargParmIndices]
 
   # regressor parameters
-  if(mod$nreg>0){
+  if(mod$nreg>0 && mod$CountDist != "Mixed Poisson"){
     beta  = Parms$MargParms[1:(mod$nreg+mod$nint)]
     m     = exp(as.matrix(mod$Regressor)%*%beta)
   }
@@ -2080,8 +2223,20 @@ RetrieveParameters = function(theta,mod){
   }
 
   if(mod$CountDist == "Mixed Poisson" && mod$nreg>0){
-    Parms$ConstMargParm  = c(Parms$MargParms[2*(mod$nreg+mod$nint)+1])
-    Parms$DynamMargParm  = cbind(m, exp(as.matrix(mod$Regressor)%*%Parms$MargParms[(mod$nreg+mod$nint+1):((mod$nreg+mod$nint)*2)]))
+    Parms$ConstMargParm  = c(Parms$MargParms[mod$nreg+mod$nint+1])
+
+    # retrieve position of parameters
+    idx_beta1 = 1:mod$nBeta1
+    idx_beta2 = (mod$nBeta1 + 1):(mod$nBeta1 + mod$nBeta2)
+
+    # retrieve regression parameters
+    beta1 = Parms$MargParms[idx_beta1]
+    beta2 = Parms$MargParms[idx_beta2]
+
+    # compute and store the lambda parameters
+    lambda1 = as.numeric(exp(as.matrix(mod$Regressor1) %*% beta1))
+    lambda2 = as.numeric(exp(as.matrix(mod$Regressor2) %*% beta2))
+    Parms$DynamMargParm  = cbind(lambda1 = lambda1, lambda2 = lambda2)
   }
 
   if(mod$CountDist == "ZIP" && mod$nreg>0){
@@ -2574,8 +2729,8 @@ ComputeResiduals= function(lgc){
         C_xt_minus1 = mod$mycdf(k-1,t(Parms$MargParms))
         C_xt        = mod$mycdf(k,t(Parms$MargParms))
       }else{
-        C_xt_minus1 = mod$mycdf(k-1, Parms$ConstMargParm, Parms$DynamMargParm[i])
-        C_xt        = mod$mycdf(k, Parms$ConstMargParm, Parms$DynamMargParm[i])
+        C_xt_minus1 = mod$mycdf(k-1, Parms$ConstMargParm, Parms$DynamMargParm[i,])
+        C_xt        = mod$mycdf(k, Parms$ConstMargParm, Parms$DynamMargParm[i,])
       }
       a           = qnorm(C_xt_minus1,0,1)
       b           = qnorm(C_xt ,0,1)
@@ -2587,7 +2742,7 @@ ComputeResiduals= function(lgc){
         C_xt        = mod$mycdf(0,t(Parms$MargParms))
         b           = qnorm(C_xt,0,1)
       }else{
-        C_xt        = mod$mycdf(0, Parms$ConstMargParm, Parms$DynamMargParm[i])
+        C_xt        = mod$mycdf(0, Parms$ConstMargParm, Parms$DynamMargParm[i,])
         b           = qnorm(C_xt ,0,1)
       }
       ResidNum    = -exp(-b^2/2)
@@ -2706,7 +2861,7 @@ pred_dist = function(theta, mod){
 
   # Initialize the negative log likelihood computation
   nloglik = ifelse(mod$nreg==0,  - log(mod$mypdf(mod$DependentVar[1],Parms$MargParms)),
-                   - log(mod$mypdf(mod$DependentVar[1], Parms$ConstMargParm, Parms$DynamMargParm[1])))
+                   - log(mod$mypdf(mod$DependentVar[1], Parms$ConstMargParm, Parms$DynamMargParm[1,])))
 
   # retrieve AR, MA orders and their max
   m = max(mod$ARMAModel)
@@ -2770,8 +2925,8 @@ pred_dist = function(theta, mod){
         a = as.numeric(qnorm(mod$mycdf(x-1,Parms$MargParms),0,1) -  Zhat[t,])/Rt[index]
         b = as.numeric(qnorm(mod$mycdf(x,  Parms$MargParms),0,1) -  Zhat[t,])/Rt[index]
       }else{
-        a = as.numeric(qnorm(mod$mycdf(x-1,Parms$ConstMargParm, Parms$DynamMargParm[t]),0,1) -  Zhat[t,])/Rt[index]
-        b = as.numeric(qnorm(mod$mycdf(x,  Parms$ConstMargParm, Parms$DynamMargParm[t]),0,1) -  Zhat[t,])/Rt[index]
+        a = as.numeric(qnorm(mod$mycdf(x-1,Parms$ConstMargParm, Parms$DynamMargParm[t,]),0,1) -  Zhat[t,])/Rt[index]
+        b = as.numeric(qnorm(mod$mycdf(x,  Parms$ConstMargParm, Parms$DynamMargParm[t,]),0,1) -  Zhat[t,])/Rt[index]
       }
       temp[x+1] = mean(pnorm(b,0,1) - pnorm(a,0,1))
     }
@@ -2921,6 +3076,63 @@ DIM <- function(x){
     dim(x)
 }
 
+
+
+# internal function that will help parse RegModel and validate MixedPoisson
+normalize_RegModel = function(RegModel, CountDist) {
+
+  if (is.list(RegModel) && !inherits(RegModel, "formula")) {
+    RegModels = RegModel
+  } else {
+    RegModels = list(comp = RegModel)
+  }
+
+  if (CountDist == "Mixed Poisson") {
+    if (!("comp" %in% names(RegModels)) && !all(c("comp1", "comp2") %in% names(RegModels))) {
+      stop(
+        "For Mixed Poisson with regressors, RegModel must be a named list:\n",
+        "RegModel = list(comp1 = DependentVar ~ ..., comp2 = DependentVar ~ ...)"
+      )
+    }
+  }
+
+  return(RegModels)
+}
+
+# internal function that builds the regressor
+build_regressor = function(parsed_RegModel, df, n) {
+
+  Regressor = NULL
+
+  if (!is.null(parsed_RegModel$Regressor)) {
+    Regressor = df[parsed_RegModel$Regressor]
+  }
+
+  Intercept = isTRUE(parsed_RegModel$intercept)
+
+  if (Intercept) {
+    if (is.null(Regressor)) {
+      Regressor = data.frame(Intercept = rep(1, n))
+    } else {
+      Regressor = as.data.frame(cbind(Intercept = rep(1, n), Regressor))
+    }
+  }
+
+  return(Regressor)
+}
+
+# internal function that counts number of regressors
+count_regressors <- function(Regressor) {
+  if (is.null(Regressor)) {
+    return(list(nbeta = 0, nreg = 0, nint = 1))
+  }
+
+  nint = as.numeric("Intercept" %in% names(Regressor))
+  nreg = ncol(Regressor) - nint
+  nbeta = ncol(Regressor)
+
+  list(nbeta = nbeta, nreg = nreg, nint = nint)
+}
 #===========================================================================================#
 
 
@@ -3521,7 +3733,7 @@ ParticleFilter_Res_ARMA_MisSpecOld = function(theta, mod){
   if(mod$nreg==0){
     nloglik = - log(max(mod$mypdf(mod$DependentVar[1],Parms$MargParms),.Machine$double.xmin))
   }else{
-    nloglik = - log(max(mod$mypdf(mod$DependentVar[1], Parms$ConstMargParm, Parms$DynamMargParm[1]),.Machine$double.xmin))
+    nloglik = - log(max(mod$mypdf(mod$DependentVar[1], Parms$ConstMargParm, Parms$DynamMargParm[1,]),.Machine$double.xmin))
   }
 
   # retrieve AR, MA orders and their max
@@ -3878,3 +4090,107 @@ ParticleFilter_Res_ARMAOld = function(theta, mod){
   return(nloglik)
 }
 
+innovations_algorithm <- function(Parms, gamma, mod = NULL) {
+  phi <- if (!is.null(Parms$AR)) Parms$AR else numeric(0)
+  theta <- if (!is.null(Parms$MA)) Parms$MA else numeric(0)
+
+  p <- length(phi)
+  q <- length(theta)
+  m <- max(p, q)
+  N <- length(gamma)
+
+  if (!is.numeric(gamma) || N < 1L) {
+    stop("'gamma' must be a non-empty numeric vector.")
+  }
+  if (any(!is.finite(gamma))) {
+    stop("'gamma' must contain only finite values.")
+  }
+  if (gamma[1] <= 0) {
+    stop("gamma[1] must be positive.")
+  }
+
+  if (is.null(mod)) {
+    mod <- list(maxdiff = 1e-8)
+  } else if (is.null(mod$maxdiff) || !is.numeric(mod$maxdiff) || length(mod$maxdiff) != 1L) {
+    stop("'mod$maxdiff' must be a numeric scalar.")
+  }
+
+  # Internal standard-order storage:
+  # Theta_std[[n]][k] = Theta_{n,k}, k = 1,...,n
+  Theta_std <- vector("list", max(N - 1L, 0L))
+
+  # Innovation variances:
+  # v[1] = v_0, v[2] = v_1, ...
+  v <- rep(NA_real_, N)
+  v[1] <- gamma[1]
+
+  StopCondition <- FALSE
+  n <- 1L
+
+  while (!StopCondition && n < N) {
+    Theta_std[[n]] <- rep(0, n)
+
+    for (k in 1:n) {
+      s <- 0
+
+      if (k > 1L) {
+        for (j in 1:(k - 1L)) {
+          s <- s + Theta_std[[n]][j] * Theta_std[[k - 1L]][j] * v[j]
+        }
+      }
+
+      denom <- v[k]
+      if (!is.finite(denom) || abs(denom) < .Machine$double.eps) {
+        stop(sprintf("Zero/non-finite innovation variance at k = %d.", k))
+      }
+
+      Theta_std[[n]][k] <- (gamma[n - k + 2L] - s) / denom
+    }
+
+    v[n + 1L] <- gamma[1] - sum((Theta_std[[n]]^2) * v[1:n])
+
+    if (!is.finite(v[n + 1L])) {
+      stop(sprintf("Non-finite innovation variance at n = %d.", n))
+    }
+    if (v[n + 1L] < -sqrt(.Machine$double.eps)) {
+      warning(sprintf("Negative innovation variance at n = %d; check gamma.", n))
+    }
+
+    # Stopping rules depending on model structure
+    if (p == 0L && q > 0L) {
+      StopCondition <- abs(v[n + 1L] - v[n]) < mod$maxdiff
+    } else if (p > 0L && q == 0L) {
+      StopCondition <- n > 3L * m
+    } else {
+      StopCondition <- n >= (N - 1L) || abs(v[n + 1L] - v[n]) < mod$maxdiff
+    }
+
+    if (!StopCondition) {
+      n <- n + 1L
+    }
+  }
+
+  n_final <- n
+
+  # Keep only computed rows
+  Theta_std <- Theta_std[seq_len(n_final)]
+
+  # Reverse each row for output:
+  # thetas[[n]] = c(Theta_nn, Theta_n,n-1, ..., Theta_n1)
+  thetas <- lapply(Theta_std, rev)
+
+  # Optional matrix form in your reversed convention
+  theta_mat <- matrix(0, nrow = n_final, ncol = n_final)
+  if (n_final > 0L) {
+    for (i in 1:n_final) {
+      theta_mat[i, 1:i] <- thetas[[i]]
+    }
+  }
+
+  list(
+    n = n_final,
+    thetas = thetas,
+    # theta = theta_mat,
+    v = v[1:(n_final + 1L)] / v[1]
+  )
+}

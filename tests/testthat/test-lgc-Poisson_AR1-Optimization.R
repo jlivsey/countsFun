@@ -48,3 +48,5 @@ nobs = nobs(a)
 expect_equal(nobs, n)
 
 })
+
+

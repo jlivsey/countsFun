@@ -62,5 +62,3 @@ expect_equal(as.numeric(glmESts), as.numeric(InitEsts))
 expect_equal(as.numeric(glmESts), as.numeric(PFEsts), tolerance = 0.00001)
 
 })
-
-#--------------------Generate using sim_lgc function--------------
