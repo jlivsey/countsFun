@@ -49,18 +49,18 @@ test_that("Basic_S3_methods_for_Evaluation_Task", {
               ParamScheme    = ParamScheme,
               maxdiff        = maxdiff)
 
-  expect_equal(as.numeric( AIC(mylgc)), 746.700966)
-  expect_equal(as.numeric( BIC(mylgc)), 759.894235)
-  expect_equal(as.numeric( logLik(mylgc)), 369.350483)
+  expect_equal(as.numeric( AIC(mylgc)), 746.710518)
+  expect_equal(as.numeric( BIC(mylgc)), 759.9037875)
+  expect_equal(as.numeric( logLik(mylgc)), 369.355259)
   expect_equal(model(mylgc), mylgc$mod)
   expect_equal(colnames(coefficients(mylgc))[1], "lambda_1")
   expect_equal(colnames(coefficients(mylgc))[2], "lambda_2")
   expect_equal(colnames(coefficients(mylgc))[3], "p")
   expect_equal(colnames(coefficients(mylgc))[4], "AR_1")
-  expect_equal(as.numeric(coefficients(mylgc))[1], 1.6020000)
-  expect_equal(as.numeric(coefficients(mylgc))[2], 4.1630000)
-  expect_equal(as.numeric(coefficients(mylgc))[3], 0.5070000)
-  expect_equal(as.numeric(coefficients(mylgc))[4], 0.677166725)
+  expect_equal(as.numeric(coefficients(mylgc))[1], 1.599451387)
+  expect_equal(as.numeric(coefficients(mylgc))[2], 4.159660347)
+  expect_equal(as.numeric(coefficients(mylgc))[3], 0.5056847959)
+  expect_equal(as.numeric(coefficients(mylgc))[4], 0.6771269056)
 
 
 })

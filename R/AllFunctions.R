@@ -1143,7 +1143,7 @@ CheckStability = function(AR,MA){
 #' The initial estimates are heuristically determined and may depend on the distribution
 #' type, sample statistics (e.g., mean, variance), or defaults chosen for stability.
 #' These estimates are used as starting points in numerical optimization procedures.
-#' GLM and MoM estimates are used for marginal parameters and Yulew-Walker for ARMA.
+#' GLM and MoM estimates are used for marginal parameters and Yule-Walker for ARMA.
 #'
 #' @keywords internal
 #' @export
@@ -1216,14 +1216,40 @@ InitialEstimates = function(mod){
   }
 
   if(mod$CountDist=="Mixed Poisson"){
+    # add the data to a data frame that will be used by VGAM
+    y = as.numeric(mod$DependentVar)
+    dat_vgam <- data.frame(y = y)
+
+    # compute initial estimates for VGAM
+    lo <- y[y <= median(y, na.rm = TRUE)]
+    hi <- y[y >  median(y, na.rm = TRUE)]
+
+    # mean(lo) and mean(hi) may not be ok if all values in y are identical/missing
+    il1_start <- if (length(lo)) mean(lo, na.rm = TRUE) + 0.1 else mean(y, na.rm = TRUE) + 0.1
+    il2_start <- if (length(hi)) mean(hi, na.rm = TRUE) + 0.1 else mean(y, na.rm = TRUE) + 1
+
     if(mod$nreg==0){
-      # pmle for marginal parameters
-      MixPois_PMLE <- pmle.pois(as.numeric(mod$DependentVar),2)
+      # fit glm
+      fit0 <- try(
+        VGAM::vglm(
+          y ~ 1,
+          family = VGAM::mix2poisson(iphi = 0.5, il1 = il1_start, il2 = il2_start),
+          data   = dat_vgam,
+          trace  = FALSE,
+        ),
+        silent = TRUE
+      )
 
-      pEst  = MixPois_PMLE[[1]][1]
-      l1Est = MixPois_PMLE[[2]][1]
-      l2Est = MixPois_PMLE[[2]][2]
+      # check is VGAM failed
+      if (inherits(fit0, "try-error")) {
+        stop("VGAM mix2poisson failed for intercept-only model: ", fit0)
+      }
 
+      # retrieve estimates
+      eta   = coef(fit0, matrix = TRUE)
+      pEst  = plogis(eta[1, 1])
+      l1Est = exp(eta[1, 2])
+      l2Est = exp(eta[1, 3])
 
       est[1:3] = c(l1Est, l2Est, pEst)
     } else {
@@ -1238,57 +1264,39 @@ InitialEstimates = function(mod){
       X1_no_int <- X1[, setdiff(names(X1), "Intercept"), drop = FALSE]
       X2_no_int <- X2[, setdiff(names(X2), "Intercept"), drop = FALSE]
 
-      dat_vgam <- data.frame(y = y, X1_no_int, X2_no_int)
-
-      # all unique regressors appearing in either lambda1 or lambda2
+      # get all unique regressors appearing in either lambda1 or lambda2
       reg_names <- unique(c(names(X1_no_int), names(X2_no_int)))
 
+      # add the regressors to the VGAM data frame
+      for (v in reg_names) {
+        if (v %in% names(X1_no_int)) {
+          dat_vgam[[v]] <- X1_no_int[[v]]
+        } else {
+          dat_vgam[[v]] <- X2_no_int[[v]]
+        }
+      }
+
+      # create the VGAM formula - since nreg~=0 regnames will not be empty and the following should work
       form_vgam <- as.formula(
-        paste("y ~", paste(reg_names, collapse = " + "))
+        paste("y ~", paste(sprintf("`%s`", reg_names), collapse = " + "))
       )
 
-      # constraints:
-      # column 1 = phi / p
-      # column 2 = lambda1
-      # column 3 = lambda2
+      # create constraints for VGAM so that VGAM can fit the requested model
       constraints <- list()
-
       constraints[["(Intercept)"]] <- diag(3)
 
       for (v in reg_names) {
-
         affects_lambda1 <- v %in% names(X1_no_int)
         affects_lambda2 <- v %in% names(X2_no_int)
 
-        constraints[[v]] <- matrix(
-          c(
-            0,
-            as.numeric(affects_lambda1),
-            as.numeric(affects_lambda2)
-          ),
-          nrow = 3
-        )
+        constraints[[v]] <- matrix( c(0, as.numeric(affects_lambda1),as.numeric(affects_lambda2)), nrow = 3)
       }
 
-      # use the non regression case
-      # pmle0 <- pmle.pois(y, 2)
-      #
-      # p0  <- pmle0[[1]][1]
-      # l10 <- pmle0[[2]][1]
-      # l20 <- pmle0[[2]][2]
-      #
-      # p0  <- min(max(p0, 0.05), 0.95)
-      # l10 <- max(l10, 0.05)
-      # l20 <- max(l20, 0.05)
-
+      # fit glm
       fit <- try(
         VGAM::vglm(
           form_vgam,
-          family      = VGAM::mix2poisson(
-                      iphi = 0.4,
-                      il1  = mean(y[y <= median(y)]) + 0.1,
-                      il2  = mean(y[y >  median(y)]) + 0.1,
-                      zero = "phi"),
+          family = VGAM::mix2poisson(iphi = 0.5, il1  = il1_start, il2  = il2_start, zero = "phi"),
           constraints = constraints,
           data        = dat_vgam,
           trace       = FALSE,
@@ -1297,33 +1305,47 @@ InitialEstimates = function(mod){
         silent = TRUE
       )
 
-      coef_mat <- coef(fit, matrix = TRUE)
+      # stop if VGAM failed
+      if (inherits(fit, "try-error")) {
+        stop("VGAM mix2poisson failed to compute initial Mixed Poisson estimates: ", fit)
+      }
+
+      # retrieve the parameter estimates
+      coef_mat = coef(fit, matrix = TRUE)
+
+      if (!all(names(X1) %in% c("Intercept", rownames(coef_mat)))) {
+        stop("Some lambda1 coefficients were not found in VGAM coefficient matrix.")
+      }
+
+      if (!all(names(X2) %in% c("Intercept", rownames(coef_mat)))) {
+        stop("Some lambda2 coefficients were not found in VGAM coefficient matrix.")
+      }
 
       # beta for lambda1
-      beta1 <- numeric(mod$nBeta1)
-      names(beta1) <- names(X1)
+      beta1 = numeric(mod$nBeta1)
+      names(beta1) = names(X1)
 
       for (j in seq_along(beta1)) {
-        nm <- names(beta1)[j]
+        nm = names(beta1)[j]
 
         if (nm == "Intercept") {
-          beta1[j] <- coef_mat["(Intercept)", 2]
+          beta1[j] = coef_mat["(Intercept)", 2]
         } else {
-          beta1[j] <- coef_mat[nm, 2]
+          beta1[j] = coef_mat[nm, 2]
         }
       }
 
       # beta for lambda2
-      beta2 <- numeric(mod$nBeta2)
-      names(beta2) <- names(X2)
+      beta2 = numeric(mod$nBeta2)
+      names(beta2) = names(X2)
 
       for (j in seq_along(beta2)) {
-        nm <- names(beta2)[j]
+        nm = names(beta2)[j]
 
         if (nm == "Intercept") {
-          beta2[j] <- coef_mat["(Intercept)", 3]
+          beta2[j] = coef_mat["(Intercept)", 3]
         } else {
-          beta2[j] <- coef_mat[nm, 3]
+          beta2[j] = coef_mat[nm, 3]
         }
       }
 
@@ -1419,7 +1441,7 @@ InitialEstimates = function(mod){
   }
 
   #------------ARMA Initial Estimates
-  # Transform (1) in the JASA paper to retrieve the "observed" latent series and fit an ARMA
+  # Transform (1) in the JASA paper to retrieve the "implied" latent series and fit an ARMA
   # check me: Oct 2025 - the following needs to be refactored
   if(mod$nreg==0){
 

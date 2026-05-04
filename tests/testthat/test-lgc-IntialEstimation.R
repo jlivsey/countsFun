@@ -125,11 +125,11 @@ test_that("Initial Estimation for Mixed Poisson-ARMA(1,1)", {
 
   BIAS = colMeans(theta) - TrueParam
   RELATIVEBIAS = BIAS/TrueParam
-  expect_equal(RELATIVEBIAS[1], -0.04480000, tolerance = 10^(-5))
-  expect_equal(RELATIVEBIAS[2], -0.00850000, tolerance = 10^(-5))
-  expect_equal(RELATIVEBIAS[3], -0.05260000, tolerance = 10^(-5))
-  expect_equal(RELATIVEBIAS[4], -0.07637862, tolerance = 10^(-5))
-  expect_equal(RELATIVEBIAS[5], -0.06920126, tolerance = 10^(-5))
+  expect_equal(RELATIVEBIAS[1], -0.0448218949, tolerance = 10^(-5))
+  expect_equal(RELATIVEBIAS[2], -0.0085005019, tolerance = 10^(-5))
+  expect_equal(RELATIVEBIAS[3], -0.0527162655, tolerance = 10^(-5))
+  expect_equal(RELATIVEBIAS[4], -0.0763819679, tolerance = 10^(-5))
+  expect_equal(RELATIVEBIAS[5], -0.0691581322, tolerance = 10^(-5))
 
   # BIAS
   # 0.02050000 -0.03782252 -0.01822419
@@ -574,11 +574,11 @@ test_that("Initial Estimation for Mixed Poisson-AR(1) with Regressor", {
 
   BIAS = colMeans(theta) - TrueParam
   RELATIVEBIAS = BIAS/TrueParam
-  expect_equal(BIAS[1], 0.010154754 ,tolerance=10^(-5))
-  expect_equal(BIAS[2], 0.014539550 ,tolerance=10^(-5))
-  expect_equal(BIAS[3], 0.025943185 ,tolerance=10^(-5))
-  expect_equal(BIAS[4], -0.004304726 ,tolerance=10^(-5))
-  expect_equal(BIAS[5], -0.043833922 ,tolerance=10^(-5))
+  expect_equal(BIAS[1], 0.0101541332 ,tolerance=10^(-5))
+  expect_equal(BIAS[2], 0.0145386229 ,tolerance=10^(-5))
+  expect_equal(BIAS[3], 0.0259423728 ,tolerance=10^(-5))
+  expect_equal(BIAS[4], -0.0043079331 ,tolerance=10^(-5))
+  expect_equal(BIAS[5], -0.0438336992 ,tolerance=10^(-5))
 })
 
 
@@ -782,10 +782,10 @@ test_that("Initial Estimation for Mixed Poisson-AR(1) with Regressor no intercep
 
   BIAS = colMeans(theta) - TrueParam
   RELATIVEBIAS = BIAS/TrueParam
-  expect_equal(RELATIVEBIAS[1], 0.3071494  ,tolerance=10^(-5))
-  expect_equal(RELATIVEBIAS[2], 0.0668000  ,tolerance=10^(-5))
-  expect_equal(RELATIVEBIAS[3], 0.0302500  ,tolerance=10^(-5))
-  expect_equal(RELATIVEBIAS[4], -0.2312746 ,tolerance=10^(-5))
+  expect_equal(RELATIVEBIAS[1], 0.36494624  ,tolerance=10^(-5))
+  expect_equal(RELATIVEBIAS[2], 99.08908694 ,tolerance=10^(-5))
+  expect_equal(RELATIVEBIAS[3], 0.58002148  ,tolerance=10^(-5))
+  expect_equal(RELATIVEBIAS[4], -0.23181703 ,tolerance=10^(-5))
 
 })
 
@@ -1148,7 +1148,7 @@ test_that("Initial Estimation for Mixed Poisson-AR(1) with two Regressors", {
   BIAS = colMeans(theta) - TrueParam
   RELATIVEBIAS = BIAS/TrueParam
 
-  expect_equal(BIAS, c(-2.20770607,  0.17994417,  -0.05888956, 0.12097748,  -0.02479028,  -0.12061662))
+  expect_equal(BIAS, c(0.184349601, -8.558670402, -0.058150215, 0.120953693, -0.024301096, -0.118610875))
 })
 
 test_that("Initial Estimation for Negative Binomial-AR(1) with two Regressors", {
