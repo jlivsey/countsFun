@@ -35,6 +35,6 @@ count time series models with ARMA dependencies and various marginal count distr
 The initial estimates are heuristically determined and may depend on the distribution
 type, sample statistics (e.g., mean, variance), or defaults chosen for stability.
 These estimates are used as starting points in numerical optimization procedures.
-GLM and MoM estimates are used for marginal parameters and Yulew-Walker for ARMA.
+GLM and MoM estimates are used for marginal parameters and Yule-Walker for ARMA.
 }
 \keyword{internal}

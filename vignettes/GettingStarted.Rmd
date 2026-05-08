@@ -1,0 +1,104 @@
+---
+title: "Fitting a Poisson-AR(1) model"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Fitting a Poisson-AR(1) model}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+## Overview
+
+This vignette demonstrates how to simulate and fit a count time series model with specified marginal distribution and a latent dependence structure.
+
+```{r}
+library(countsFun)
+```
+
+## Synthesize dta
+
+The following code shows how you can generate a count time series with a Poisson marginal distribution and an AR(1) latent dependence structure.
+
+```{r}
+# specify model to synthesize from
+SampleSize = 200
+CountDist  = "Poisson"
+MargParm   = 3
+ARParm     = 0.5
+MAParm     = NULL
+RegModel   = y ~ 1
+
+# synthesize count time series data
+set.seed(2)
+y = sim_lgc(SampleSize, CountDist, MargParm, ARParm, MAParm, RegModel)
+```
+
+## Explore the data
+
+Check the first two moment to gauge dispersion. Plot the series and its auto-correlation function.
+
+```{r echo=TRUE}
+# the generated series is a ts object
+cat(sprintf("The generated series y is a %.2s object.\n", class(y)))
+
+# print the sample mean and sample variance of y
+cat(sprintf("The generated series y has mean = %.2f and variance = %.2f.", mean(y), var(y)))
+```
+```{r}
+# plot the generated time series and its auto-correlation function
+par(mfrow=c(1,2))
+plot(y)
+acf(y,main='')
+```
+
+## Prepare model specs
+
+Prepare the model specs: a regression formula (below we have no independent variables), the ARMA structure, the task to be performed (the default value of the teast argument is "evaluation" which simply evaluates the log likelihood at a given point) and an initial parameter estimate.
+
+```{r}
+# add count series to a data frame
+counts_df    = data.frame(y)
+
+# specify regression formula and ARMA order
+formula      = y ~ 0
+ARMAModel    = c(length(ARParm), length(MAParm))
+
+# specify task to be performed and initial estimate
+Task         = "Optimization"
+initialParam = c(5, 0.1)
+```
+
+## Fit the model
+
+```{r}
+fit = lgc(
+      RegModel = RegModel,
+         df    = counts_df,
+     CountDist = CountDist,
+     ARMAModel = ARMAModel,
+  initialParam = initialParam,
+          Task = Task
+)
+
+# print the summary
+summary(fit)
+```
+
+## Check residuals
+
+Plot a 2x2 diagnostics panel with a PIT histogram for the predictive distribution and three plots (qq-plot, acf, pacf) for the expected value of the latent process.
+
+```{r echo=TRUE}
+plot(fit)
+```
+
+## Interpretation
+
+The PIT plot appears close to uniform indicating satisfactory specification of the marginal distribution whereas the acf and pacf plots indicate that the data dependence has been captured adequately. This is of course expected as we have fitted the same model as the one used to generated the data. 

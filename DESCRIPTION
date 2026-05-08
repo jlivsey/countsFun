@@ -14,7 +14,9 @@ License: GPL (>= 3)
 Encoding: UTF-8
 LazyData: true
 Suggests: 
-    testthat (>= 3.0.0)
+    testthat (>= 3.0.0),
+    knitr,
+    rmarkdown
 Config/testthat/edition: 3
 Imports: 
     doParallel, itsmr, iZID, optextras, extraDistr, optimx, parallel, foreach, VGAM, MASS, truncnorm
@@ -25,3 +27,4 @@ Depends:
 References: Jia, Y., Kechagias, S., Livsey, J., Lund, R., and Pipiras, V. (2023). 
     Latent Gaussian count time series. Journal of the American Statistical Association, 
     118(541), 596–606.
+VignetteBuilder: knitr

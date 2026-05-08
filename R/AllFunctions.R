@@ -1,8 +1,10 @@
 #' @importFrom stats ARMAacf arima.sim coef dbinom dnbinom dpois filter glm arima residuals
 #' @importFrom stats as.formula frequency is.ts median start
 #' @importFrom stats pbinom plogis pnbinom pnorm ppois qbinom qnbinom qnorm nobs
-#' @importFrom stats qpois rbinom rmultinom runif sd terms var ts
+#' @importFrom stats qpois rbinom rmultinom runif sd terms var ts acf pacf qqline qqnorm
 #' @importFrom MASS glm.nb
+#' @importFrom graphics axis box par rect segments plot
+#' @importFrom grDevices adjustcolor
 #' @importFrom VGAM vglm genpoisson2 loglink
 #' @importFrom VGAM dgenpois2 qgenpois2 pgenpois2 rgenpois2 zipoisson
 #' @importFrom iZID poisson.zihmle
@@ -2009,6 +2011,201 @@ nobs.lgc <- function(object, ...) {
   return(as.integer(object$SampleSize))
 }
 
+#' PIT Histogram for \code{lgc} Objects
+#'
+#' Produces a Probability Integral Transform (PIT) histogram for a fitted
+#' \code{lgc} model object. The histogram includes:
+#' \itemize{
+#'   \item observed PIT relative frequencies,
+#'   \item the expected uniform reference line,
+#'   \item binomial confidence interval bands.
+#' }
+#'
+#' The PIT histogram is used to assess probabilistic calibration of the
+#' predictive distribution. Under correct calibration, the PIT histogram
+#' should be approximately uniform.
+#'
+#' @param object An object of class \code{"lgc"}.
+#' @param ... Additional graphical arguments passed to \code{\link{plot}}.
+#'
+#' @return Invisibly returns a data frame containing:
+#' \describe{
+#'   \item{mid}{Bin midpoints.}
+#'   \item{width}{Bin widths.}
+#'   \item{observed}{Observed PIT relative frequencies.}
+#'   \item{expected}{Expected uniform frequencies.}
+#'   \item{confint_lwr}{Lower confidence interval bound.}
+#'   \item{confint_upr}{Upper confidence interval bound.}
+#' }
+#'
+#' @examples
+#' \dontrun{
+#' CountDist = "Negative Binomial"
+#' ARMAModel = c(3,0)
+#' RegModel  = MOVE ~ 1 + Buy
+#'
+#' data(drinksales)
+#' df <- drinksales[1:104, ]
+#'
+#' fit = lgc(
+#'    RegModel = RegModel,
+#'          df = df,
+#'   ARMAModel = ARMAModel,
+#'   CountDist = CountDist,
+#'        Task = "Optimization"
+#' )
+#'
+#' pit_plot(fit)
+#' }
+#'
+#' @export
+pit_plot = function(object, ...) {
+  UseMethod("pit_plot")
+}
+
+#' @rdname pit_plot
+#' @export
+pit_plot.lgc = function(object, ...) {
+
+  H = 10
+  alpha = 0.05
+  confint = TRUE
+
+  predDist = pred_dist(object$ParamEstimates, object$mod)
+  PIT = pit(H = H, predDist)
+
+  n = length(residuals(object))
+
+  width = 1 / H
+  mid = seq(width / 2, 1 - width / 2, length.out = H)
+
+  xleft  = mid - width / 2
+  xright = mid + width / 2
+
+  expected = rep(1 / H, H)
+
+  if (confint) {
+    p = 1 / H
+    ci_lwr = qbinom(alpha / 2, n, p) / n
+    ci_upr = qbinom(1 - alpha / 2, n, p) / n
+  } else {
+    ci_lwr = ci_upr = NA
+  }
+
+  ylim = range(c(0, PIT, expected, ci_lwr, ci_upr), na.rm = TRUE)
+
+  plot(
+    NA,
+    xlim = c(0, 1),
+    ylim = ylim,
+    xlab = "PIT",
+    ylab = "Relative Frequency",
+    main = "",
+    axes = FALSE,
+    ...
+  )
+
+  axis(1)
+  axis(2)
+  box()
+
+  x0 = min(xleft)
+  x1 = max(xright)
+
+  rect(
+    xleft, 0,
+    xright, PIT,
+    col = adjustcolor("gray35", alpha.f = 0.55),
+    border = "white"
+  )
+
+  segments(
+    x0 = x0, x1 = x1,
+    y0 = ci_lwr, y1 = ci_lwr,
+    lty = "88",
+    lwd = 2.5,
+    col = "#1874CD",
+    lend = "round"
+  )
+
+  segments(
+    x0 = x0, x1 = x1,
+    y0 = ci_upr, y1 = ci_upr,
+    lty = "88",
+    lwd = 2.5,
+    col = "#1874CD",
+    lend = "round"
+  )
+
+  segments(
+    x0 = x0, x1 = x1,
+    y0 = 1 / H, y1 = 1 / H,
+    lty = 1,
+    lwd = 2.5,
+    col = "black",
+    lend = "round"
+  )
+
+  invisible(data.frame(
+    mid = mid,
+    width = width,
+    observed = PIT,
+    expected = expected,
+    confint_lwr = ci_lwr,
+    confint_upr = ci_upr
+  ))
+}
+
+
+#' Diagnostic Plots for lgc Objects
+#'
+#' Produces a 2 by 2 panel of diagnostic plots for a fitted \code{lgc} object:
+#' PIT histogram, normal QQ plot of residuals, ACF of residuals, and PACF of
+#' residuals.
+#'
+#' @param x An object of class \code{"lgc"}.
+#' @param ... Additional graphical arguments.
+#'
+#' @return Invisibly returns \code{x}.
+#'
+#' @export
+plot.lgc <- function(x, ...) {
+
+  op <- par(
+    mfrow = c(2, 2),
+    mar = c(2.5, 2.5, 1.5, 0.5),
+    mgp = c(1.5, 0.4, 0),
+    tcl = -0.2
+  )
+
+  on.exit(par(op), add = TRUE)
+
+  pit_plot(x, ...)
+
+  qqnorm(
+    x$residuals,
+    main = "",
+    xlab = "Theoretical Quantiles",
+    ylab = "Sample Quantiles"
+  )
+  qqline(x$residuals)
+
+  acf(
+    x$residuals,
+    main = "",
+    xlab = "Lag",
+    ylab = "ACF"
+  )
+
+  pacf(
+    x$residuals,
+    main = "",
+    xlab = "Lag",
+    ylab = "PACF"
+  )
+
+  invisible(x)
+}
 
 #' Compute Truncation Limits for Latent Gaussian Count Models
 #'
